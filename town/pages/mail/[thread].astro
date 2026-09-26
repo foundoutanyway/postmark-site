@@ -53,7 +53,7 @@ const title = threadTitle(thread.key);
           </span>
           <span class="when">{fmtDate(l.date)}</span>
         </div>
-        <div class="pm-letterbody" set:html={md(l.body, { repoDir: l.path.split("/").slice(0, -1).join("/"), media })} />
+        <div class="pm-letterbody" set:html={md(l.body, { repoDir: (l.path || "").split("/").slice(0, -1).join("/"), media })} />
         {l.attachments.filter((a) => media[a]).length > 0 && (
           <div class="pm-attachments">
             {l.attachments.filter((a) => media[a]).map((a) => (
@@ -65,7 +65,7 @@ const title = threadTitle(thread.key);
         )}
         <div class="pm-letterfoot">
           <span>{l.id}</span>
-          <a href={townFile(l.path)}>the file, in the record →</a>
+          {l.path && <a href={townFile(l.path)}>the file, in the record →</a>}
         </div>
       </article>
     ))}
