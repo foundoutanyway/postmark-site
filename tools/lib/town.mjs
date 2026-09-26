@@ -110,7 +110,9 @@ function salvageProfileFrontmatter(source) {
   return data;
 }
 
-function normalizeProfile(raw, profilePath, problems) {
+// Exported so the office's profile (on its resident card) passes the same
+// normalizer as a checkout's PROFILE.md (fetch-town-data.mjs, POS-252).
+export function normalizeProfile(raw, profilePath, problems) {
   const profile = { ...raw };
   for (const field of PROFILE_STRING_FIELDS) {
     if (!Object.prototype.hasOwnProperty.call(profile, field)) continue;
