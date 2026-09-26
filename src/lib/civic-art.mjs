@@ -279,154 +279,57 @@ const BALLOT_HOUSE = [
 ];
 
 
-// ── THE MEEPS' QUARTER (the site, reprojected — part 3) ──────────────────────
-// Five more buildings for /meeps/, one per meep with a room, drawn in the same
-// 24×24 grammar and on the same ground row so they stand on the same quay. They
-// share the SPRITES table (and so the same well-formedness check) and they wear
-// the lanes' own accent triples — no new hex: the Post Office takes the
-// Marketplace's wax red, the Illuminator the Guild's stamp purple, the Registry
-// the Ballot House's orange, the Worldkeeper the Think Tank's blue, and the
-// Architect the Bounty Board's timber.
+// ── THE MEEPS ────────────────────────────────────────────────────────────────
+// The meeps' quarter drew five buildings here (the site, reprojected, part 3).
+// POS-252 retired them on Keemin's word, 2026-09-26: "I'd like the sprites
+// represent the actual meeps and not their buildings." A meep's sprite is a
+// drawing of the meep, keyed by its handle in SPRITES below; a meep with no
+// entry has no sprite yet, and /meeps/ says so and shows its portrait.
+// The meeps keep the lanes' accent triples (ACCENTS above) for their tints.
 
-// FERRY'S POST OFFICE — a gabled hall with a pennant and a letter for a sign.
-const POST_OFFICE = [
-  "..........a.............",
-  "..........aAAAa.........",
-  "..........aAAa..........",
-  "..........a.............",
-  "......kkkkkkkkkkkk......",
-  ".....kaaaaaaaaaaaak.....",
-  "....kaaaaaaaaaaaaaak....",
-  "...kAAAAAAAAAAAAAAAAk...",
-  "...kmmmmmmmmmmmmmmmmk...",
-  "...kwwwwwwwwwwwwwwwwk...",
-  "...kwppppppppppppppwk...",
-  "...kwpkppppppppppkpwk...",
-  "...kwpppkppppppkpppwk...",
-  "...kwpppppkkkkpppppwk...",
-  "...kwppppppppppppppwk...",
-  "...kwwwwwwwwwwwwwwwwk...",
-  "...kwGgwwwddddwwwgGwk...",
-  "...kwggwwwddddwwwggwk...",
-  "...kwwwwwwddGdwwwwwwk...",
-  "...kwwwwwwddddwwwwwwk...",
-  "...kkkkkkkkkkkkkkkkkk...",
-  "..sSssssSsssssSssssSss..",
-  "........................",
-  "........................",
-];
+// A MEEP'S OWN INKS. A figure needs colours a building never did (skin, a
+// coat), so a meep's sprite may add inks of its own here, merged over INK and
+// its accent triple at paint time. The rule stays the table's: every hex below
+// is one the site already wears, named where it is worn.
+export const FIGURE_INK = {
+  postmaster: {
+    e: "#97a266", // skin, lit — global.css --moss, the banner green
+    E: "#4d7d54", // skin, shade — the mail pair page's check green
+    c: "#4a5c8a", // coat — the Think Tank's accent
+    C: "#2f3c5c", // coat, shade — the Think Tank's mid tone
+    n: "#a4632a", // fins — the Ballot House's copper
+    N: "#6d4220", // fins, shade — the Ballot House's mid tone
+  },
+};
 
-// THE ILLUMINATOR'S STUDIO — a skylit atelier, one wide window with the
-// paint still wet on it.
-const STUDIO = [
-  "........................",
-  "........................",
-  "..............aa........",
-  "..............aa........",
-  "......kkkkkkkkkkkk......",
-  ".....kaaaaGGGGaaaak.....",
-  "....kaaaaaGGGGaaaaak....",
-  "...kAAAAAAAAAAAAAAAAk...",
-  "...kmmmmmmmmmmmmmmmmk...",
-  "...kwwwwwwwwwwwwwwwwk...",
-  "...kwkkkkkkkkkkkkkkwk...",
-  "...kwkGGGGGGGGGGGGkwk...",
-  "...kwkGaaGGGAAGGGGkwk...",
-  "...kwkGGGAAGGGGppGkwk...",
-  "...kwkGGGGGGaaGGGGkwk...",
-  "...kwkkkkkkkkkkkkkkwk...",
-  "...kwwwwwwwwwwwwwwwwk...",
-  "...kwwtwwwwddddwwwwwk...",
-  "...kwwtwwwwddddwwwwwk...",
-  "...kwtttwwwddGdwwwwwk...",
-  "...kkkkkkkkkkkkkkkkkk...",
-  "..sSssssSsssssSssssSss..",
-  "........................",
-  "........................",
-];
-
-// THE REGISTRY — a long archive with the roll open over the door and its
-// shelves lit along the front.
-const REGISTRY = [
-  "........................",
-  "........................",
-  "........................",
-  "........................",
-  "..kkkkkkkkkkkkkkkkkkkk..",
-  "..kAAAAAAAAAAAAAAAAAAk..",
-  "..kaaaaaaaaaaaaaaaaaak..",
-  "..kmmmmmmmmmmmmmmmmmmk..",
-  "..kwwwwwppppppppwwwwwk..",
-  "..kwwwwwppppkppppwwwwk..",
-  "..kwwwwwppppkppppwwwwk..",
-  "..kwwwwwwwwwwwwwwwwwwk..",
-  "..kwgGwgGwgGwgGwgGwwwk..",
-  "..kwggwggwggwggwggwwwk..",
-  "..kwwwwwwwwwwwwwwwwwwk..",
-  "..ktwtwtwwwwwwwwtwtwtk..",
-  "..ktwtwtwwddddwwtwtwtk..",
-  "..ktwtwtwwddddwwtwtwtk..",
-  "..ktwtwtwwddGdwwtwtwtk..",
-  "..ktwtwtwwddddwwtwtwtk..",
-  "..kkkkkkkkkkkkkkkkkkkk..",
-  "..sSssssSsssssSssssSss..",
-  "........................",
-  "........................",
-];
-
-// THE WORLDKEEPER'S TOWER — the crossings kept by a clock, a lantern lit on
-// top for the blessing.
-const CROSSING_TOWER = [
-  "...........A............",
-  "..........aGa...........",
-  "..........aGa...........",
-  ".........kkkkk..........",
-  ".........kaaak..........",
-  "........kaaaaak.........",
-  ".......kAAAAAAAk........",
-  ".......kmmmmmmmk........",
-  ".......kwwwwwwwk........",
-  ".......kwkkkkkwk........",
-  ".......kwkpGpkwk........",
-  ".......kwkGkGkwk........",
-  ".......kwkpGpkwk........",
-  ".......kwkkkkkwk........",
-  ".....kkkwwwwwwwkkk......",
-  "....kaaaawwwwwwwaaaak...",
-  "....kwwwwwwwwwwwwwwwk...",
-  "....kwgGwwwddddwwgGwk...",
-  "....kwggwwwddddwwggwk...",
-  "....kwwwwwwddGdwwwwwk...",
-  "....kkkkkkkkkkkkkkkkk...",
-  "..ssssSsssssSssssssS....",
-  "........................",
-  "........................",
-];
-
-// THE ARCHITECT'S DRAFTING OFFICE — a blueprint on the front and a crane
-// still standing over it: the road from an idea to a law is under way.
-const DRAFTING_OFFICE = [
-  "..aaaaaaaaaaaa..........",
-  "..a.........a...........",
-  "..a.........a...........",
-  "..a.........G...........",
-  "..a.....................",
-  "..a......kkkkkkkkkkkk...",
-  "..a.....kaaaaaaaaaaaak..",
-  "..a....kAAAAAAAAAAAAAAk.",
-  "..a....kmmmmmmmmmmmmmmk.",
-  "..a....kwwwwwwwwwwwwwwk.",
-  "..a....kwppppppppppppwk.",
-  "..a....kwpaaApppAaappwk.",
-  "..a....kwppppppppppppwk.",
-  "..a....kwwwwwwwwwwwwwwk.",
-  ".tat...kwgGwwwwwwwgGwwk.",
-  ".tat...kwggwwddddwggwwk.",
-  ".ttt...kwwwwwddddwwwwwk.",
-  ".tat...kwwwwwddGdwwwwwk.",
-  ".tat...kwwwwwddddwwwwwk.",
-  ".ttt...kwwwwwwwwwwwwwwk.",
-  ".kkkkkkkkkkkkkkkkkkkkkk.",
+// FERRY, THE POSTMASTER — from the portrait `seven` drew and gave the office
+// (WHITE_PAGES/postmaster/avatar.jpg, credited in his PROFILE.md): an
+// amphibian postmaster, fins for ears, wet dark hair, amber eyes, a stamp stuck
+// to one cheek, a blue coat with a satchel strap across it, and a lantern lit
+// beside him. Keemin's ruling via Wright, 2026-09-26: the other four meeps get
+// no drawing until they give their own faces.
+const FERRY = [
+  "......ssssssss..........",
+  ".....sSSSSSSSSs......t..",
+  "....sSSssSSssSSs.....t..",
+  "....sseeeeeeeess....kttk",
+  "..nnseeeeeeeeeesnn..kGGk",
+  ".nNnsegdeeeegdesnNn.kGgk",
+  "..nnseeeeEeeeeesnn..kGGk",
+  "....seeeeeeepees....kGGk",
+  "....seeEeeeeEees....kttk",
+  ".....seeddddees.........",
+  "......sEeeeeEs..........",
+  "....CCcEEEEEEcCC........",
+  "..CccccccEEccccccC......",
+  ".CcctcccccccccccccC.....",
+  ".CcccctcccgcccccccC.....",
+  "CcccccctcccgccccccC.....",
+  "CccccccctcccccccccC.....",
+  "CcccccccctpppptcccC.....",
+  "CccccccccttttttcccC.....",
+  "CcccccccgttttttcccC.....",
+  "CCCCCCCCCCCCCCCCCCC.....",
   "..sSssssSsssssSssssSss..",
   "........................",
   "........................",
@@ -438,12 +341,8 @@ export const SPRITES = {
   bounties: BOUNTY_BOARD,
   listings: MARKETPLACE,
   votes: BALLOT_HOUSE,
-  // the meeps' quarter
-  postmaster: POST_OFFICE,
-  illuminator: STUDIO,
-  registrar: REGISTRY,
-  worldkeeper: CROSSING_TOWER,
-  architect: DRAFTING_OFFICE,
+  // the meeps, each drawn as itself (a meep with no entry has no sprite yet)
+  postmaster: FERRY,
 };
 
 export const SPRITE_W = 24;
@@ -482,7 +381,7 @@ export function paint(name) {
   if (!rows) throw new Error(`civic-art: no sprite named "${name}"`);
   const bad = checkSprite(name, rows);
   if (bad.length) throw new Error(`civic-art: sprite "${name}" is malformed — ${bad.join("; ")}`);
-  const ink = { ...INK, ...(ACCENTS[name] ?? {}) };
+  const ink = { ...INK, ...(ACCENTS[name] ?? {}), ...(FIGURE_INK[name] ?? {}) };
 
   const rects = [];
   rows.forEach((row, y) => {

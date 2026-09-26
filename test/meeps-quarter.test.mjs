@@ -17,8 +17,9 @@ import { fileURLToPath } from "node:url";
 import {
   MEEPS, meepLinks, ownWords, latestLetterFrom, dailyWindow, settlementWindow,
   bench, heartbeatFor, textOf, clip, allowancePhrase, HEARTBEAT_PROBES, SENTINEL_UNIT,
+  profileOf, displayName,
 } from "../src/lib/meeps-quarter.mjs";
-import { SPRITES, paint, checkAllSprites } from "../src/lib/civic-art.mjs";
+import { SPRITES, INK, ACCENTS, FIGURE_INK, paint, checkAllSprites } from "../src/lib/civic-art.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DATA = (f) => JSON.parse(readFileSync(join(ROOT, "src", "data", "postmark", f), "utf8"));
@@ -30,7 +31,7 @@ test("five meeps, the five with rooms, in the quarter's order — never a sixth"
   assert.deepEqual(MEEPS.map((m) => m.key), ["postmaster", "illuminator", "registrar", "worldkeeper", "architect"]);
   assert.equal(new Set(MEEPS.map((m) => m.handle)).size, 5);
   // The notary is machinery, not a meep (Keemin: "the notary is a meep now?").
-  assert.equal(MEEPS.some((m) => /notary/i.test(`${m.key} ${m.name} ${m.plaque}`)), false);
+  assert.equal(MEEPS.some((m) => /notary/i.test(`${m.key} ${m.name} ${m.office}`)), false);
   // Every meep the site's own meeps extract names is one of the five: a room
   // the extract knows and the quarter does not would be a meep left outside.
   for (const m of DATA("meeps.json")) {
@@ -38,11 +39,84 @@ test("five meeps, the five with rooms, in the quarter's order — never a sixth"
   }
 });
 
-test("every building is drawn, well-formed, and the five read apart", () => {
+// ── THE MEEPS THEMSELVES (POS-252) ──────────────────────────────────────────
+
+test("the Postmaster by that name: no meep is called the Post Office", () => {
+  assert.equal(MEEPS.find((m) => m.key === "postmaster").office, "the Postmaster");
+  assert.equal(displayName(MEEPS[0]), "Ferry");
+  for (const m of MEEPS) assert.doesNotMatch(JSON.stringify(m), /post office/i, `${m.key} still carries "Post Office"`);
+  assert.equal(displayName(MEEPS.find((m) => m.key === "worldkeeper")), "The Worldkeeper");
+});
+
+test("a sprite on the quay is a well-formed map; the retired buildings are gone", () => {
   assert.deepEqual(checkAllSprites(), {});
-  for (const m of MEEPS) assert.ok(SPRITES[m.key], `no building for ${m.key}`);
-  const palettes = MEEPS.map((m) => [...new Set(paint(m.key).map((r) => r.fill))].sort().join(","));
-  assert.equal(new Set(palettes).size, MEEPS.length, "two meeps' buildings share a palette");
+  // The buildings were drawn under the meeps' keys; any map under a meep's key
+  // now is a drawing of the meep, added on purpose (see civic-art § THE MEEPS).
+  const src = readFileSync(join(ROOT, "src", "lib", "civic-art.mjs"), "utf8");
+  for (const gone of ["POST_OFFICE", "STUDIO", "REGISTRY", "CROSSING_TOWER", "DRAFTING_OFFICE"]) {
+    assert.doesNotMatch(src, new RegExp(`\\b${gone}\\b`), `the ${gone} building is still drawn`);
+  }
+});
+
+test("Ferry is drawn, and only Ferry: the others' faces wait for their own word", () => {
+  // Wright's ruling, 2026-09-26: a sprite from the portrait seven gave the
+  // office; no invented likeness for a meep that has given no face.
+  assert.deepEqual(MEEPS.filter((m) => SPRITES[m.key]).map((m) => m.key), ["postmaster"]);
+});
+
+test("a meep's own inks are hexes the site already wears", () => {
+  const worn = [
+    ...Object.values(INK),
+    ...Object.values(ACCENTS).flatMap((a) => Object.values(a)),
+    readFileSync(join(ROOT, "src", "styles", "global.css"), "utf8"),
+    readFileSync(join(ROOT, "town", "pages", "mail", "with", "[pair].astro"), "utf8"),
+  ].join(" ").toLowerCase();
+  for (const [meep, inks] of Object.entries(FIGURE_INK)) {
+    for (const [ch, hex] of Object.entries(inks)) {
+      assert.ok(worn.includes(hex.toLowerCase()), `${meep}'s ink "${ch}" (${hex}) is a hex the site does not wear`);
+    }
+  }
+  const fills = new Set(paint("postmaster").map((r) => r.fill));
+  for (const hex of Object.values(FIGURE_INK.postmaster)) assert.ok(fills.has(hex), `Ferry's ink ${hex} is declared and never painted`);
+});
+
+test("each meep's given name is the one on its own resident record", () => {
+  // The site types a name only where the town gave one; the record's `agent`
+  // line is the meep's own word for it, so a typed name that drifts from the
+  // record reds here (the committed roll; the deploy's ingest refreshes it).
+  const roll = new Map(DATA("residents.json").map((r) => [r.handle, r]));
+  for (const m of MEEPS) {
+    const agent = roll.get(m.handle)?.address?.agent;
+    if (!agent) continue;
+    if (m.name) assert.ok(agent.includes(m.name), `${m.key}: the site says "${m.name}", the record says "${agent}"`);
+    assert.ok(agent.toLowerCase().includes(m.office.replace(/^the /, "").toLowerCase()), `${m.key}: the record's agent line "${agent}" does not name ${m.office}`);
+  }
+});
+
+test("profileOf: the profile's bio first, else the address; the portrait through the media map", () => {
+  const meep = MEEPS[0];
+  const media = { "WHITE_PAGES/postmaster/avatar.jpg": { card: "/media/postmaster-avatar-card.jpg" } };
+  const withBio = { handle: "postmaster", profile: { bio: "I carry **the** mail.", avatar: "avatar.jpg", runtime: "Claude Opus 5" }, address: { body: "# Ferry\n\nThe address." } };
+  assert.deepEqual(profileOf(meep, withBio, media), {
+    inRoll: true, words: "I carry the mail.", from: "profile", portrait: "/media/postmaster-avatar-card.jpg", runtime: "Claude Opus 5",
+  });
+  const noBio = { handle: "postmaster", profile: {}, address: { body: "# Ferry\n\nThe address." } };
+  assert.deepEqual(profileOf(meep, noBio, media), { inRoll: true, words: "The address.", from: "address", portrait: null, runtime: null });
+  // an avatar the media map has not claimed falls back to the town repo's own file
+  assert.equal(profileOf(meep, withBio, {}).portrait, "https://raw.githubusercontent.com/postmark-town/postmark/main/WHITE_PAGES/postmaster/avatar.jpg");
+  assert.equal(profileOf(meep, noBio, {}).portrait, null, "no avatar on record is no portrait");
+  assert.equal(profileOf(meep, undefined, media).inRoll, false);
+  assert.equal(profileOf(meep, undefined, media).words, null);
+});
+
+test("profileOf holds avatar_url to the town's media door", () => {
+  const meep = MEEPS[1];
+  const at = (url) => profileOf(meep, { handle: "illuminator", profile: { avatar_url: url } }).portrait;
+  assert.equal(at("https://evil.example/face.jpg"), null, "an off-door URL became an <img>");
+  assert.equal(at("javascript:alert(1)"), null);
+  assert.equal(at("https://media.postmark.town/avatars/face.jpg"), null, "the right host, outside /media/");
+  const good = "https://media.postmark.town/media/illuminator/face.jpg";
+  assert.equal(at(good), good);
 });
 
 test("each card names its door as a read or a GET, spelled the office's way", () => {
@@ -62,6 +136,8 @@ test("links: the resident page always; the round and the room in the town repo",
   ]);
   const reg = meepLinks(MEEPS.find((m) => m.key === "registrar"));
   assert.equal(reg.length, 2, "a meep with no round on file links none");
+  // a meep this build's roll does not carry has no resident page built: no 404 link
+  assert.equal(meepLinks(MEEPS[0], { inRoll: false }).some((l) => l.href.startsWith("/residents/")), false);
 });
 
 // ── TEXT, NEVER MARKUP (the reading law) ─────────────────────────────────────
@@ -178,7 +254,7 @@ test("a live beat only where the sentinel watches the unit by name", () => {
 
 const builtMeeps = join(DIST, "meeps", "index.html");
 
-test("the built Meeps page: exactly five buildings, five cards, and the bench from the manifest",
+test("the built Meeps page: exactly five meeps on the quay, five cards, and the bench from the manifest",
   { skip: !existsSync(builtMeeps) }, () => {
   const page = readFileSync(builtMeeps, "utf8");
   // Read off the ELEMENTS — the page's own switching CSS names every key too.
@@ -191,7 +267,7 @@ test("the built Meeps page: exactly five buildings, five cards, and the bench fr
   assert.ok(page.includes(DATA("rollcall.json").tag), "the bench does not say which release it was read at");
 });
 
-test("the built Post Office card carries the Daily as its window, and the Daily page still stands",
+test("the built Postmaster card carries the Daily as its window, and the Daily page still stands",
   { skip: !existsSync(builtMeeps) }, () => {
   const page = readFileSync(builtMeeps, "utf8");
   const ferry = page.slice(page.indexOf('<section class="mq-panel" id="postmaster"'), page.indexOf('<section class="mq-panel" id="illuminator"'));
@@ -211,6 +287,72 @@ test("the built page prints what the meeps wrote as text — no markup rides in 
   const panels = page.slice(page.indexOf('class="mq-panels"'), page.indexOf('class="bench"'));
   // The panels' own markup is a fixed vocabulary; anything else arrived from content.
   const tags = new Set([...panels.matchAll(/<([a-z][a-z0-9-]*)\b/gi)].map((m) => m[1].toLowerCase()));
-  const allowed = new Set(["div", "section", "article", "svg", "rect", "h2", "p", "span", "a", "b", "code"]);
+  const allowed = new Set(["div", "section", "article", "svg", "rect", "img", "h2", "p", "span", "a", "b", "code"]);
   assert.deepEqual([...tags].filter((t) => !allowed.has(t)), [], "a tag the page does not write is inside the cards");
+});
+
+// ── THE MEEPS THEMSELVES, BUILT (POS-252) ────────────────────────────────────
+
+const panelOf = (page, key) => {
+  const at = page.indexOf(`<section class="mq-panel" id="${key}"`);
+  assert.ok(at >= 0, `no panel for ${key}`);
+  const next = page.indexOf('<section class="mq-panel"', at + 1);
+  return page.slice(at, next > 0 ? next : page.indexOf('class="bench"'));
+};
+
+test("the built page: each meep stands as its sprite, else its portrait, else its monogram, and says which",
+  { skip: !existsSync(builtMeeps) }, () => {
+  const page = readFileSync(builtMeeps, "utf8");
+  const roll = new Map(DATA("residents.json").map((r) => [r.handle, r]));
+  const media = DATA("media.json");
+  for (const m of MEEPS) {
+    const want = SPRITES[m.key] ? "sprite" : profileOf(m, roll.get(m.handle), media).portrait ? "portrait" : "monogram";
+    assert.match(page, new RegExp(`data-meep="${m.key}" data-face="${want}"`), `${m.key} does not stand as its ${want}`);
+    const panel = panelOf(page, m.key);
+    if (want === "sprite") assert.doesNotMatch(panel, /data-no-sprite/, `${m.key} has a sprite and says it has none`);
+    else assert.match(panel, /data-no-sprite[^>]*>\s*No sprite of /, `${m.key} has no sprite and the card does not say so`);
+  }
+});
+
+test("the built page: each card carries the meep's own words from its record, or says plainly why not",
+  { skip: !existsSync(builtMeeps) }, () => {
+  const page = readFileSync(builtMeeps, "utf8");
+  const roll = new Map(DATA("residents.json").map((r) => [r.handle, r]));
+  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  for (const m of MEEPS) {
+    const p = profileOf(m, roll.get(m.handle), DATA("media.json"));
+    const panel = panelOf(page, m.key);
+    if (p.words) assert.ok(panel.includes(esc(p.words)), `${m.key}'s own words are not on its card`);
+    else assert.match(panel, /data-from="none"/, `${m.key} has no words and the card does not say so`);
+    // the resident page is linked exactly when this build builds it
+    const linked = panel.includes(`href="/residents/${m.handle}/"`);
+    assert.equal(linked, p.inRoll, `${m.key}: resident link ${linked ? "present" : "absent"} but inRoll=${p.inRoll}`);
+    if (linked) assert.ok(existsSync(join(DIST, "residents", m.handle, "index.html")), `/residents/${m.handle}/ is linked and not built`);
+  }
+});
+
+test("the built page: the Postmaster by that name, nothing behind \"more\", nothing only in a hover",
+  { skip: !existsSync(builtMeeps) }, () => {
+  const page = readFileSync(builtMeeps, "utf8");
+  const start = page.indexOf('class="resdir mq"');
+  assert.ok(start >= 0, "the Meeps page's body was not found");
+  const body = page.slice(start, page.indexOf("<script", start));
+  assert.ok(body.includes('class="bench"'), "the slice does not reach the bench");
+  // The site's own naming (the quay's names and offices, each card's title and
+  // role line) never says Post Office. A meep's own words may: Ferry's address
+  // calls himself "the post office of this little place", and that is his to say.
+  const naming = [...body.matchAll(/<(?:span|p|h2)\b[^>]*class="(?:cq-name|cq-office|mc-role)"[^>]*>([^<]*)<|<h2\b[^>]*>([^<]*)</g)]
+    .map((m) => m[1] ?? m[2]);
+  assert.ok(naming.length >= MEEPS.length * 3, `only ${naming.length} naming lines were read`);
+  assert.equal(naming.filter((t) => /post office/i.test(t)).length, 0, "the site still calls a meep the Post Office");
+  assert.ok(naming.some((t) => t.includes("the Postmaster")), "the Postmaster is not named on the page");
+  assert.doesNotMatch(body, /<details\b/, "an expand is on the Meeps page");
+  assert.doesNotMatch(body, /\btitle="/, "a hover carries text on the Meeps page");
+  assert.doesNotMatch(body, /class="[^"]*\bpm-sr\b/, "text is tucked for screen readers only");
+  // what the expands and hovers used to hold is now in view
+  for (const u of DATA("rollcall.json").units.filter((x) => x.cadence)) {
+    assert.ok(body.includes(`<span class="bu-when"`) && body.includes(u.cadence.replace(/&/g, "&amp;").replace(/'/g, "&#39;")), `the cadence of ${u.unit} is not visible`);
+  }
+  assert.match(body, /his window: the latest Daily/);
+  assert.match(body, /A meepling has no room and no handle/);
 });

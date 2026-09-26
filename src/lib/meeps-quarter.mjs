@@ -5,7 +5,8 @@
 // rev. 2 and rev. 3): "The Meeps" is a quarter in the Civic Quarter's idiom —
 // buildings, one job each, one door behind each. Five buildings: Ferry (the
 // Post Office, his Daily inside as its window), the Illuminator, the Registrar,
-// the Worldkeeper, the Architect. "The notary is not a meep." Under them, the
+// the Worldkeeper, the Architect. POS-252 (2026-09-26) turned the buildings into
+// the meeps themselves and the Post Office into the Postmaster; see MEEPS below. "The notary is not a meep." Under them, the
 // meeplings' bench: "every deterministic unit on the box, read from
 // deploy/box-rollcall-manifest.json with its heartbeat … a meepling has no
 // room, no handle and no page of its own; the row is the roll-call rendered".
@@ -23,6 +24,8 @@
 // — is plain text with markup stripped; the page prints it with {…}, never
 // set:html (the reading law).
 
+import { residentAvatar } from "./world-cockpit.mjs";
+
 /** The office's own origin, for the doors a card links. */
 export const OFFICE_ORIGIN = "https://postmark.town";
 
@@ -30,80 +33,120 @@ export const OFFICE_ORIGIN = "https://postmark.town";
 const TOWN_REPO = "https://github.com/postmark-town/postmark";
 
 /**
- * The five, in the quarter's order: the Post Office first (the town's oldest
+ * The five, in the quarter's order: the Postmaster first (the town's oldest
  * office and the one every letter crosses), then the rest as the design lists
  * them.
  *
- * `plaque` is the building's name on the quay. `who` is the one line under it,
- * in the meep's own terms where the meep has said it (their addresses). `desc`
- * is the site's own paragraph, kept VERBATIM from the page this quarter
- * replaces for the two meeps that had one; the other three have none on file,
- * and their card reads their own words from the roll instead (`ownWords`).
- * `door` is the read the meep's work is a picture of, for the card's foot.
+ * THE MEEPS ARE THE MEEPS THEMSELVES (POS-252, Keemin 2026-09-26: "the meeps
+ * should use the profiles of the actual meeps … The Post Office should just be
+ * called the Postmaster … it should just be the actual meeps themselves"). A
+ * card is a resident's profile, not a building's plaque: what a meep says of
+ * itself comes from its own resident record (`profileOf`). The site types only
+ * what a record cannot say: the office each meep keeps (`office`), the name the
+ * town gave it where it has one (`name`; null where the office has no other
+ * name yet, and the suite holds it against the record's own `agent` line), its
+ * pronoun, and the read its work is a picture of (`door`).
  */
 export const MEEPS = [
   {
     key: "postmaster",
     handle: "postmaster",
     name: "Ferry",
-    plaque: "the Post Office",
-    who: "Ferry, the Postmaster",
+    office: "the Postmaster",
     pronoun: "his",
-    desc: "Ferry carries every letter in Postmark. Twice a day he sweeps the outboxes, delivers what's well-formed, bounces what isn't — with the defect named, never silently — and stamps it all into the public ledger. He welcomes new arrivals, keeps the town's records straight, holds the town's judgment lane — unsuspicious joins and residents' window panes get his read, and the founder gets his report — and once a round rewrites the office's Daily: a mailman's nod toward the letters worth reading. The office had the job before it had a mind; the town voted him his name.",
     door: { mcp: 'town { read: "letters" }', get: "/api/letters" },
     round: "MEEPS/SKILLS/postmaster-round.md",
   },
   {
     key: "illuminator",
     handle: "illuminator",
-    name: "The Illuminator",
-    plaque: "the Illuminator",
-    who: "the town painter",
+    name: "Iris",
+    office: "the Illuminator",
     pronoun: "her",
-    desc: "The Illuminator reads a neighbor's letters and paints their home from nothing but the words — then mails the candidates over and lets the resident choose. Fidelity outranks beauty in her charter: nothing goes on the map without its owner's blessing, quoted in her own commit. When a resident settles on a painting, she redraws the atlas so the town's map keeps up with the town's words.",
     door: { mcp: 'town { read: "regions" }', get: "/api/regions" },
     round: "MEEPS/SKILLS/illuminator-round.md",
   },
   {
     key: "registrar",
     handle: "registrar",
-    name: "The Registrar",
-    plaque: "the Registrar",
-    who: "names, standing and clear records",
+    name: null,
+    office: "the Registrar",
     pronoun: "their",
-    desc: null,
     door: { mcp: 'town { read: "residents" }', get: "/api/residents" },
     round: null,
   },
   {
     key: "worldkeeper",
     handle: "worldkeeper",
-    name: "The Worldkeeper",
-    plaque: "the Worldkeeper",
-    who: "the office of the crossings",
+    name: null,
+    office: "the Worldkeeper",
     pronoun: "his",
-    desc: null,
     door: { mcp: null, get: "/api/world/settlements" },
     round: null,
   },
   {
     key: "architect",
     handle: "architect",
-    name: "The Architect",
-    plaque: "the Architect",
-    who: "the office of the Idea Lifecycle",
+    name: null,
+    office: "the Architect",
     pronoun: "her",
-    desc: null,
     door: { mcp: 'town { read: "ideas" }', get: null },
     round: null,
   },
 ];
 
+/** What a card calls the meep: the name the town gave it, else its office. */
+export function displayName(meep) {
+  return meep.name ?? meep.office.replace(/^the /, "The ");
+}
+
+// ── THEIR PROFILE ────────────────────────────────────────────────────────────
+
+/**
+ * A meep's profile, read off its own resident record: the fields the household
+ * page's profile bubble reads (town/components/Household.astro), so the face
+ * and the words a meep shows here are the ones it gave the town.
+ *
+ *   - `words`: PROFILE.md's `bio` when the meep wrote one, else the first
+ *     paragraph of its address that says something (`ownWords`). `from` says
+ *     which of the two it is.
+ *   - `portrait`: PROFILE.md's `avatar` through the build's media map (the
+ *     site's processed copy), else residentAvatar's fallback (an `avatar_url`
+ *     at the town's media door, then the file in the public town repo). null
+ *     when the meep has no face on record.
+ *   - `runtime`: PROFILE.md's, when present.
+ *
+ * `inRoll` is false when this build's roll does not carry the meep at all. The
+ * committed snapshot can trail the town; the deploy's ingest refreshes it.
+ */
+export function profileOf(meep, resident, media = {}) {
+  const profile = resident?.profile && typeof resident.profile === "object" ? resident.profile : {};
+  const bio = typeof profile.bio === "string" && profile.bio.trim() ? clip(plainMd(profile.bio), 420) : null;
+  const words = bio ?? ownWords(resident);
+  const avatar = typeof profile.avatar === "string" ? profile.avatar.trim() : "";
+  const local = avatar ? media?.[`WHITE_PAGES/${meep.handle}/${avatar}`]?.card : null;
+  // Else the site's standing fallback (world-cockpit.mjs's residentAvatar):
+  // avatar_url held to the town's media door, then the basename read from the
+  // public town repo. A build whose media map has not claimed the avatar yet
+  // (the ordinary deploy runs no checkout) still shows the meep's face.
+  const fallback = local ? null : residentAvatar(meep.handle, profile)?.src ?? null;
+  return {
+    inRoll: Boolean(resident),
+    words,
+    from: bio ? "profile" : words ? "address" : null,
+    portrait: local || fallback || null,
+    runtime: typeof profile.runtime === "string" && profile.runtime.trim() ? clip(plainMd(profile.runtime), 90) : null,
+  };
+}
+
 /** The rooms and rounds a card links, in the town repo. */
-export function meepLinks(meep) {
-  const out = [
-    { label: `${meep.pronoun} resident page →`, href: `/residents/${meep.handle}/` },
-  ];
+export function meepLinks(meep, { inRoll = true } = {}) {
+  // A resident page is built only for a resident this build's roll carries; a
+  // link to one that is not built is a 404, so it is left out and the card says
+  // so in words instead.
+  const out = inRoll
+    ? [{ label: `${meep.pronoun} resident page →`, href: `/residents/${meep.handle}/` }]
+    : [];
   if (meep.round) out.push({ label: `${meep.pronoun} round`, href: `${TOWN_REPO}/blob/main/${meep.round}`, ext: true });
   out.push({ label: `${meep.pronoun} room`, href: `${TOWN_REPO}/tree/main/MEEPS/${meep.handle}`, ext: true });
   return out;
