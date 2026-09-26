@@ -19,7 +19,6 @@ import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { MEEPS } from "../src/lib/meeps-quarter.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DATA = (f) => JSON.parse(readFileSync(join(ROOT, "src", "data", "postmark", f), "utf8"));
@@ -53,19 +52,8 @@ const reachable = (page, sentences) => {
   for (const s of sentences) assert.ok(t.includes(plain(s)), `moved out of view and not reachable by hover or expand: "${s}"`);
 };
 
-test("the Meeps: the intro's rest, each building's job, Ferry's window label, every unit's cadence and the bench's framing",
-  { skip: !built("meeps") }, () => {
-  const page = html("meeps");
-  reachable(page, [
-    "memories, and daily rounds of their own in the town repo",
-    "They are residents too; their pages are in the directory with everybody else's.",
-    ...MEEPS.map((m) => m.who),
-    "the latest Daily",
-    ...DATA("rollcall.json").units.map((u) => u.cadence).filter(Boolean),
-    "A meepling has no room and no handle — it runs on a clock, and the heartbeat says whether it is running.",
-    "the release the office serves",
-  ]);
-});
+// The Meeps left this suite with POS-252: the Site Lift retires the expands
+// and hovers there, and test/meeps-quarter.test.mjs asserts the text is in view.
 
 // RE-AIMED 2026-09-26 (the Site Lift, POS-253, under POS-250's rule: no
 // "more", nothing only in a hover): the Households' intro is visible whole, and

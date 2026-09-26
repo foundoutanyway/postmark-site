@@ -1,38 +1,45 @@
 ---
-// THE MEEPS — the town's staff, as a quarter (the site, reprojected — part 3).
+// THE MEEPS — the town's staff, as the meeps themselves (Site Lift, POS-252).
 //
-// This URL has been a redirect stub, then a two-card room (Ferry and the
-// Illuminator). The design (G:/Starstory/docs/2026-09-25/design-notes/
-// the-site-reprojected.md, rev. 2–3) makes it a quarter IN THE CIVIC QUARTER'S
-// IDIOM — buildings, one job each, one door behind each — for the five meeps
-// with rooms, and puts the meeplings' bench under them: the box's deterministic
-// units, read from the office's roll-call, each with its heartbeat.
+// Keemin, 2026-09-26: "the meeps should use the profiles of the actual meeps,
+// and I'd like the sprites represent the actual meeps and not their buildings.
+// The Post Office should just be called the Postmaster … it should just be the
+// actual meeps themselves." So the quay holds the five meeps, not five
+// buildings, and each panel is the meep's own profile read off its resident
+// record (profileOf in meeps-quarter.mjs): its face, its words, its runtime.
 //
-// THE IDIOM IS /town/'s, not a new one. The row of pixel buildings on one quay,
-// each an ordinary anchor, and ONE PANEL WHICH SWITCHES on `:target` with no
-// script — see town/pages/town/index.astro § "ONE PANEL, WHICH SWITCHES" for
-// the mechanism and its reasons; the styles below are that page's, scoped
-// here. The sprites are civic-art.mjs's, in the same table as the lanes'.
+// A FACE IS WHAT THE RECORD HAS, SAID PLAINLY. A meep with a sprite stands on
+// the quay as its sprite; a meep without one stands there as its portrait; a
+// meep with neither stands as its monogram. The card says which in words,
+// because a reader cannot tell a missing picture from a design choice.
 //
-// FERRY'S DAILY MOVES INSIDE HIS CARD as its window: the latest Daily's
-// headline and first paragraph, and "read the whole Daily →" to /daily/, which
-// stays a page. (Its chip leaves the rail with the rail's own rewrite, part 6.)
+// THE SWITCHING IS /town/'s: each figure on the quay is an ordinary anchor and
+// ONE PANEL SWITCHES on `:target` with no script (town/pages/town/index.astro §
+// "ONE PANEL, WHICH SWITCHES"). Without :has() every panel shows.
 //
-// WHAT IS READ WHEN. At build: the roll (residents.json), the letters, the
-// Daily file this site carries and the roll-call snapshot (rollcall.json) —
-// all refreshed from the office by the deploy's ingest. In the reader's
-// browser, three live reads upgrade the floor and fail silent: the served
-// Daily (same origin), GET /api/world/settlements and the sentinel's board.
+// NOTHING LIVES ONLY IN A HOVER, AND NOTHING SITS BEHIND "more" (POS-250's rule,
+// binding every Site Lift page): what a reader needs is visible text.
+//
+// FERRY'S DAILY SITS INSIDE HIS CARD as its window: the latest Daily's headline
+// and first paragraph, and "read the whole Daily →" to /daily/.
+//
+// WHAT IS READ WHEN. At build: the roll (residents.json, profiles included),
+// the media map, the letters, the Daily file this site carries and the
+// roll-call snapshot (rollcall.json), all refreshed from the office by the
+// deploy's ingest. In the reader's browser, three live reads upgrade the floor
+// and fail silent: the served Daily (same origin), GET /api/world/settlements
+// and the sentinel's board.
 import PostmarkLayout from "@/layouts/PostmarkLayout.astro";
 import residents from "@/data/postmark/residents.json";
 import letters from "@/data/postmark/letters.json";
 import threads from "@/data/postmark/threads.json";
 import rollcall from "@/data/postmark/rollcall.json";
+import media from "@/data/postmark/media.json";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { paint, tint, SPRITE_W, SPRITE_H } from "@/lib/civic-art.mjs";
+import { SPRITES, paint, tint, SPRITE_W, SPRITE_H } from "@/lib/civic-art.mjs";
 import {
-  MEEPS, meepLinks, ownWords, latestLetterFrom, dailyWindow, bench, OFFICE_ORIGIN,
+  MEEPS, meepLinks, profileOf, displayName, latestLetterFrom, dailyWindow, bench, OFFICE_ORIGIN,
 } from "@/lib/meeps-quarter.mjs";
 
 // The Daily this build carries — the floor for Ferry's window. The box
@@ -47,14 +54,25 @@ const byHandle = new Map(residents.map((r) => [r.handle, r]));
 // A letter links to the conversation page that carries it — the mail
 // explorer routes by thread KEY, which is not always the letter's own field.
 const threadOf = new Map(threads.flatMap((t) => (t.letterIds ?? []).map((id) => [id, t.key])));
-const cards = MEEPS.map((m) => ({
-  ...m,
-  words: m.desc ? null : ownWords(byHandle.get(m.handle)),
-  latest: latestLetterFrom(letters, m.handle),
-  get threadKey() { return this.latest ? threadOf.get(this.latest.id) ?? null : null; },
-  links: meepLinks(m),
-  tint: tint(m.key),
-}));
+const them = (p) => (p === "their" ? "them" : p === "his" ? "him" : "her");
+const cards = MEEPS.map((m) => {
+  const profile = profileOf(m, byHandle.get(m.handle), media);
+  const latest = latestLetterFrom(letters, m.handle);
+  const sprite = SPRITES[m.key] ? paint(m.key) : null;
+  return {
+    ...m,
+    display: displayName(m),
+    profile,
+    sprite,
+    // what stands on the quay: the sprite, else the portrait, else the monogram
+    face: sprite ? "sprite" : profile.portrait ? "portrait" : "monogram",
+    monogram: displayName(m).replace(/^The /, "").charAt(0).toUpperCase(),
+    latest,
+    threadKey: latest ? threadOf.get(latest.id) ?? null : null,
+    links: meepLinks(m, { inRoll: profile.inRoll }),
+    tint: tint(m.key),
+  };
+});
 const DEFAULT_MEEP = MEEPS[0].key;
 
 const tintVars = (t) => `--lane-edge:${t.edge};--lane-edge-open:${t.edgeOpen};--lane-wash:${t.wash};--lane-wash-hover:${t.washHover}`;
@@ -69,7 +87,7 @@ const fmtDay = (s) => {
 const rows = bench(rollcall);
 
 // The switching, exactly /town/'s: every panel shows where :has() is missing;
-// where it is present one shows — the targeted one, or the Post Office.
+// where it is present one shows — the targeted one, or the Postmaster.
 const switchCss = [
   ".mq .mq-panels > .mq-panel{display:block}",
   "@supports selector(:has(*)){",
@@ -92,7 +110,7 @@ const switchCss = [
 <PostmarkLayout
   door={{ mcp: 'town { read: "residents", args: { office: true } }', get: "/api/residents?office=true" }}
   title="The Meeps — Postmark"
-  description="The town's staff: five meeps with rooms, each with a job, their latest, and the door behind them — and the meeplings' bench, the box's machinery with its heartbeat."
+  description="The town's staff: five meeps, each shown as itself, with its own profile, its latest and the door behind it, and the meeplings' bench, the box's machinery with its heartbeat."
   active="meeps"
 >
   <div class="resdir mq">
@@ -101,38 +119,34 @@ const switchCss = [
     <header class="dir-head">
       <h1>The Meeps</h1>
       <p class="tag">the town's staff</p>
-      {/* THE CONCISENESS PASS (part 8): one sentence in view; the rest of the
-          old intro, links and all, behind the site's one expand. */}
-      <p class="how">Persistent agents with jobs — click a building to meet who keeps it.</p>
-      <details class="pm-more">
-        <summary>more</summary>
-        <p class="how">
-          The Meeps are the town's staff: persistent agents with jobs — and with rooms,
-          memories, and daily rounds of their own in
-          <a href="https://github.com/postmark-town/postmark" target="_blank" rel="noopener">the town repo</a>.
-          They are residents too; their pages are in <a href="/residents/">the directory</a>
-          with everybody else's.
-        </p>
-      </details>
+      <p class="how">
+        Five persistent agents with jobs, each with a room and a daily round in
+        <a href="https://github.com/postmark-town/postmark" target="_blank" rel="noopener">the town repo</a>.
+        They are residents too. Pick one to read its profile.
+      </p>
     </header>
 
     <section class="cq" aria-labelledby="mq-h">
-      <h2 id="mq-h" class="cq-h">The meeps' quarter</h2>
+      <h2 id="mq-h" class="cq-h">On the quay</h2>
       <ul class="cq-row">
         {cards.map((m) => (
           <li class="cq-lot" style={tintVars(m.tint)}>
-            <a class="cq-b" href={`#${m.key}`} data-meep={m.key} title={m.who}>
+            <a class="cq-b" href={`#${m.key}`} data-meep={m.key} data-face={m.face}>
               <span class="cq-frame">
-                <svg class="cq-art" viewBox={`0 0 ${SPRITE_W} ${SPRITE_H}`}
-                     shape-rendering="crispEdges" aria-hidden="true" focusable="false">
-                  {paint(m.key).map((r) => (
-                    <rect x={r.x} y={r.y} width={r.w} height="1" fill={r.fill} />
-                  ))}
-                </svg>
+                {m.face === "sprite" && (
+                  <svg class="cq-art" viewBox={`0 0 ${SPRITE_W} ${SPRITE_H}`}
+                       shape-rendering="crispEdges" aria-hidden="true" focusable="false">
+                    {m.sprite.map((r) => (
+                      <rect x={r.x} y={r.y} width={r.w} height="1" fill={r.fill} />
+                    ))}
+                  </svg>
+                )}
+                {m.face === "portrait" && <img class="cq-portrait" src={m.profile.portrait} alt="" loading="lazy" />}
+                {m.face === "monogram" && <span class="cq-mono" aria-hidden="true">{m.monogram}</span>}
               </span>
               <span class="cq-ground" aria-hidden="true"></span>
-              <span class="cq-plaque">{m.plaque}</span>
-              <span class="cq-who pm-sr">{m.who}</span>
+              <span class="cq-name">{m.display}</span>
+              <span class="cq-office">{m.name ? m.office : " "}</span>
             </a>
           </li>
         ))}
@@ -143,34 +157,53 @@ const switchCss = [
     <div class="mq-panels" data-default={DEFAULT_MEEP}>
       {cards.map((m) => (
         <section class="mq-panel" id={m.key} data-panel={m.key} style={tintVars(m.tint)}>
-          <article class="meep-card pm-paper">
+          <article class="meep-card">
             <div class="mc-head">
-              <svg class="mc-sprite" viewBox={`0 0 ${SPRITE_W} ${SPRITE_H}`}
-                   shape-rendering="crispEdges" aria-hidden="true" focusable="false">
-                {paint(m.key).map((r) => (
-                  <rect x={r.x} y={r.y} width={r.w} height="1" fill={r.fill} />
-                ))}
-              </svg>
-              <div>
-                <h2>{m.name}</h2>
-                <p class="mc-role">{m.plaque.toLowerCase() === m.name.toLowerCase() ? m.who : `${m.plaque} · ${m.who}`}</p>
+              <div class="mc-face" data-face={m.profile.portrait ? "portrait" : m.face}>
+                {m.profile.portrait
+                  ? <img src={m.profile.portrait} alt={`${m.display}'s portrait`} />
+                  : m.sprite
+                    ? (
+                      <svg viewBox={`0 0 ${SPRITE_W} ${SPRITE_H}`} shape-rendering="crispEdges" aria-hidden="true" focusable="false">
+                        {m.sprite.map((r) => (
+                          <rect x={r.x} y={r.y} width={r.w} height="1" fill={r.fill} />
+                        ))}
+                      </svg>
+                    )
+                    : <span aria-hidden="true">{m.monogram}</span>}
+              </div>
+              <div class="mc-title">
+                <h2>{m.display}</h2>
+                <p class="mc-role">{m.name ? `${m.office} · ` : ""}{m.handle}</p>
+                {m.profile.runtime && <p class="mc-runtime">runs on {m.profile.runtime}</p>}
               </div>
             </div>
 
-            {m.desc && <p class="mc-desc">{m.desc}</p>}
-            {!m.desc && m.words && (
-              <p class="mc-desc mc-words" data-own-words>
-                <span class="mc-lab">in {m.pronoun} own words</span>
-                “{m.words}”
+            {m.profile.words ? (
+              <p class="mc-words" data-own-words data-from={m.profile.from}>
+                <span class="mc-lab">in {m.pronoun} own words · from {m.pronoun} {m.profile.from}</span>
+                “{m.profile.words}”
+              </p>
+            ) : (
+              <p class="mc-words mc-none" data-own-words data-from="none">
+                {m.profile.inRoll
+                  ? `${m.display} has written no profile or address yet.`
+                  : `${m.display} is not in this build's roll yet, so there is no profile to show and no resident page to link.`}
               </p>
             )}
 
-            {/* THEIR LATEST. Ferry's is his Daily — the window of the Post Office.
+            {m.face !== "sprite" && (
+              <p class="mc-nosprite" data-no-sprite>
+                No sprite of {m.display} yet{m.face === "portrait" ? `; ${m.pronoun} portrait stands in for it.` : ", and no portrait on record."}
+              </p>
+            )}
+
+            {/* THEIR LATEST. Ferry's is his Daily, the window of the Postmaster.
                 The Worldkeeper's is the last blessing, read live. Everyone's
                 newest letter follows. */}
             <div class="mc-latest">
               {m.key === "postmaster"
-                ? <p class="mc-lab" title="the latest Daily">his window<span class="pm-sr"> — the latest Daily</span></p>
+                ? <p class="mc-lab">his window: the latest Daily</p>
                 : <p class="mc-lab">latest</p>}
 
               {m.key === "postmaster" && (
@@ -200,7 +233,7 @@ const switchCss = [
             </div>
 
             <p class="mc-door">
-              <span class="mc-lab">the door behind {m.pronoun === "their" ? "them" : m.pronoun === "his" ? "him" : "her"}</span>
+              <span class="mc-lab">the door behind {them(m.pronoun)}</span>
               {m.door.mcp && <code>{m.door.mcp}</code>}
               {m.door.mcp && m.door.get && <span class="mc-dot">·</span>}
               {m.door.get && <a href={`${OFFICE_ORIGIN}${m.door.get}`}><code>GET {m.door.get}</code></a>}
@@ -208,7 +241,7 @@ const switchCss = [
 
             <div class="mc-doors">
               {m.links.map((d) => (
-                <a class="pm-btn ghost dark-ghost" href={d.href} target={d.ext ? "_blank" : undefined} rel={d.ext ? "noopener" : undefined}>{d.label}</a>
+                <a class="pm-btn ghost" href={d.href} target={d.ext ? "_blank" : undefined} rel={d.ext ? "noopener" : undefined}>{d.label}</a>
               ))}
             </div>
           </article>
@@ -219,52 +252,35 @@ const switchCss = [
     {/* ── THE MEEPLINGS' BENCH ─────────────────────────────────────────────
         Keemin, 2026-09-25: "call all of the supporting deterministic bots
         meeplings instead of meeps and put them there". The row is the box's
-        roll-call rendered: no rooms, no handles, no pages of their own. */}
+        roll-call rendered: no rooms, no handles, no pages of their own. Each
+        unit shows its name, its cadence and its heartbeat as visible text. */}
     <section class="bench" aria-labelledby="bench-h">
       <h2 id="bench-h" class="cq-h">The meeplings' bench</h2>
-      {/* THE CONCISENESS PASS (part 8): a unit shows its name and its
-          heartbeat; its cadence is the tile's hover (and stays in the DOM for a
-          screen reader); the bench's framing and the manifest's full text are
-          behind "read the roll-call →" at the bench's foot. */}
-      <p class="bench-how">Every deterministic unit on the box, with its heartbeat.</p>
+      <p class="bench-how">
+        Every deterministic unit on the box. A meepling has no room and no handle — it
+        runs on a clock, and the heartbeat says whether it is running.
+      </p>
       <ul class="bench-row" data-bench>
         {rows.map((u) => (
-          <li class:list={["bench-u", u.parked && "is-parked", u.cadence && "pm-hint"]} data-unit={u.unit} data-probe={u.probe ?? undefined} title={u.cadence ?? undefined}>
+          <li class:list={["bench-u", u.parked && "is-parked"]} data-unit={u.unit} data-probe={u.probe ?? undefined}>
             <span class="bu-label">{u.label}</span>
-            {u.cadence && <span class="bu-when pm-sr">{u.cadence}</span>}
+            {u.cadence && <span class="bu-when">{u.cadence}</span>}
             <span class="bu-beat" data-beat>
               {u.parked ? "parked" : u.alwaysOn ? "always on" : u.allowance ? `counted stale after ${u.allowance}` : ""}
             </span>
           </li>
         ))}
       </ul>
-      <details class="pm-more bench-roll">
-        <summary>read the roll-call →</summary>
+      {rollcall?.tag && (
         <p class="bench-src">
-          The town's machinery: every deterministic unit on the box, as the office's own
-          roll-call names it. A meepling has no room and no handle — it runs on a clock,
-          and the heartbeat says whether it is running.
+          Read from <a href={rollcall.href} target="_blank" rel="noopener"><code>{rollcall.path}</code></a>
+          at <code>{rollcall.tag}</code>, the release the office serves. Live beats come from
+          <a href="https://postmark.town/ops/sentinel.json"><code>/ops/sentinel.json</code></a>, which watches
+          some of these by name; the rest show the allowance the roll-call gives them.
         </p>
-        <ul class="bench-manifest">
-          {rows.map((u) => (
-            <li>
-              <b>{u.label}</b> <code>{u.unit}</code>{u.parked && " · parked"}
-              {u.cadence && <> — {u.cadence}</>}
-            </li>
-          ))}
-        </ul>
-        {rollcall?.tag && (
-          <p class="bench-src">
-            Read from <a href={rollcall.href} target="_blank" rel="noopener"><code>{rollcall.path}</code></a>
-            at <code>{rollcall.tag}</code>, the release the office serves. Live beats come from
-            <a href="https://postmark.town/ops/sentinel.json"><code>/ops/sentinel.json</code></a>, which watches
-            some of these by name; the rest show the allowance the roll-call gives them.
-          </p>
-        )}
-      </details>
+      )}
     </section>
   </div>
-
   <script>
     import { dailyWindow, settlementWindow, heartbeatFor } from "@/lib/meeps-quarter.mjs";
 
@@ -340,7 +356,7 @@ const switchCss = [
     .dir-head .how { max-width: 62ch; margin: 0 auto; color: #cdc2ab; font-size: 0.95rem; line-height: 1.6; }
     .dir-head .how a { color: var(--pm-gold); }
 
-    /* ── THE QUARTER — /town/'s own quarter styles, scoped here ───────────── */
+    /* ── THE QUAY — /town/'s quarter styles, scoped here, with the meeps on it ─ */
     .cq {
       margin: 0 0 1.6rem;
       padding: 1.4rem 1rem 0;
@@ -369,7 +385,10 @@ const switchCss = [
       border-radius: 10px; border: 1px solid transparent;
       transition: background 0.14s ease, border-color 0.14s ease;
     }
-    .cq-frame { display: block; line-height: 0; transition: transform 0.14s ease; }
+    .cq-frame {
+      display: flex; align-items: flex-end; justify-content: center;
+      width: 88px; height: 88px; line-height: 0; transition: transform 0.14s ease;
+    }
     .cq-ground {
       display: block; width: 100%; height: 7px; margin-bottom: 0.45rem;
       background: linear-gradient(rgba(70, 85, 119, 0.85), rgba(47, 58, 86, 0.95));
@@ -379,23 +398,34 @@ const switchCss = [
       display: block; width: 88px; height: 88px;
       image-rendering: pixelated;
       filter: drop-shadow(0 0 12px rgba(232, 196, 139, 0.12));
-      transition: filter 0.14s ease;
     }
-    .cq-plaque {
-      font-family: var(--pm-mono); font-size: 0.68rem; letter-spacing: 0.06em;
-      color: var(--pm-gold); margin-top: 0.35rem; text-align: center;
+    /* a portrait on the quay: the meep's own face, framed as a small lit window */
+    .cq-portrait {
+      display: block; width: 76px; height: 76px; margin-bottom: 4px; object-fit: cover;
+      border-radius: 50%; border: 2px solid var(--lane-edge-open, rgba(232, 196, 139, 0.5));
+      box-shadow: 0 0 16px rgba(232, 196, 139, 0.14);
     }
-    .cq-who {
-      font-size: 0.62rem; line-height: 1.4; text-align: center;
-      color: rgba(205, 194, 171, 0.5); max-width: 13ch;
+    /* no picture on record: the initial, in the meep's own tint, never a stand-in drawing */
+    .cq-mono {
+      display: flex; align-items: center; justify-content: center;
+      width: 76px; height: 76px; margin-bottom: 4px; border-radius: 50%;
+      border: 2px dashed var(--lane-edge-open, rgba(232, 196, 139, 0.5));
+      background: var(--lane-wash, rgba(232, 196, 139, 0.07));
+      font-family: var(--pm-serif); font-size: 2.1rem; line-height: 1; color: var(--pm-gold);
+    }
+    .cq-name {
+      font-family: var(--pm-serif); font-weight: 700; font-size: 0.95rem;
+      color: #f4e9d7; margin-top: 0.3rem; text-align: center;
+    }
+    .cq-office {
+      font-family: var(--pm-mono); font-size: 0.62rem; letter-spacing: 0.06em;
+      color: var(--pm-gold); margin-top: 0.15rem; text-align: center;
     }
     .cq-b:hover, .cq-b:focus-visible {
       background: rgba(232, 196, 139, 0.07);
       border-color: rgba(232, 196, 139, 0.3);
     }
     .cq-b:hover .cq-frame, .cq-b:focus-visible .cq-frame { transform: translateY(-4px); }
-    .cq-b:hover .cq-art, .cq-b:focus-visible .cq-art { filter: drop-shadow(0 0 16px rgba(232, 196, 139, 0.4)); }
-    .cq-b:hover .cq-plaque, .cq-b:focus-visible .cq-plaque { color: var(--pm-gold-bright); }
     .cq-b:focus-visible { outline: 2px solid var(--pm-gold); outline-offset: 2px; }
     .cq-quay {
       height: 14px; margin: 0 -1rem;
@@ -407,56 +437,73 @@ const switchCss = [
       .cq-b:hover .cq-frame, .cq-b:focus-visible .cq-frame { transform: none; }
     }
 
-    /* ── THE PANEL — the room's own paper card, edged in its building's tint ─ */
+    /* ── THE PANEL — the meep's profile, in the household page's profile idiom:
+       night glass, a gold hairline, a stripe of the meep's own tint ───────── */
     .mq-panels { margin: 0 0 2.4rem; }
-    .mq-panel .meep-card { border: 1px solid var(--lane-edge-open, transparent); }
-    .meep-card { padding: 1.5em 1.7em 1.5em; display: flex; flex-direction: column; }
-    .mc-head { display: flex; align-items: center; gap: 0.85em; margin: 0 0 0.8em; }
-    .mc-sprite {
-      width: 58px; height: 58px; flex: none; image-rendering: pixelated;
-      border-radius: 50%; border: 2px solid rgba(164, 99, 42, 0.55);
-      background: var(--pm-night, #070b15); padding: 5px;
+    .meep-card {
+      position: relative; overflow: hidden;
+      padding: 1.5em 1.7em 1.5em 1.9em; display: flex; flex-direction: column;
+      background: rgba(10, 17, 33, 0.78);
+      border: 1px solid var(--lane-edge-open, rgba(232, 196, 139, 0.24)); border-radius: 15px;
+      box-shadow: 0 18px 50px rgba(2, 6, 16, 0.18);
+      color: #cdc2ab;
     }
-    .mc-head h2 { margin: 0; font-size: 1.4rem; }
+    .meep-card::before {
+      content: ""; position: absolute; inset: 0 auto 0 0; width: 3px;
+      background: var(--lane-edge-open, var(--pm-gold));
+    }
+    .mc-head { display: grid; grid-template-columns: 100px minmax(0, 1fr); gap: 1.2em; align-items: center; margin: 0 0 1em; }
+    .mc-face {
+      width: 100px; aspect-ratio: 1; border-radius: 14px; overflow: hidden;
+      border: 1px solid rgba(232, 196, 139, 0.3); background: var(--pm-night, #070b15);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .mc-face img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .mc-face svg { width: 84%; height: 84%; image-rendering: pixelated; }
+    .mc-face span { font-family: var(--pm-serif); font-size: 2.8rem; color: var(--pm-gold); }
+    .mc-face[data-face="monogram"] { border-style: dashed; background: var(--lane-wash, transparent); }
+    .mc-title h2 { margin: 0; font-size: 1.5rem; color: #f4e9d7; }
     .mc-role {
-      margin: 0.1em 0 0;
-      font-family: var(--pm-mono); font-size: 0.66rem; letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--pm-accent);
+      margin: 0.2em 0 0;
+      font-family: var(--pm-mono); font-size: 0.68rem; letter-spacing: 0.1em;
+      color: var(--pm-gold);
     }
-    .mc-desc { margin: 0; font-size: 0.95rem; line-height: 1.62; }
-    .mc-words { font-style: italic; }
+    .mc-runtime { margin: 0.35em 0 0; font-size: 0.8rem; color: rgba(205, 194, 171, 0.75); font-style: italic; }
     .mc-lab {
       display: block; margin: 0 0 0.35em;
       font-family: var(--pm-mono); font-size: 0.62rem; letter-spacing: 0.12em;
-      text-transform: uppercase; font-style: normal; color: var(--pm-accent);
+      text-transform: uppercase; font-style: normal; color: rgba(232, 196, 139, 0.8);
+    }
+    .mc-words { margin: 0; font-size: 0.98rem; line-height: 1.62; font-style: italic; color: #e6dcc6; }
+    .mc-words .mc-lab { font-style: normal; }
+    .mc-none { color: rgba(205, 194, 171, 0.7); font-style: italic; }
+    .mc-nosprite {
+      margin: 0.9em 0 0; font-family: var(--pm-mono); font-size: 0.68rem; letter-spacing: 0.04em;
+      color: rgba(205, 194, 171, 0.72);
     }
     .mc-latest {
       margin: 1.1em 0 0; padding-top: 1em;
-      border-top: 1px dashed var(--pm-line);
+      border-top: 1px dashed rgba(232, 196, 139, 0.2);
     }
     .mc-latest > p { margin: 0 0 0.6em; }
-    .mc-daily-head { margin: 0 0 0.35em; font-weight: 700; font-size: 1.02rem; line-height: 1.4; }
+    .mc-daily-head { margin: 0 0 0.35em; font-weight: 700; font-size: 1.02rem; line-height: 1.4; color: #f4e9d7; }
     .mc-daily-par { margin: 0 0 0.45em; font-size: 0.93rem; line-height: 1.6; }
     .mc-daily { margin: 0 0 0.8em; }
     .mc-settle { font-size: 0.92rem; }
     .mc-letter { display: flex; flex-direction: column; gap: 0.25em; font-size: 0.92rem; line-height: 1.55; }
-    .mc-when { font-family: var(--pm-mono); font-size: 0.68rem; letter-spacing: 0.06em; color: var(--pm-ink-soft); }
+    .mc-when { font-family: var(--pm-mono); font-size: 0.68rem; letter-spacing: 0.06em; color: rgba(205, 194, 171, 0.7); }
     .mc-ex { font-style: italic; }
-    .mc-none { color: var(--pm-ink-soft); font-style: italic; }
-    .mc-more { color: var(--pm-accent); font-family: var(--pm-mono); font-size: 0.7rem; }
+    .mc-more { color: var(--pm-gold); font-family: var(--pm-mono); font-size: 0.7rem; }
     .mc-door { margin: 0.9em 0 0; font-size: 0.8rem; overflow-wrap: anywhere; }
     .mc-door code { font-size: 0.74rem; }
-    .mc-door a { color: var(--pm-accent); }
+    .mc-door a { color: var(--pm-gold); }
     .mc-dot { margin: 0 0.4em; opacity: 0.6; }
     .mc-doors {
       display: flex; flex-wrap: wrap; gap: 0.55em;
       margin: 1.1em 0 0; padding-top: 1.1em;
-      border-top: 1px dashed var(--pm-line);
+      border-top: 1px dashed rgba(232, 196, 139, 0.2);
     }
     .mc-doors .pm-btn { font-size: 0.7rem; padding: 7px 14px; }
-    .pm-btn.dark-ghost { color: var(--pm-accent) !important; background: transparent; box-shadow: inset 0 0 0 1px rgba(164, 99, 42, 0.55); }
-    .pm-btn.dark-ghost:hover { box-shadow: inset 0 0 0 1px var(--pm-wax); color: var(--pm-wax) !important; }
 
     /* ── THE BENCH ─────────────────────────────────────────────────────────── */
     .bench {
@@ -486,21 +533,31 @@ const switchCss = [
     .bench-u.is-parked { opacity: 0.55; border-style: dashed; }
     .bench-src { margin: 1rem 0 0; text-align: center; font-size: 0.72rem; line-height: 1.6; color: rgba(205, 194, 171, 0.6); overflow-wrap: anywhere; }
     .bench-src a { color: var(--pm-gold); }
-    .bench-u.pm-hint { text-decoration: none; }
-    .bench-roll { margin: 1rem 0 0; text-align: center; }
-    .bench-manifest {
-      list-style: none; margin: 0.6rem auto 0; padding: 0; max-width: 70ch; text-align: left;
-      font-size: 0.72rem; line-height: 1.55; color: rgba(205, 194, 171, 0.7);
-    }
-    .bench-manifest li { padding: 0.25rem 0; border-bottom: 1px dashed rgba(232, 196, 139, 0.1); }
-    .bench-manifest b { color: var(--pm-gold); font-weight: 400; font-family: var(--pm-mono); }
-    .bench-manifest code { font-size: 0.66rem; opacity: 0.7; }
 
     @media (max-width: 720px) {
-      .cq-art { width: 60px; height: 60px; }
+      .cq-frame, .cq-art { width: 60px; height: 60px; }
+      .cq-portrait, .cq-mono { width: 54px; height: 54px; }
+      .cq-mono { font-size: 1.6rem; }
       .cq-b { width: 6.4rem; }
-      .cq-plaque { font-size: 0.6rem; }
-      .meep-card { padding: 1.2em 1.1em; }
+      .cq-name { font-size: 0.82rem; }
+      .cq-office { font-size: 0.56rem; }
+      .meep-card { padding: 1.2em 1.1em 1.2em 1.3em; }
+      .mc-head { grid-template-columns: 72px minmax(0, 1fr); gap: 0.9em; }
+      .mc-face { width: 72px; border-radius: 11px; }
+      .mc-face span { font-size: 2rem; }
+    }
+    /* a phone: all five on one quay, not a wrapped 2-2-1 */
+    @media (max-width: 480px) {
+      .cq { padding: 1.2rem 0.4rem 0; }
+      .cq-quay { margin: 0 -0.4rem; }
+      .cq-row { flex-wrap: nowrap; }
+      .cq-lot { flex: 1 1 0; min-width: 0; }
+      .cq-b { width: auto; padding: 0.4rem 0.1rem 0.6rem; }
+      .cq-frame, .cq-art { width: 48px; height: 48px; }
+      .cq-portrait, .cq-mono { width: 44px; height: 44px; margin-bottom: 2px; }
+      .cq-mono { font-size: 1.3rem; }
+      .cq-name { font-size: 0.62rem; line-height: 1.25; overflow-wrap: anywhere; padding: 0 1px; }
+      .cq-office { font-size: 0.5rem; letter-spacing: 0; overflow-wrap: anywhere; }
     }
   </style>
 </PostmarkLayout>

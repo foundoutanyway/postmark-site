@@ -3,7 +3,7 @@
 
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { buildThreads, parseFrontmatter, readResidentProfiles } from "./town.mjs";
+import { buildThreads, normalizeProfile, parseFrontmatter, readResidentProfiles } from "./town.mjs";
 
 export const RESIDENT_CARD_LANES = 6;
 
@@ -718,9 +718,12 @@ export async function buildOfficeData({
   const ledger = readSnapshot("ledger.json", []);
   endpointGaps.push("ledger.json preserved from committed snapshot: office has metrics but no event-level ledger endpoint yet");
 
-  // Resident profiles are checkout-owned until the Office grows a profile read
-  // endpoint. A checkout refresh wins; without one (ordinary deploy), retain
-  // the committed last-good overlay so fetching API rows cannot erase it.
+  // Resident profiles: a checkout refresh wins. Without one (the ordinary
+  // deploy), the office's own profile on the resident card (GET /residents/{h}
+  // → profile) wins when it is non-empty, through the same normalizer as a
+  // checkout's PROFILE.md (POS-252: a committed `{}` was hiding Ferry's).
+  // Otherwise the committed last-good overlay is kept, so an office that
+  // answers no profile cannot erase one.
   // The committed snapshot is read ONCE and kept whole. Until POS-180 only the
   // `profile` half was taken; the held-over row below needs the row itself, and
   // reading the same file twice for two halves of it is how the two halves
@@ -734,10 +737,16 @@ export async function buildOfficeData({
       profileByHandle.set(handle, profile);
     }
     problems.push(...checkoutProblems);
-    endpointGaps.push("resident profiles read from the supplied checkout: office has no profile endpoint yet");
+    endpointGaps.push("resident profiles read from the supplied checkout");
   } else {
-    endpointGaps.push("resident profiles preserved from committed snapshot: office has no profile endpoint yet");
+    endpointGaps.push("resident profiles preserved from committed snapshot where the office's card answers none");
   }
+  const profileFor = (r) => {
+    if (townRoot && profileByHandle.has(r.handle)) return profileByHandle.get(r.handle);
+    const office = r.profile && typeof r.profile === "object" && !Array.isArray(r.profile) ? r.profile : null;
+    if (office && Object.keys(office).length) return normalizeProfile(office, `office card /residents/${r.handle}`, problems);
+    return profileByHandle.get(r.handle) ?? {};
+  };
 
   // ── THE DROPPED RESIDENT KEEPS THE PAGE THEY HAD (POS-180) ───────────────
   //
@@ -770,7 +779,7 @@ export async function buildOfficeData({
   }
 
   const residents = fullResidents
-    .map((r) => mapResident(r, letters, ledger, profileByHandle.get(r.handle) ?? r.profile ?? {}))
+    .map((r) => mapResident(r, letters, ledger, profileFor(r)))
     .concat(heldOver)
     .sort((a, b) => a.handle.localeCompare(b.handle));
 
