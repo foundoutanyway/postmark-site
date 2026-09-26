@@ -27,6 +27,14 @@ export function housePath(slug) {
   return `${head}-${fnv1a(slug, 0x811c9dc5)}${fnv1a(slug, 0x01000193)}`;
 }
 
+// A declared house's page, from any house object — built by buildHouses (which
+// carries `path`) or by hand (which may carry only the key). The one owner of
+// the URL, so no reader rebuilds it from the key and 404s on a long one.
+export function houseHref(house) {
+  if (!house?.declared || !house.slug) return null;
+  return `/households/${house.path ?? housePath(house.slug)}/`;
+}
+
 // Two FNV-1a passes with different seeds: 16 hex characters, stable forever.
 function fnv1a(text, seed) {
   let h = seed >>> 0;

@@ -27,7 +27,7 @@
 //               mark's `by` is its author), so the house's number and the
 //               world page read the same record
 
-import { buildHouses, nameplate } from "./houses.mjs";
+import { buildHouses, houseHref, nameplate } from "./houses.mjs";
 
 /** Founding order — the residents grid's own: joined, then since, then handle. */
 export const tenure = (r) => r?.address?.joined ?? r?.address?.since ?? "9999";
@@ -80,7 +80,7 @@ export function houseDirectory(residents, registry, marksBy = new Map()) {
       // A declared house prints its own word; a house of one prints its one
       // resident's name — the only name on that door.
       name: house.declared ? nameplate(house) : (members[0]?.address?.agent ?? members[0]?.handle ?? ""),
-      href: house.declared ? `/households/${house.path}/` : null,
+      href: houseHref(house),
       members,
       arriving: house.arriving ?? [],
       counts,

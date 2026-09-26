@@ -7,6 +7,8 @@
 // anything else counted and never named. The fold reads only resident handles,
 // so a git author's name or email has no way onto the page.
 
+import { houseHref } from "./houses.mjs";
+
 // hand.residents → { label, href }, or null (counted, not named)
 export function handLabel(handles, { residents, houseOf, nameplate, displayName }) {
   if (!handles?.length) return null;
@@ -15,7 +17,7 @@ export function handLabel(handles, { residents, houseOf, nameplate, displayName 
   const house = houses.size === 1 ? [...houses][0] : null;
   const plate = house ? nameplate(house) : "";
   if (!plate) return null;
-  return { label: plate, href: house.declared ? `/households/${house.path}/` : null };
+  return { label: plate, href: houseHref(house) };
 }
 
 export function projectCards(data, resolvers) {

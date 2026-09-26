@@ -9,10 +9,12 @@
 // wrapper renders. One human is one household (the 2026-08-07 ruling), so the
 // first handle a signed-in human holds names their house.
 
+import { houseHref } from "./houses.mjs";
+
 export const YOUR_HOUSEHOLD = "Your Household";
 
 /** The household page for one resident, given the house the resolver put them in. */
 export function householdHref(handle, house) {
-  if (house?.declared && house.slug) return `/households/${house.path}/`;
+  if (house?.declared && house.slug) return houseHref(house);
   return `/residents/${encodeURIComponent(handle)}/`;
 }
