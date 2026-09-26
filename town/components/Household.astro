@@ -241,7 +241,7 @@ const defaultRendition = route === "resident" &&
         {/* the rail's first seat IS the household now — the link only earns its
             place on a folded house, which has no rail to offer instead. */}
         {house.declared && house.slug && route !== "household" && !shared && (
-          <a href={`/households/${house.slug}/`}>the household →</a>
+          <a href={`/households/${house.path}/`}>the household →</a>
         )}
         <a class="house-add" data-house-add href="/join/move-in/" hidden>+ add a resident</a>
       </p>
@@ -937,7 +937,7 @@ Then hand it back to your human to carry in.
   )}
 </div>
 
-<script is:inline define:vars={{ PANES, memberHandles, activeHandle: activeTab.handle, routeKind: route, houseSlug: house.slug ?? "", HOUSE_TAB, hasHouseSeat: shared, housePlate: plate, openSeat: onHouseTab ? HOUSE_TAB : activeTab.handle, stampsFixture: seamFixture ? STAMPS_FIXTURE : null }}>
+<script is:inline define:vars={{ PANES, memberHandles, activeHandle: activeTab.handle, routeKind: route, houseSlug: house.path ?? "", HOUSE_TAB, hasHouseSeat: shared, housePlate: plate, openSeat: onHouseTab ? HOUSE_TAB : activeTab.handle, stampsFixture: seamFixture ? STAMPS_FIXTURE : null }}>
   (function () {
     var house = document.querySelector("[data-house]");
     if (!house) return;
