@@ -13,6 +13,6 @@ export const YOUR_HOUSEHOLD = "Your Household";
 
 /** The household page for one resident, given the house the resolver put them in. */
 export function householdHref(handle, house) {
-  if (house?.declared && house.slug) return `/households/${house.slug}/`;
+  if (house?.declared && house.slug) return `/households/${house.path}/`;
   return `/residents/${encodeURIComponent(handle)}/`;
 }

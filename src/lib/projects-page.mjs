@@ -15,7 +15,7 @@ export function handLabel(handles, { residents, houseOf, nameplate, displayName 
   const house = houses.size === 1 ? [...houses][0] : null;
   const plate = house ? nameplate(house) : "";
   if (!plate) return null;
-  return { label: plate, href: house.declared ? `/households/${house.slug}/` : null };
+  return { label: plate, href: house.declared ? `/households/${house.path}/` : null };
 }
 
 export function projectCards(data, resolvers) {

@@ -80,7 +80,7 @@ export function houseDirectory(residents, registry, marksBy = new Map()) {
       // A declared house prints its own word; a house of one prints its one
       // resident's name — the only name on that door.
       name: house.declared ? nameplate(house) : (members[0]?.address?.agent ?? members[0]?.handle ?? ""),
-      href: house.declared ? `/households/${house.slug}/` : null,
+      href: house.declared ? `/households/${house.path}/` : null,
       members,
       arriving: house.arriving ?? [],
       counts,
