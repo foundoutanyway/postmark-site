@@ -19,7 +19,6 @@ import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { REPOS } from "../src/lib/record.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DATA = (f) => JSON.parse(readFileSync(join(ROOT, "src", "data", "postmark", f), "utf8"));
@@ -56,43 +55,44 @@ const reachable = (page, sentences) => {
 // The Meeps left this suite with POS-252: the Site Lift retires the expands
 // and hovers there, and test/meeps-quarter.test.mjs asserts the text is in view.
 
-test("the Households: the intro's rest and a house of one", { skip: !built("households") }, () => {
-  reachable(html("households"), [
-    "Each house below holds its residents, drawn from their own addresses",
-    "A declared house's name opens its own page.",
-    "a house of one",
-  ]);
+// RE-AIMED 2026-09-26 (the Site Lift, POS-253, under POS-250's rule: no
+// "more", nothing only in a hover): the Households' intro is visible whole, and
+// no hover carries a house. Its reachability check became a visibility check;
+// the page's own suite (households-directory.test.mjs) holds the rest.
+test("the Households: the intro is visible, nothing tucked", { skip: !built("households") }, () => {
+  const page = html("households");
+  assert.equal(/<details\b/.test(page), false, "the Households has an expand again");
+  const head = plain(page.slice(page.indexOf('class="dir-head'), page.indexOf("data-houses")));
+  assert.ok(head.includes("a named house opens its own page"), "the intro's second sentence is not in view");
 });
 
 // THE RECORD'S LANDING AND ITS CROSSINGS PAGE RETIRED with the Record (the Site
 // Lift, POS-249, 2026-09-26): /records/ and /records/crossings/ forward to the
 // replay, which carries the settlements (POS-255). Their reachability checks
-// went with the pages; the repos page moved to the Docs and its check moved
-// with it.
-test("the repos: one line each, what it holds and what its maintainers said on its hover",
-  { skip: !built("docs", "repos") }, () => {
-  const page = html("docs", "repos");
-  reachable(page, ["The doors answer what the town holds; these are where it is kept."]);
-  for (const r of REPOS) {
-    const start = page.indexOf(`data-repo="${r.key}"`);
-    const card = page.slice(page.lastIndexOf("<a", start), page.indexOf("</a>", start));
-    reachable(card, [r.holds, ...(r.said ? [r.said] : [])]);
-  }
-});
+// went with the pages. The repos page moved to the Docs, and under POS-250's
+// rule its cards carry what each repo holds in view, not on a hover (POS-257):
+// its check became a visibility check in docs.test.mjs.
 
-test("the bulletin: the intro's rest", { skip: !built("bulletin") }, () => {
-  reachable(html("bulletin"), [
+// The bulletin's "more" came out with the board (POS-251, under POS-250's
+// rule: no "more" buttons). Its two sentences are in view now, in the colophon.
+test("the bulletin: the intro's rest is in view, not behind an expand", { skip: !built("bulletin") }, () => {
+  const page = html("bulletin");
+  const visible = plain(page.replace(/<details[\s\S]*?<\/details>/g, "").replace(/title="[^"]*"/g, ""));
+  for (const s of [
     "The bulletin lives in the town repo; posts get pinned and retired by the town itself.",
     "What the mailman noticed today is Ferry's Daily.",
-  ]);
+  ]) assert.ok(visible.includes(plain(s)), `not in view on the bulletin: "${s}"`);
 });
 
-test("the door line reads `this page is <read>`, the plain GET on its hover", { skip: !built("bulletin") }, () => {
+// RE-AIMED 2026-09-26 (the Site Lift, POS-250: nothing lives only in a
+// hover): the plain GET came off the read's hover and back onto the line. The
+// age clause is an island that fills after load, so the built page carries it
+// hidden and empty; its words are asserted in view, not its phrase.
+test("the door line reads the read, then the plain GET, in view; nothing on a hover", { skip: !built("bulletin") }, () => {
   const page = html("bulletin");
   const foot = page.slice(page.indexOf("data-door-foot"));
   const line = foot.slice(0, foot.indexOf("</p>"));
-  reachable(line, ["GET /api/bulletin"]);
-  // the plain GET is not in view: only the read is
-  const visible = plain(line.replace(/\btitle="[^"]*"/g, "").replace(/<span\b[^>]*class="pm-sr"[^>]*>[\s\S]*?<\/span>\s*<\/span>|<span\b[^>]*class="pm-sr"[^>]*>[\s\S]*?<\/span>/g, ""));
-  assert.match(visible, /this page is town \{ read: "bulletin" \}$/);
+  assert.equal(/\btitle=/.test(line), false, "the door line carries a hover again");
+  assert.equal(/\bpm-sr\b/.test(line), false, "the door line tucks a clause out of view again");
+  assert.match(plain(line), /this page is town \{ read: "bulletin" \} · GET \/api\/bulletin · as the office read it$/);
 });

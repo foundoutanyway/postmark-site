@@ -64,25 +64,12 @@
 //      the permitted thing; what is forbidden is writing one down in prose.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
 import { FOUNDER_ACCOUNT } from "../src/lib/funding.mjs";
 import { allEntries, MOVED } from "../src/lib/nav.mjs";
 import { DEFAULT_LANE, STAGES } from "../src/lib/civic.mjs";
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
-
-// every .astro under town/pages — for laws about the pages tree rather than
-// about one named file in it
-function everyPageFile(dir = new URL("../town/pages/", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1")) {
-  const out = [];
-  for (const name of readdirSync(dir)) {
-    const full = join(dir, name);
-    if (statSync(full).isDirectory()) out.push(...everyPageFile(full));
-    else if (name.endsWith(".astro")) out.push(full);
-  }
-  return out;
-}
 
 // ── TWO SURFACES, AND WHICH LAW LIVES ON WHICH ───────────────────────────────
 // The founder split them on 2026-08-30 evening: the LANES are the civic
@@ -473,22 +460,62 @@ function lane(id) {
   return next < 0 ? rest : rest.slice(0, next);
 }
 
-test("THE LAW: the Guild reads cards, then the pots, then the standings", () => {
-  // THE FOUNDER'S WORDS, 2026-08-31: "'What the Town Needs Money For' (the pots)
-  // goes directly under the quest cards at the top; the standings go below
-  // everything else."
+test("THE LAW: the Guild reads the pots, then the quest cards, then the standings", () => {
+  // KEEMIN, 2026-09-26 (POS-258): "the funding pots should sit at the top of
+  // the quest guild, for visibility." The founder's 2026-08-31 words still
+  // hold for the foot: "the standings go below everything else." (From
+  // 08-31 to 09-26 the pots sat directly under the quest cards.)
   //
   // Asked as ORDER because order is the whole ruling — every one of these three
   // blocks was already on the page, and a test that only asked whether they are
   // present would have passed before the change and after it.
   const guild = lane("quests");
+  const head = guild.indexOf("<LaneHead");
   const cards = guild.indexOf("questRows.map");
   const pots = guild.indexOf('<div id="pots"');
   const standings = guild.indexOf('<ol class="q-stand">');
-  assert.ok(cards > 0 && pots > 0 && standings > 0,
-    `the Guild lost a block — cards:${cards} pots:${pots} standings:${standings}`);
-  assert.ok(cards < pots, "the pots must sit directly under the quest cards, not below the standings");
-  assert.ok(pots < standings, "and the standings go below everything else");
+  assert.ok(head > 0 && cards > 0 && pots > 0 && standings > 0,
+    `the Guild lost a block — head:${head} cards:${cards} pots:${pots} standings:${standings}`);
+  assert.ok(head < pots, "the lane's head still opens it");
+  assert.ok(pots < cards, "the pots sit at the top of the Guild, above the quest cards");
+  assert.ok(cards < standings, "and the standings go below everything else");
+  // ⚑ THE FLIP: move the pots block back under the quest grid and "above the quest cards" reads red.
+});
+
+test("A POT CARD READS IN A FIRST-TIME READER'S ORDER: what it is for, how full, how to put stamps behind it", () => {
+  // KEEMIN, 2026-09-26 (POS-258), the issue's second part: "each pot shows what
+  // it is for, how full it is, and how to put stamps behind it, in the order a
+  // first-time reader needs." Read in the component, which is the one copy of
+  // the card (postmark#2810), so /town/ and /docs/stamps/ both carry it.
+  const card = cardsSrc.slice(cardsSrc.indexOf('class:list={["m-card", "is-pot"'));
+  const at = (needle) => {
+    const i = card.indexOf(needle);
+    assert.ok(i > 0, `the card lost ${needle}`);
+    return i;
+  };
+  const order = [
+    ['<h3 class="m-title">', "the title"],
+    ['<p class="m-what">', "the pot's own first sentence"],
+    ['<p class="m-for', "who it is for"],
+    ['p.close === "elastic"', "the money line"],
+    ['<p class="m-staked">', "the stamps staked"],
+    ['<p class="m-roll">', "the patron roll"],
+    ['<p class="m-foot">', "the way in"],
+  ].map(([needle, name]) => [at(needle), name]);
+  for (let k = 1; k < order.length; k++) {
+    assert.ok(order[k - 1][0] < order[k][0], `${order[k - 1][1]} must come before ${order[k][1]}`);
+  }
+  // the way in says, in words, how stamps go behind the pot, and goes to the
+  // stake form on the pot's own page (id="stake", inside its open gate)
+  const foot = card.slice(at('<p class="m-foot">'), card.indexOf("</p>", at('<p class="m-foot">')));
+  assert.match(foot, /href=\{`\/fund\/\$\{p\.pot\}\/#stake`\}>Stake stamps on it →<\/a>/,
+    "the card says how to put stamps behind the pot, and links the stake form");
+  assert.ok(foot.includes('href={`/fund/${p.pot}/`}>Fund →</a>'), "the money route stays beside it");
+  assert.ok(card.includes('{p.status === "open" && (\n') || card.includes('{p.status === "open" && (\r\n'),
+    "only an open pot offers a way in");
+  const fundPage = read("../town/pages/fund/[pot].astro");
+  assert.match(fundPage, /<section class="f-stake" id="stake"/, "the fragment the card links is a place on the pot's page");
+  // ⚑ THE FLIPS: move the staked chip back into the foot, or drop "#stake", and this reads red.
 });
 
 test("THE LAW: every panel's title is READ, and the page holds no copy of a plaque", () => {
@@ -1162,11 +1189,12 @@ test("both retired routes redirect somewhere that exists", () => {
   // /bulletin/ and took its plank painting with it, so a probe keyed on WHICH
   // page paints went red on a move that changed nothing about the law. The law
   // is that the asset prefix is live, so it asks the pages tree, not one file.
-  assert.ok(existsSync(new URL("../public/atelier/postmark/board/quest-board-wood.jpg", import.meta.url)),
+  assert.ok(existsSync(new URL("../public/atelier/postmark/board/quest-board.jpg", import.meta.url)),
     "the redirect must be exact-path: the board's images still live under /board/");
-  const painters = everyPageFile()
-    .filter((f) => readFileSync(f, "utf8").includes("/board/quest-board-wood.jpg"));
-  assert.ok(painters.length, "no page paints with /board/ any more — the exact-path reason is gone, and so is this test's premise");
+  // RETIRED 2026-09-26 (POS-251, the Site Lift): the painters check. The bulletin
+  // board paints in CSS now (a cork in the wall browns), so no page paints with
+  // the plank photo. The plank photo itself (quest-board-wood.jpg) retired the
+  // same day (POS-250); the check above asks for the image still under /board/.
 });
 
 test("nothing in the repo still points at a retired route", () => {
