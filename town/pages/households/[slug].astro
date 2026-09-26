@@ -28,7 +28,7 @@ import Household from "../../components/Household.astro";
 import { declaredHouses, membersOf, nameplate, isShared } from "@/lib/household.mjs";
 
 export function getStaticPaths() {
-  return declaredHouses().map((house) => ({ params: { slug: house.slug }, props: { house } }));
+  return declaredHouses().map((house) => ({ params: { slug: house.path }, props: { house } }));
 }
 
 const { house } = Astro.props;

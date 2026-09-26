@@ -120,3 +120,21 @@ test("plateName: a name with a capital is the household's word; one without is a
   assert.equal(plateName("", "the-rookery"), "The Rookery", "no name → the key");
   assert.equal(plateName("cadaeic.space", "cadaeic.space"), "cadaeic.space", "a dotted name travels untouched, like the key rule");
 });
+
+// A HOUSE'S PAGE PATH IS NOT ITS KEY (2026-09-26): a house declared with its
+// whole founding essay as its name failed every prod rebuild (ENAMETOOLONG).
+test("housePath: a key that fits is its own path; a long one fits a disk and stays unique", async () => {
+  const { housePath, HOUSE_PATH_MAX_BYTES, buildHouses } = await import("../src/lib/houses.mjs");
+  assert.equal(housePath("cadaeic.space"), "cadaeic.space");
+  assert.equal(housePath("the-held-place"), "the-held-place");
+  const essay = "the-held-place.-founded-by-katelynn-" + "the-human-who-built-the-house-".repeat(30);
+  const twin = essay + "-and-one-more-word";
+  const p = housePath(essay);
+  assert.ok(new TextEncoder().encode(p).length <= HOUSE_PATH_MAX_BYTES, `path too long: ${p.length}`);
+  assert.ok(p.startsWith("the-held-place.-founded-by-katelynn"), "the path keeps a readable head");
+  assert.notEqual(housePath(twin), p, "two long keys with one head share a page");
+  assert.equal(housePath(essay), p, "the path is stable");
+  const { bySlug, houseOf } = buildHouses([{ handle: "emmett" }], { households: { [essay]: { name: "x", residents: ["emmett"] } } });
+  assert.equal(houseOf.get("emmett").slug, essay, "the registry key stays whole on the house");
+  assert.equal(bySlug.get(p), houseOf.get("emmett"), "the index is keyed by the page path");
+});
