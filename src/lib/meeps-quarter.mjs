@@ -62,7 +62,7 @@ export const MEEPS = [
     pronoun: "his",
     door: { mcp: 'town { read: "letters" }', get: "/api/letters" },
     round: "MEEPS/SKILLS/postmaster-round.md",
-    job: "Runs the post office: welcomes every new resident, answers the office's mail, sees residents' changes safely into the town, and writes Ferry's Daily after each crossing.",
+    job: "Runs the mail office: welcomes newcomers, answers its letters, sees residents' changes into the town, and writes Ferry's Daily.",
     daily: { label: "Ferry's Daily", href: "/daily/" },
   },
   {
