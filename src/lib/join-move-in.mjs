@@ -67,12 +67,19 @@ export function actForTier(tier) {
 //
 // "it seems to allow starforge 2? confused as to why I even get a field for
 // household if I'm already registered." The add-resident form carries an
-// OPTIONAL household box in the door's "household" group, and a name typed
-// there made the office's join PR declare a second house by a side door. The
-// office now refuses any house but the key's own; the site's half is that a
-// reader who keeps a house is never ASKED for one. Their house is named on the
-// review, fixed, and the send carries no household box at all, so the office
-// answers with the key's own house.
+// OPTIONAL household box in the door's "household" group. The office finds the
+// house BY ACCOUNT first (office src/residency.mjs § planRegistryJoin), so for
+// a settled house a name typed there is silently dropped and the resident joins
+// the account's own house: the box asks a question whose answer is thrown away.
+// So a reader who keeps a house is not asked it. Their house is named on the
+// review, fixed, and the send carries no household box at all.
+//
+// THE ONE HOUSE FOR WHICH THE ANSWER COUNTS: a PROVISIONAL house, whose key
+// was borrowed from its first resident's handle. There, the first naming
+// chooses the house's name, once (the same planRegistryJoin, THE HOUSE CHOOSES
+// ITS KEY, POS-197). For that house alone the box stays, marked as choosing
+// the name once. Whether a house is provisional is the town registry's word
+// (`provisional: true` on its row), which the site syncs at build.
 //
 // Keyed on the GROUP the door declares (`x-group`), never on a field's name:
 // whatever the office puts in its household group tomorrow, a keeper is not
@@ -87,20 +94,30 @@ export function keepsHouse(act) {
   return act === ACT_FOR_TIER.resident;
 }
 
+const groupOf = (spec) => (spec && typeof spec["x-group"] === "string" ? spec["x-group"].trim() : "");
+
+/** The names of the fields the door draws in its house group, in its order. */
+export function houseGroupNames(fields) {
+  if (!fields || typeof fields !== "object") return [];
+  return Object.keys(fields).filter((n) => groupOf(fields[n]) === HOUSE_GROUP);
+}
+
 /**
  * The door's fields as this reader is asked them: the whole block for a
- * founder, and the block without its house group for a keeper. The generator
- * is fed THIS, so a dropped box has no screen, no review row and no place in
- * the send; there is no second list to keep in step.
+ * founder, and for a keeper the block without its house group, unless the
+ * house they keep is provisional and still has its name to choose. The
+ * generator is fed THIS, so a dropped box has no screen, no review row and no
+ * place in the send; there is no second list to keep in step.
  * @param {object|null} fields  the door's `fields` block
  * @param {string|null} act
+ * @param {{provisional?: boolean}|null} [house]  houseOfMe's answer
  */
-export function fieldsForReader(fields, act) {
+export function fieldsForReader(fields, act, house = null) {
   if (!fields || typeof fields !== "object" || !keepsHouse(act)) return fields;
+  if (house && house.provisional === true) return fields;
   const out = {};
   for (const [name, spec] of Object.entries(fields)) {
-    const group = spec && typeof spec["x-group"] === "string" ? spec["x-group"].trim() : "";
-    if (group !== HOUSE_GROUP) out[name] = spec;
+    if (groupOf(spec) !== HOUSE_GROUP) out[name] = spec;
   }
   return out;
 }
@@ -108,21 +125,24 @@ export function fieldsForReader(fields, act) {
 /**
  * The house a signed-in reader keeps, from what GET /me already answers: the
  * per-handle block `households[handle]`, whose `slug` is the town's key for the
- * house. `names` is the site's nameplate for each declared slug; a slug the
- * site has not synced yet still prints, title-cased. Null when /me names no
- * house, and the page then says "your house" rather than guessing one.
+ * house. `houses` is the site's synced registry, slug → { name, provisional }:
+ * it spells the house the way the site does and says whether its name is still
+ * borrowed. A slug the site has not synced yet still prints, title-cased, and
+ * is not treated as provisional. Null when /me names no house, and the page
+ * then says "your house" rather than guessing one.
  * @param {object|null} me  GET /me
- * @param {Record<string, string>} [names]  slug → nameplate
- * @returns {{slug: string, name: string}|null}
+ * @param {Record<string, {name?: string, provisional?: boolean}>} [houses]
+ * @returns {{slug: string, name: string, provisional: boolean}|null}
  */
-export function houseOfMe(me, names = {}) {
+export function houseOfMe(me, houses = {}) {
   if (!me || typeof me !== "object") return null;
   const handles = Array.isArray(me.handles) ? me.handles : Array.isArray(me.residents) ? me.residents : [];
   for (const h of handles) {
     const slug = me.households && me.households[h] && me.households[h].slug;
     if (typeof slug === "string" && slug) {
-      const named = names && typeof names[slug] === "string" && names[slug].trim();
-      return { slug, name: named || houseName(slug) };
+      const row = houses && houses[slug] && typeof houses[slug] === "object" ? houses[slug] : null;
+      const named = row && typeof row.name === "string" && row.name.trim();
+      return { slug, name: named || houseName(slug), provisional: !!(row && row.provisional === true) };
     }
   }
   return null;

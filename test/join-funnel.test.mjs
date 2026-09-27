@@ -17,7 +17,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 
-import { fieldsFor, missingRequired, controlOf, actForTier, keepsHouse, fieldsForReader, houseOfMe, HOUSE_GROUP } from "../src/lib/join-move-in.mjs";
+import { fieldsFor, missingRequired, controlOf, actForTier, keepsHouse, fieldsForReader, houseOfMe, houseGroupNames, HOUSE_GROUP } from "../src/lib/join-move-in.mjs";
 import {
   LANE_SCREENS, laneScreen, laneProgress, laneParent, dots,
   fieldSteps, fieldOfStep, hashForStep, stepFromHash, stepOfField,
@@ -31,6 +31,9 @@ const PROTO = read("../public/atelier/postmark/join/move-in/mcp-proto.js");
 const JOIN = read("../town/pages/join/index.astro");
 const MOVEIN = read("../town/pages/join/move-in.astro");
 const FUNNEL = read("../src/components/JoinFunnel.astro");
+const KEYS_CARD = read("../src/components/household-dashboard/KeysCard.astro");
+const DASH = read("../src/components/household-dashboard/HouseDashboard.astro");
+const AGENT_MD = read("../public/atelier/postmark/join/agent.md");
 const CSS = read("../src/styles/join-funnel.css");
 
 // the door's `declare` card after office PR #172 — the same shape
@@ -313,8 +316,8 @@ test("the founding acts are unchanged: a visitor (declare) and a berth (begin) s
 test("the keeper's house is named from /me's households[handle], in the site's nameplate", () => {
   // CAN FAIL: guess the house from the login, or from a typed box.
   const me = { household: "keeminlee", handles: ["wright", "rei"], households: { wright: { slug: "starforge", residents: ["rei", "wright"] } } };
-  assert.deepEqual(plain(houseOfMe(me, { starforge: "Starforge" })), { slug: "starforge", name: "Starforge" });
-  assert.equal(houseOfMe({ ...me, households: { wright: { slug: "deva-s-commons" } } }, { "deva-s-commons": "Deva's Commons" }).name, "Deva's Commons");
+  assert.deepEqual(plain(houseOfMe(me, { starforge: { name: "Starforge" } })), { slug: "starforge", name: "Starforge", provisional: false });
+  assert.equal(houseOfMe({ ...me, households: { wright: { slug: "deva-s-commons" } } }, { "deva-s-commons": { name: "Deva's Commons" } }).name, "Deva's Commons");
   assert.equal(houseOfMe({ ...me, households: { wright: { slug: "the-rookery" } } }).name, "The Rookery", "an unsynced slug still prints");
   assert.equal(houseOfMe({ household: "keeminlee", handles: ["wright"] }), null, "no block: the page says 'your house', never the login");
   assert.equal(houseOfMe(null), null);
@@ -323,12 +326,12 @@ test("the keeper's house is named from /me's households[handle], in the site's n
 test("move-in feeds the generator the reader's fields and names the keeper's house on the review", () => {
   // CAN FAIL: build from picked.fields, check requiredness against the whole
   // block, or leave the review silent about whose house this is.
-  assert.match(MOVEIN, /const asked = fieldsForReader\(picked\.fields, act\);\s*const schema = window\.MCPProto\._internals\.fieldsSchema\(asked\);/);
+  assert.match(MOVEIN, /const house = keepsHouse\(act\) \? await readHouse\(tok\) : null;\s*const asked = fieldsForReader\(picked\.fields, act, house\);\s*const schema = window\.MCPProto\._internals\.fieldsSchema\(asked\);/);
   assert.match(MOVEIN, /declared = asked;/);
-  assert.match(MOVEIN, /if \(keepsHouse\(act\)\) nameHouse\(tok\);/);
-  assert.match(MOVEIN, /<p class="jf-house" data-jf-house hidden>Adding to <b data-jf-house-name><\/b><\/p>/);
+  assert.match(MOVEIN, /if \(keepsHouse\(act\)\) showHouse\(house, asked\);/);
+  assert.match(MOVEIN, /<p class="jf-house" data-jf-house hidden>Adding to <b data-jf-house-name><\/b>/);
   assert.match(MOVEIN, /fetch\(officeBase\(\) \+ "\/me"/);
-  assert.match(MOVEIN, /houseOfMe\(await r\.json\(\), names\)/);
+  assert.match(MOVEIN, /houseOfMe\(await r\.json\(\), houses\)/);
 });
 
 test("look it over edits IN PLACE: the row's edit moves the generator's own node in, and never walks back to its screen", () => {
@@ -362,4 +365,76 @@ test("in the row being edited, Enter saves a one-line box, Escape cancels, and a
   assert.equal(editKey(k("Enter", "BUTTON")), null, "Save and cancel keep their own Enter");
   assert.equal(editKey(k("Enter", "INPUT", { isComposing: true })), null);
   assert.equal(editKey(k("a", "INPUT")), null);
+});
+
+test("a PROVISIONAL house is the one keeper still asked its name, and the box says it names the house once", () => {
+  // CAN FAIL: drop the house group for a provisional house too (its name,
+  // borrowed from its first resident, could then never be chosen here), or
+  // keep it without saying the answer names the house once. The office's
+  // planRegistryJoin renames a provisional house on its first naming; for a
+  // settled house it drops the typed name (Wright's correction, 2026-09-27).
+  const kept = fieldsForReader(ADD_RESIDENT_FIELDS, "add-resident", { provisional: true });
+  assert.ok("household" in kept, "a provisional house lost the box that chooses its name");
+  assert.ok(!("household" in fieldsForReader(ADD_RESIDENT_FIELDS, "add-resident", { provisional: false })));
+  assert.ok(!("household" in fieldsForReader(ADD_RESIDENT_FIELDS, "add-resident", null)), "an unknown house is treated as settled");
+  assert.deepEqual(houseGroupNames(ADD_RESIDENT_FIELDS), ["household"]);
+  const me = { handles: ["dearest-ai"], households: { "dearest-ai": { slug: "dearest-ai" } } };
+  assert.equal(houseOfMe(me, { "dearest-ai": { name: "dearest-ai", provisional: true } }).provisional, true);
+  assert.equal(houseOfMe(me, {}).provisional, false, "a house the site has not synced is not guessed provisional");
+  const show = MOVEIN.match(/function showHouse\(house, asked\) \{[\s\S]*?\n    \}\n/)[0];
+  assert.match(show, /if \(!house \|\| !house\.provisional\) return;/);
+  assert.match(show, /for \(const n of houseGroupNames\(asked\)\)/);
+  assert.match(show, /names it, once\./);
+  assert.match(MOVEIN, /provisional: row\?\.provisional === true/, "the page must read provisional off the synced registry row");
+});
+
+test("every 'sign in with GitHub' in the join flow offers a new GitHub account, in a new tab (Keemin, 2026-09-27)", () => {
+  // CAN FAIL: drop the aside from any of the three places, or link it anywhere else.
+  const ASIDE = /\(<a href="https:\/\/github\.com\/signup" target="_blank" rel="noopener">make a new GitHub account<\/a> if you don't have one\)/;
+  const hands = FUNNEL.match(/data-jf-screen="hands\/link"[\s\S]*?<\/section>/)[0];
+  assert.match(hands, ASIDE, "the tools route's last screen");
+  const card = JOIN.match(/<section class="lane" data-lane="hands">[\s\S]*?<\/section>/)[0];
+  assert.match(card, ASIDE, "the no-JS /join/ tools card");
+  const gate = MOVEIN.match(/data-gate-signedout[\s\S]*?<\/section>/)[0];
+  assert.match(gate, ASIDE, "the move-in sign-in screen");
+});
+
+test("/join/ no longer carries the outdated arrival note", () => {
+  // CAN FAIL: leave the block or its CSS behind.
+  assert.ok(!/Arrival is open\./.test(JOIN), "the ⚓ arrival line is back");
+  assert.ok(!/household-note|hn-anchor/.test(JOIN), "the note's block or CSS is left behind");
+});
+
+test("nothing on /join/ mints a key; the mint stands on the household's own page, in its private half", () => {
+  // CAN FAIL: leave a mint on /join/, rewrite the machinery, or show the card
+  // to a reader who is not this house's own sign-in.
+  assert.ok(!/data-keygen|data-handoff|\/keys"|handoffPrompt|mint-mini/.test(JOIN), "/join/ still mints");
+  for (const hook of ["data-keygen-btn", "data-keygen-status", "data-keygen-out", "data-keygen-key", "data-keygen-copy", "data-handoff", "data-handoff-text", "data-handoff-note"]) {
+    assert.ok(KEYS_CARD.includes(hook), `the card lost the ${hook} hook`);
+  }
+  assert.match(KEYS_CARD, /fetch\(BASE \+ "\/keys", \{\s*method: "POST"/, "the mint is still POST /keys with the sign-in");
+  assert.match(KEYS_CARD, /function handoffPrompt\(key, handle\)/);
+  assert.match(KEYS_CARD, /<h2 id="hd-keys-h">Keys for your residents<\/h2>/);
+  assert.match(KEYS_CARD, /<section class="hd-block hd-keys" data-private data-hd-keys/, "the card must be in the house's private half");
+  assert.match(DASH, /import KeysCard from "\.\/KeysCard\.astro";/);
+  assert.match(DASH, /<KeysCard \/>/);
+  assert.match(DASH, /\.hd\[data-hd-view="public"\] :global\(\[data-private\]\) \{ display: none !important; \}/,
+    "the dashboard no longer leaves its private half out of the public view");
+  assert.ok(!/postmark\.town\/join\/ — shown once/.test(AGENT_MD), "agent.md still sends the human to /join/ for a key");
+  assert.match(AGENT_MD, /mints a household key on your household's page, https:\/\/postmark\.town\/households\/<your house>\/, signed in/);
+});
+
+test("the humans' Discord rides the funnel's last screens, and /join/ keeps one plain line of it without JavaScript", () => {
+  // CAN FAIL: leave the band at the foot of /join/, or miss a last screen.
+  const LINE = /While you wait: <a href="https:\/\/discord\.gg\/wVCF9ChZum" target="_blank" rel="noopener">the Humans of Postmark Discord<\/a>, for the humans\. Ask questions, compare setups, and hear what's next\./;
+  for (const screen of ["hands/link", "chat/wait"]) {
+    const m = FUNNEL.match(new RegExp(`data-jf-screen="${screen.replace("/", "\\/")}"[\\s\\S]*?<\\/section>`))[0];
+    assert.match(m, LINE, `the ${screen} screen lost the Discord`);
+  }
+  const receipt = MOVEIN.match(/data-gate-reply[\s\S]*?<\/section>/)[0];
+  assert.match(receipt, LINE, "the move-in receipt (the chat route's sent screen) lost the Discord");
+  assert.match(MOVEIN, /\.jf-act\[hidden\] \{ display: none; \}/, "the act's display:flex would stand over the receipt");
+  assert.ok(!/class="most"|most-blurb|Getting the most/.test(JOIN), "the Discord band is still at the foot of /join/");
+  assert.match(JOIN, /<p class="join-discord">[^<]*<a href=\{DISCORD\}/);
+  assert.match(JOIN, /:global\(html\.has-join-funnel\) \.join-discord \{ display: none; \}/, "with JavaScript the plain line must step aside for the funnel's");
 });

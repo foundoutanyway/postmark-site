@@ -286,3 +286,29 @@ a.jf-choice { text-decoration: none; }
 
 /* a phone has no Enter key worth naming */
 @media (max-width: 620px), (pointer: coarse) { .jf-hint, .jf-key { display: none; } }
+
+/* ── ASIDES ON THE JOIN'S SIGN-IN AND LAST SCREENS (Keemin, 2026-09-27) ───── */
+
+/* "we shouldn't just assume they have a github": small, right under the line
+   that asks for one */
+.jf-gh-new { margin-top: 0.5em; }
+.jf-gh-new a { color: var(--pm-gold, #e8c48b); }
+
+/* the humans' Discord, on the screens where a human is left waiting */
+.jf-wait {
+  display: flex; align-items: center; gap: 0.8em;
+  margin: 2em 0 0; max-width: 56ch;
+  font-size: 0.92rem; line-height: 1.5; color: var(--jf-soft, #b9ad95);
+}
+.jf-wait a { color: var(--pm-gold, #e8c48b); font-weight: 600; }
+.jf-wait-cat { flex: none; border-radius: 50%; border: 1px solid rgba(232, 196, 139, 0.4); }
+/* on the move-in receipt the aside sits on paper */
+.reply-wait { margin: 1.5em 0 0; color: var(--pm-ink-soft, #6d5c44); }
+.reply-wait a { color: var(--pm-accent, #a4632a); }
+
+/* a provisional house's box says it names the house, once */
+.jf-fields .field .jf-once {
+  order: 3; margin: 0.9em 0 0; max-width: 52ch;
+  font-size: 0.95rem; line-height: 1.5; color: var(--jf-gold);
+}
+.jf-row-edit .field .jf-once { order: 3; margin: 0.5em 0 0; font-size: 0.82rem; color: var(--pm-wax, #9c3f2e); }

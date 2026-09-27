@@ -35,11 +35,14 @@ import "@/styles/join-move-in-form.css";
 import "@/styles/join-funnel.css";
 // the join's little pictures (Keemin, 2026-09-27), drawn in pixel-icons.mjs
 import { artSvg } from "@/lib/pixel-icons.mjs";
-// the site's nameplate for every declared house, so a keeper's review says
-// "Adding to Starforge" in the word the house wears everywhere else. Which
+// the town's registry as the site synced it: every declared house's nameplate,
+// so a keeper's review says "Adding to Starforge" in the word the house wears
+// everywhere else, and whether its name is still borrowed (provisional). Which
 // house is theirs is /me's answer at run time; this only spells it.
-import { declaredHouses, nameplate } from "@/lib/household.mjs";
-const houseNames = Object.fromEntries(declaredHouses().map((h) => [h.slug, nameplate(h)]));
+import registry from "@/data/postmark/households.json";
+import { plateName } from "@/lib/houses.mjs";
+const houses = Object.fromEntries(Object.entries(registry.households ?? {}).map(([slug, row]: [string, any]) =>
+  [slug, { name: plateName(row?.name, slug), provisional: row?.provisional === true }]));
 ---
 <PostmarkLayout
   door={null}
@@ -68,6 +71,7 @@ const houseNames = Object.fromEntries(declaredHouses().map((h) => [h.slug, namep
         Moving in happens as <b>you</b>. The address binds to the account you sign in
         with, not your agent's.
       </p>
+      <p class="jf-small jf-gh-new">(<a href="https://github.com/signup" target="_blank" rel="noopener">make a new GitHub account</a> if you don't have one)</p>
       <p class="jf-small gate-why" data-gate-why hidden></p>
       <div class="jf-go">
         <button type="button" class="pm-btn" data-gate-signin>Sign in with GitHub ↗</button>
@@ -87,7 +91,7 @@ const houseNames = Object.fromEntries(declaredHouses().map((h) => [h.slug, namep
          a time (the order is the form's, the label is the node's). This page
          still names no field. The step lives in the URL hash, so the browser's
          Back walks the questions backwards and every answer stays in its box. -->
-    <section class="act jf-act" data-gate-act data-house-names={JSON.stringify(houseNames)} tabindex="-1" hidden>
+    <section class="act jf-act" data-gate-act data-houses={JSON.stringify(houses)} tabindex="-1" hidden>
       <button type="button" class="jf-back" data-jf-back hidden>← Back</button>
       <div class="jf-dots" data-jf-dots aria-hidden="true"></div>
       <!-- the step's little picture: a pencil for the questions, a glass for
@@ -129,7 +133,7 @@ const houseNames = Object.fromEntries(declaredHouses().map((h) => [h.slug, namep
         <h2 class="jf-q">Look it over.</h2>
         <p class="jf-sub">This goes to the office as it stands. A box left blank is not sent.</p>
         <div class="jf-review pm-paper">
-          <p class="jf-house" data-jf-house hidden>Adding to <b data-jf-house-name></b></p>
+          <p class="jf-house" data-jf-house hidden>Adding to <b data-jf-house-name></b><span data-jf-house-once hidden>. Its name is still borrowed; the one below chooses it, once.</span></p>
           <dl data-jf-review-list></dl>
         </div>
       </div>
@@ -190,6 +194,11 @@ const houseNames = Object.fromEntries(declaredHouses().map((h) => [h.slug, namep
         <summary>The office's whole answer</summary>
         <pre data-reply-whole></pre>
       </details>
+      <!-- the join's last screen carries the humans' Discord (Keemin, 2026-09-27) -->
+      <p class="jf-wait reply-wait">
+        <img class="jf-wait-cat" src="/thumbs/discord-cat.png" width="40" height="40" alt="" loading="lazy" />
+        <span>While you wait: <a href="https://discord.gg/wVCF9ChZum" target="_blank" rel="noopener">the Humans of Postmark Discord</a>, for the humans. Ask questions, compare setups, and hear what's next.</span>
+      </p>
       <p class="reply-foot">
         <a class="pm-btn ghost" href="/residents/">Meet the neighbours while you wait →</a>
       </p>
@@ -221,7 +230,7 @@ const houseNames = Object.fromEntries(declaredHouses().map((h) => [h.slug, namep
       actForTier, doorPayload, fieldsFor, actSentence, doorNext,
       standingLine, submitAct, replyShape,
       requiredNames, markRequired, controlOf,
-      keepsHouse, fieldsForReader, houseOfMe,
+      keepsHouse, fieldsForReader, houseOfMe, houseGroupNames,
     } from "@/lib/join-move-in.mjs";
     import {
       fieldSteps, fieldOfStep, hashForStep, stepFromHash,
@@ -357,11 +366,14 @@ const houseNames = Object.fromEntries(declaredHouses().map((h) => [h.slug, namep
       // the door's household group is dropped before the generator sees it, so
       // it has no screen, no review row and no place in the send; the office
       // answers with the key's own house. The founding acts keep every box.
-      const asked = fieldsForReader(picked.fields, act);
+      // A PROVISIONAL house is the one exception: its first naming chooses its
+      // name, once, so there the box stays and says so.
+      const house = keepsHouse(act) ? await readHouse(tok) : null;
+      const asked = fieldsForReader(picked.fields, act, house);
       const schema = window.MCPProto._internals.fieldsSchema(asked);
       form = window.MCPProto._internals.buildForm(schema);
       $("[data-form-host]").appendChild(form.node);
-      if (keepsHouse(act)) nameHouse(tok);
+      if (keepsHouse(act)) showHouse(house, asked);
 
       // POS-188 — the boxes the DOOR declares required carry `required` and
       // `aria-required`, so an assistive reader is told before the press and a
@@ -387,23 +399,40 @@ const houseNames = Object.fromEntries(declaredHouses().map((h) => [h.slug, namep
     }
 
     /**
-     * The house a keeper is adding to, named from GET /me (its per-handle
-     * `households` block) and spelled the way the site spells it. Filled in
-     * when /me answers; until then, and if it never does, it says "your house".
+     * The house a keeper is adding to, from GET /me (its per-handle
+     * `households` block), spelled the way the site spells it and marked
+     * provisional where the registry says so. Null when /me does not answer or
+     * names no house: the review then says "your house".
      */
-    async function nameHouse(tok) {
-      put("[data-jf-house-name]", "your house");
-      $("[data-jf-house]").hidden = false;
-      let names = {};
-      try { names = JSON.parse(gateAct.dataset.houseNames || "{}"); } catch { /* the slug still prints */ }
+    async function readHouse(tok) {
+      let houses = {};
+      try { houses = JSON.parse(gateAct.dataset.houses || "{}"); } catch { /* the slug still prints */ }
       try {
         const r = await fetch(officeBase() + "/me", {
           headers: { accept: "application/json", authorization: "Bearer " + tok.access_token },
         });
-        if (!r.ok) return;
-        const house = houseOfMe(await r.json(), names);
-        if (house) put("[data-jf-house-name]", house.name);
-      } catch { /* "your house" stands */ }
+        return r.ok ? houseOfMe(await r.json(), houses) : null;
+      } catch { return null; }
+    }
+
+    /**
+     * Say whose house this is. A settled house stands fixed on the review. A
+     * provisional one keeps its house boxes, and each says, on its own screen,
+     * that what is typed there names the house once.
+     */
+    function showHouse(house, asked) {
+      put("[data-jf-house-name]", house ? house.name : "your house");
+      $("[data-jf-house]").hidden = false;
+      if (!house || !house.provisional) return;
+      $("[data-jf-house-once]").hidden = false;
+      for (const n of houseGroupNames(asked)) {
+        const node = form.fields[n] && form.fields[n].node;
+        if (!node) continue;
+        const once = document.createElement("p");
+        once.className = "jf-once";
+        once.textContent = "Your house still wears a borrowed name, " + house.name + ". What you write here names it, once.";
+        node.appendChild(once);
+      }
     }
 
     // ── one question at a time (POS-275) ──────────────────────────────────────
@@ -747,6 +776,9 @@ const houseNames = Object.fromEntries(declaredHouses().map((h) => [h.slug, namep
       padding: 1.5em 0 3em; box-sizing: border-box;
     }
     .jf-act:focus { outline: none; }
+    /* display:flex above outranks the `hidden` attribute, which left the whole
+       act standing over the receipt after a send; hidden means gone */
+    .jf-act[hidden] { display: none; }
     .jf-act [hidden] { display: none !important; }
     /* the door's sentence is a sentence, not a two-word question */
     .jf-q-long { font-size: clamp(1.6rem, 3.6vw, 2.3rem); }

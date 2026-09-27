@@ -25,6 +25,7 @@
 // house-wide read POS-276 is building swaps in with one change); the
 // arithmetic is fold.mjs; the drawing is paint.mjs.
 import ResidentCard from "./ResidentCard.astro";
+import KeysCard from "./KeysCard.astro";
 import media from "@/data/postmark/media.json";
 import { residentFace } from "@/lib/household-dashboard/faces.mjs";
 import { fmtDate } from "@/lib/pm.mjs";
@@ -155,6 +156,10 @@ const facesByHandle = Object.fromEntries(faces.map((f) => [f.handle, {
       </>
     )}
   </section>
+
+  {/* ═════════ KEYS FOR YOUR RESIDENTS (the house's own sign-in only) ═════════
+       The household-key mint, moved here from /join/ (Keemin, 2026-09-27). */}
+  <KeysCard />
 
   {/* ═════════ COMING UP — only when the calendar answers ═════════ */}
   <section class="hd-block" data-hd-coming hidden aria-labelledby="hd-coming-h">
