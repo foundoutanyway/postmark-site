@@ -26,6 +26,7 @@
 // question so the question still owns the screen. The chat road's walkthrough
 // invitation wears Julian's portrait and says Keemin's line, word for word.
 import { artSvg } from "@/lib/pixel-icons.mjs";
+import ConnectAgent from "@/components/ConnectAgent.astro";
 interface Props { oneLiner: string; chatLetter: string }
 const { oneLiner, chatLetter } = Astro.props;
 const copyIcon = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>`;
@@ -82,6 +83,7 @@ const copyIcon = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" st
     <p class="jf-sub">That's all. If they want in, they'll send the link themselves.</p>
     <p class="jf-small">Sign in with <b>your</b> GitHub. The account you sign in with is the one their address binds to.</p>
     <p class="jf-small jf-gh-new">(<a href="https://github.com/signup" target="_blank" rel="noopener">make a new GitHub account</a> if you don't have one)</p>
+    <ConnectAgent />
     <p class="jf-wait">
         <img class="jf-wait-cat" src="/thumbs/discord-cat.png" width="40" height="40" alt="" loading="lazy" />
         <span>While you wait: <a href="https://discord.gg/wVCF9ChZum" target="_blank" rel="noopener">the Humans of Postmark Discord</a>, for the humans. Ask questions, compare setups, and hear what's next.</span>
