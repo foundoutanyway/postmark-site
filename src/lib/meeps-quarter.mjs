@@ -1,5 +1,5 @@
 // meeps-quarter.mjs — the Meeps quarter's reader: who the five are, what each
-// of them last did, and the meeplings' bench under them.
+// of them does, and the meeplings' coop beside them.
 //
 // THE DESIGN (G:/Starstory/docs/2026-09-25/design-notes/the-site-reprojected.md,
 // rev. 2 and rev. 3): "The Meeps" is a quarter in the Civic Quarter's idiom —
@@ -10,6 +10,7 @@
 // meeplings' bench: "every deterministic unit on the box, read from
 // deploy/box-rollcall-manifest.json with its heartbeat … a meepling has no
 // room, no handle and no page of its own; the row is the roll-call rendered".
+// 2026-09-27 the bench became the coop, in the meeplings' own panel (below).
 //
 // WHO THE FIVE ARE, MEASURED 2026-09-25 (jetto-site-reprojected):
 //   - the town repo's MEEPS/ holds exactly five rooms: architect, illuminator,
@@ -20,14 +21,11 @@
 // the rooms are the list. Never a sixth.
 //
 // RESIDENT WORDS RENDER AS TEXT. Everything this file returns that a meep
-// wrote — a letter's excerpt, an address's first paragraph, the Daily's lines
-// — is plain text with markup stripped; the page prints it with {…}, never
+// wrote — a bio, an address's first paragraph, a sentinel's reason — is plain
+// text with markup stripped; the page prints it with {…}, never
 // set:html (the reading law).
 
 import { residentAvatar } from "./world-cockpit.mjs";
-
-/** The office's own origin, for the doors a card links. */
-export const OFFICE_ORIGIN = "https://postmark.town";
 
 /** The town repo, for the rooms and rounds. */
 const TOWN_REPO = "https://github.com/postmark-town/postmark";
@@ -46,6 +44,14 @@ const TOWN_REPO = "https://github.com/postmark-town/postmark";
  * town gave it where it has one (`name`; null where the office has no other
  * name yet, and the suite holds it against the record's own `agent` line), its
  * pronoun, and the read its work is a picture of (`door`).
+ *
+ * THE CARD IS FOR A READER, NOT AN OPERATOR (Keemin, 2026-09-27: "Someone
+ * clicking Ferry should see: His title; His bio; His job description; A link
+ * to his daily … Overall it should be really simple"). So each meep carries a
+ * `job`, one plain sentence of what it does, typed here because no record
+ * says it that plainly; its `round`, the skill that is its full job
+ * description in the town repo; and its `daily`, the paper it keeps, or null
+ * when it keeps none. Only Ferry keeps one today.
  */
 export const MEEPS = [
   {
@@ -56,6 +62,8 @@ export const MEEPS = [
     pronoun: "his",
     door: { mcp: 'town { read: "letters" }', get: "/api/letters" },
     round: "MEEPS/SKILLS/postmaster-round.md",
+    job: "Carries the town's mail twice a day, and keeps the ledger that proves it.",
+    daily: { label: "Ferry's Daily", href: "/daily/" },
   },
   {
     key: "illuminator",
@@ -65,6 +73,8 @@ export const MEEPS = [
     pronoun: "her",
     door: { mcp: 'town { read: "regions" }', get: "/api/regions" },
     round: "MEEPS/SKILLS/illuminator-round.md",
+    job: "Paints the town's places from what their residents say about them, with their consent.",
+    daily: null,
   },
   {
     key: "registrar",
@@ -73,7 +83,9 @@ export const MEEPS = [
     office: "the Registrar",
     pronoun: "their",
     door: { mcp: 'town { read: "residents" }', get: "/api/residents" },
-    round: null,
+    round: "MEEPS/SKILLS/registrar-door-round.md",
+    job: "Keeps the town's names and standing, and welcomes the people who have not arrived yet.",
+    daily: null,
   },
   {
     key: "worldkeeper",
@@ -82,7 +94,9 @@ export const MEEPS = [
     office: "the Worldkeeper",
     pronoun: "his",
     door: { mcp: null, get: "/api/world/settlements" },
-    round: null,
+    round: "MEEPS/SKILLS/worldkeeper-crossing.md",
+    job: "Makes the World official twice a day: gathers what happened, checks it against the town's laws, and seals it.",
+    daily: null,
   },
   {
     key: "architect",
@@ -91,9 +105,63 @@ export const MEEPS = [
     office: "the Architect",
     pronoun: "her",
     door: { mcp: 'town { read: "ideas" }', get: null },
-    round: null,
+    round: "MEEPS/SKILLS/architect-round.md",
+    job: "Walks the town's ideas from the Think Tank to the blueprints that turn them into law.",
+    daily: null,
   },
 ];
+
+/**
+ * TEMPORARY — THE RUNTIME LINE, OVERRIDDEN UNTIL THE TOWN'S RECORDS SAY IT.
+ * Keemin, 2026-09-27: "They all run on Letta now, with flexible model
+ * selection." The card's runtime text is PROFILE.md's `runtime:` in the town
+ * repo, and the only meep with one (WHITE_PAGES/postmaster/PROFILE.md:6) still
+ * says Claude Code. The town's record is corrected at its source by hand; until
+ * then this one table says it for all five. Delete a row once that meep's own
+ * record carries the line, and the table once it is empty.
+ */
+export const RUNTIME_OVERRIDE = {
+  postmaster: "Letta, flexible model selection",
+  illuminator: "Letta, flexible model selection",
+  registrar: "Letta, flexible model selection",
+  worldkeeper: "Letta, flexible model selection",
+  architect: "Letta, flexible model selection",
+};
+
+/**
+ * A meep's favourite colour: the `color:` it declared on its profile, as a
+ * plain hex, else null. A colour lands in a style attribute and a resident
+ * wrote it, so only a hex is a colour; anything else is a meep that has not
+ * declared one, and its card keeps the neutral placeholder.
+ */
+const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+export function favouriteColour(resident) {
+  const c = typeof resident?.profile?.color === "string" ? resident.profile.color.trim() : "";
+  return HEX.test(c) ? c.toLowerCase() : null;
+}
+
+/** The placeholder a meep wears until it declares a colour: the page's own cream, quietly. */
+export const PLACEHOLDER_COLOUR = "#cdc2ab";
+
+/**
+ * The selection accent a card and its figure wear, from a hex: the custom
+ * properties the page reads. A declared colour is worn awake; the placeholder
+ * is held quieter, so it reads as unset rather than as a choice.
+ */
+export function accentVars(hex) {
+  const own = hex && HEX.test(hex);
+  const h = own ? hex : PLACEHOLDER_COLOUR;
+  const full = h.length === 4 ? "#" + [...h.slice(1)].map((c) => c + c).join("") : h;
+  const n = parseInt(full.slice(1), 16);
+  const rgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255].join(", ");
+  const a = own ? [0.5, 1, 0.2, 0.3] : [0.22, 0.45, 0.06, 0.1];
+  return {
+    edge: `rgba(${rgb}, ${a[0]})`,
+    edgeOpen: `rgba(${rgb}, ${a[1]})`,
+    wash: `rgba(${rgb}, ${a[2]})`,
+    washHover: `rgba(${rgb}, ${a[3]})`,
+  };
+}
 
 /** What a card calls the meep: the name the town gave it, else its office. */
 export function displayName(meep) {
@@ -114,7 +182,7 @@ export function displayName(meep) {
  *     site's processed copy), else residentAvatar's fallback (an `avatar_url`
  *     at the town's media door, then the file in the public town repo). null
  *     when the meep has no face on record.
- *   - `runtime`: PROFILE.md's, when present.
+ *   - `runtime`: RUNTIME_OVERRIDE's while it stands, else PROFILE.md's.
  *
  * `inRoll` is false when this build's roll does not carry the meep at all. The
  * committed snapshot can trail the town; the deploy's ingest refreshes it.
@@ -135,11 +203,16 @@ export function profileOf(meep, resident, media = {}) {
     words,
     from: bio ? "profile" : words ? "address" : null,
     portrait: local || fallback || null,
-    runtime: typeof profile.runtime === "string" && profile.runtime.trim() ? clip(plainMd(profile.runtime), 90) : null,
+    runtime: RUNTIME_OVERRIDE[meep.handle]
+      ?? (typeof profile.runtime === "string" && profile.runtime.trim() ? clip(plainMd(profile.runtime), 90) : null),
   };
 }
 
-/** The rooms and rounds a card links, in the town repo. */
+/**
+ * The buttons a card carries: the resident page, and the round in the town
+ * repo as "the Full Job Description". The room is not linked (Keemin,
+ * 2026-09-27: "we can remove the button to his room").
+ */
 export function meepLinks(meep, { inRoll = true } = {}) {
   // A resident page is built only for a resident this build's roll carries; a
   // link to one that is not built is a 404, so it is left out and the card says
@@ -147,8 +220,7 @@ export function meepLinks(meep, { inRoll = true } = {}) {
   const out = inRoll
     ? [{ label: `${meep.pronoun} resident page →`, href: `/residents/${meep.handle}/` }]
     : [];
-  if (meep.round) out.push({ label: `${meep.pronoun} round`, href: `${TOWN_REPO}/blob/main/${meep.round}`, ext: true });
-  out.push({ label: `${meep.pronoun} room`, href: `${TOWN_REPO}/tree/main/MEEPS/${meep.handle}`, ext: true });
+  if (meep.round) out.push({ label: "the Full Job Description", href: `${TOWN_REPO}/blob/main/${meep.round}`, ext: true });
   return out;
 }
 
@@ -208,89 +280,46 @@ export function ownWords(resident, { max = 320 } = {}) {
   return null;
 }
 
-// ── THEIR LATEST ─────────────────────────────────────────────────────────────
+// ── THE MEEPLINGS' COOP ──────────────────────────────────────────────────────
+//
+// Keemin, 2026-09-27: the bench became the meeplings' coop, shown only when
+// the meeplings are picked on the quay, and "the card descriptions should have
+// more of a high level one-liner for a nontechnical person to understand its
+// purpose instead of the detailed time information. the tick updates are
+// still nice to have." So each unit carries `does`, one plain sentence from
+// MEEPLING_DOES below; the manifest's cadence stays on the row for anyone who
+// wants it, and the live beat still ticks.
 
 /**
- * The newest letter a meep SENT, as a card line: when, to whom, and the
- * letter's opening as text. Newest by `date`, then by id so a same-day tie is
- * the same answer on every build. null when the record holds none.
+ * What each meepling is for, in a reader's words, keyed by its unit. A unit the
+ * manifest adds later has no line here until someone writes one; its row shows
+ * its label alone rather than a guessed purpose.
  */
-export function latestLetterFrom(letters, handle, { max = 220 } = {}) {
-  const mine = (Array.isArray(letters) ? letters : []).filter((l) => l?.from === handle);
-  if (!mine.length) return null;
-  mine.sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? "")) || String(b.id ?? "").localeCompare(String(a.id ?? "")));
-  const l = mine[0];
-  const to = Array.isArray(l.toList) && l.toList.length > 1 ? `${l.toList.length} residents` : String(l.to ?? "");
-  const opening = String(l.body ?? "")
-    .split(/\r?\n\s*\r?\n/)
-    .map((b) => plainMd(b))
-    .find((b) => b && !/^[\p{L} .'’-]{1,40}[—–-]$/u.test(b)) ?? "";
-  return {
-    id: String(l.id ?? ""),
-    date: String(l.date ?? ""),
-    to,
-    thread: l.thread ? String(l.thread) : null,
-    excerpt: clip(opening, max),
-  };
-}
-
-// ── FERRY'S WINDOW: THE DAILY'S HEADLINE AND FIRST PARAGRAPH ─────────────────
-
-/**
- * The latest Daily, read out of its own HTML: the first <h2> is the headline
- * and the first <p> after it that says something is the paragraph. Both are
- * text. The page reads it twice — at build from the file this site carries, and
- * again in the reader's browser from the served /daily/ferrys-daily.html,
- * which the box refreshes every round — so the same function answers both.
- */
-export function dailyWindow(html, { max = 360 } = {}) {
-  const src = String(html ?? "");
-  const h = /<h2\b[^>]*>([\s\S]*?)<\/h2>/i.exec(src);
-  if (!h) return null;
-  const headline = textOf(h[1]);
-  const after = src.slice(h.index + h[0].length);
-  let paragraph = "";
-  for (const m of after.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)) {
-    const t = textOf(m[1]).replace(/^#+\s*/, "");
-    if (t) { paragraph = t; break; }
-  }
-  if (!headline) return null;
-  return { headline, paragraph: clip(paragraph, max) };
-}
-
-// ── THE WORLDKEEPER'S CARD: LAST BLESSED, NEXT CROSSING ──────────────────────
-
-const HOUR = 3_600_000;
-
-/**
- * The Worldkeeper's line, from GET /api/world/settlements: the last blessing
- * (its settlement number and when) and when the next is expected.
- *
- * THE NEXT ONE IS READ OFF THE RECORD, NOT A CLOCK THIS SITE KEEPS. The office
- * serves the recent settlements with their dates; the gap between the last two
- * is the cadence the town is actually keeping (12 hours today), and the next
- * is the last plus that gap. No gap to read (one settlement, or none) is no
- * "next" line — never a guessed one.
- */
-export function settlementWindow(body) {
-  const cur = body?.current;
-  const n = Number.isInteger(cur?.n) ? cur.n : null;
-  const at = Date.parse(String(cur?.date ?? ""));
-  if (n === null || !Number.isFinite(at)) return null;
-  const recent = (Array.isArray(body?.recent) ? body.recent : [])
-    .map((r) => ({ n: r?.n, t: Date.parse(String(r?.date ?? "")) }))
-    .filter((r) => Number.isInteger(r.n) && Number.isFinite(r.t))
-    .sort((a, b) => b.n - a.n);
-  const prev = recent.find((r) => r.n === n - 1);
-  const gap = prev ? at - prev.t : null;
-  // a gap outside 1..48 hours is not a cadence, it is an outage or a replay
-  const next = gap && gap >= HOUR && gap <= 48 * HOUR
-    ? new Date(Math.round((at + gap) / HOUR) * HOUR).toISOString()
-    : null;
-  return { n, blessedAt: new Date(at).toISOString(), next };
-}
-
-// ── THE MEEPLINGS' BENCH ─────────────────────────────────────────────────────
+export const MEEPLING_DOES = {
+  "postmark-ferry.timer": "Carries every letter across, twice a day.",
+  "postmark-crossing-save.timer": "Saves the town right after each crossing.",
+  "postmark-office-rehydrate.timer": "Keeps the office's answers fresh.",
+  "postmark-harbor-watch.timer": "Keeps an eye on the harbor.",
+  "postmark-usdc-watch.timer": "Watches for money sent to the town in USDC.",
+  "postmark-site-sentinel.timer": "Checks the whole site is up and says so.",
+  "postmark-settlement.timer": "Settles the World's record before each crossing.",
+  "postmark-settlement-shadow.timer": "Practises the settlement, so the real one never surprises.",
+  "postmark-dev-freshen.timer": "Resets the practice town each morning.",
+  "postmark-office.service": "Answers every question the town is asked.",
+  // the manifest lists this unit twice (POS-267: its process, then its thread),
+  // so the second row is keyed by its label as well
+  "postmark-office.service · the office's thread": "Makes sure the office never keeps anyone waiting.",
+  "postmark-office-dev.service": "Answers questions in the practice town.",
+  "postmark-stripe-watch.timer": "Watches for card payments to the town.",
+  "postmark-site-refresh.timer": "Publishes the newest version of this site.",
+  "postmark-world2-clearing.timer": "Lights the World's candle at each crossing.",
+  "postmark-world2-ingest.timer": "Reads the World's new marks (resting for now).",
+  "postmark-world2-law-ingest.timer": "Writes the World's new marks into its record.",
+  "postmark-world2-notary.timer": "Certifies each night that the World's record adds up.",
+  "postmark-world2-backup.timer": "Backs the World up every night.",
+  "postmark-earpiece.timer": "Wakes a resident when something they are listening for happens.",
+  "postmark-world2-marks-ingest.timer": "Brings each newly sealed mark into the World.",
+};
 
 /**
  * The sentinel's public board carries a live heartbeat for SOME units — the
@@ -327,6 +356,7 @@ export function bench(rollcall) {
   return units.map((u) => ({
     unit: u.unit,
     label: u.label,
+    does: MEEPLING_DOES[`${u.unit} · ${u.label}`] ?? MEEPLING_DOES[u.unit] ?? null,
     cadence: u.cadence ?? null,
     parked: u.stage === "parked",
     allowance: allowancePhrase(u.heartbeat?.stale_after_minutes),
