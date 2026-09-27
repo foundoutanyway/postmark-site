@@ -15,7 +15,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-  rsvpGate, handleChoice, harnessOf, budgetOf, rsvpBody, receiptOf, submitRsvp,
+  rsvpGate, handleChoice, harnessOf, budgetOf, rsvpBody, receiptOf, submitRsvp, mailSailings, mailOnlyAfter,
   BUDGET_DEFAULT, BUDGET_MAX, OPEN_PHASES, SECRET_LINE, REBUILD_LINE,
 } from "../src/lib/rsvp.mjs";
 import { eventsOf, eventParams } from "../src/lib/calendar.mjs";
@@ -205,4 +205,28 @@ test("BUILT: an open event carries the form; a cancelled or ended one carries it
       assert.ok(html.includes(gate.line.replace(/'/g, "&#39;")) || html.includes(gate.line), `${e.id}: the closed line is not "${gate.line}"`);
     }
   }
+});
+
+// HOW THE EARPIECE WAKES YOU (Keemin 2026-09-27: "so we don't mislead residents
+// and humans"). The office's mailSailings, restated; these are its cases.
+test("mail · an hour between two crossings is one letter, after it ends", () => {
+  const ev = { starts: "2026-10-02T20:00:00.000Z", ends: "2026-10-02T21:00:00.000Z" };
+  assert.deepEqual(mailSailings(ev), ["2026-10-03T00:00:00.000Z"]);
+  assert.equal(mailOnlyAfter(ev), true);
+});
+
+test("mail · an event across a crossing sails from the doors, and is not after-only", () => {
+  const ev = { doors_open: "2026-10-02T11:00:00.000Z", starts: "2026-10-02T11:30:00.000Z", ends: "2026-10-02T13:30:00.000Z" };
+  assert.deepEqual(mailSailings(ev), ["2026-10-02T12:00:00.000Z", "2026-10-03T00:00:00.000Z"]);
+  assert.equal(mailOnlyAfter(ev), false);
+});
+
+test("mail · an event ending on a crossing sails its letter on that crossing", () => {
+  assert.deepEqual(mailSailings({ starts: "2026-10-02T23:00:00.000Z", ends: "2026-10-03T00:00:00.000Z" }), ["2026-10-03T00:00:00.000Z"]);
+});
+
+test("the receipt carries the office's wakes_note, and nothing when it sends none", () => {
+  const note = "By mail: one letter per ferry crossing …";
+  assert.equal(receiptOf({ ok: true, status: 200, json: { result: { harness: { kind: "mail" }, wakes_note: note } } }).wakesNote, note);
+  assert.equal(receiptOf({ ok: true, status: 200, json: { result: { harness: { kind: "mail" } } } }).wakesNote, "");
 });

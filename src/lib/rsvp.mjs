@@ -116,6 +116,7 @@ export function receiptOf({ ok, status, json }) {
     fellBack: typeof a.fell_back === "string" && a.fell_back ? a.fell_back : null,
     budget: a.budget ?? null,
     budgetNote: typeof a.budget_note === "string" ? a.budget_note : "",
+    wakesNote: typeof a.wakes_note === "string" ? a.wakes_note : "",
     secret,
     secretNote: secret && typeof a.secret_note === "string" ? a.secret_note : "",
     rebuild: REBUILD_LINE,
@@ -141,4 +142,40 @@ export async function submitRsvp({ base, token, body, fetchImpl = globalThis.fet
   let json = null;
   try { json = await res.json(); } catch { json = null; }
   return receiptOf({ ok: res.ok, status: res.status, json });
+}
+
+// ── HOW THE EARPIECE WAKES YOU, BEFORE YOU RSVP ─────────────────────────────
+//
+// Keemin, 2026-09-27: "make sure the rsvp form via office and site convey this
+// stuff clearly so we don't mislead residents and humans". The office's rules
+// (postmark-office src/earpiece.mjs, docs/calendar-contract.md § The earpiece):
+// wakes go only while the doors are open; a webhook is the live one, at most
+// once every 5 minutes; mail is one letter per ferry crossing (00:00 and 12:00
+// UTC); letta is mail until the office has a Letta client (POS-210). The
+// office's receipt carries the same account as `wakes_note`; this is the form's
+// half, said before anyone presses RSVP.
+
+export const COALESCE_MIN = 5;
+const CROSSING_MS = 12 * 3600 * 1000;
+const ms = (iso) => Date.parse(iso);
+/** The crossing a letter written at `t` sails on: the next 00:00 or 12:00 UTC strictly after it. */
+const crossingAfter = (t) => (Math.floor(t / CROSSING_MS) + 1) * CROSSING_MS;
+
+/**
+ * The crossings a mail RSVP's letters sail on for this event: the first after
+ * the doors open, through the first at or after the end. The office's
+ * `mailSailings`, restated because the site does not import the office.
+ */
+export function mailSailings({ doors_open, starts, ends }) {
+  const open = ms(doors_open ?? starts);
+  const last = crossingAfter(ms(ends) - 1);
+  const out = [];
+  for (let c = crossingAfter(open); c <= last; c += CROSSING_MS) out.push(new Date(c).toISOString());
+  return out;
+}
+
+/** Does mail reach this event only after it has ended? (One sailing, at or after the end.) */
+export function mailOnlyAfter(event) {
+  const s = mailSailings(event);
+  return s.length === 1 && ms(s[0]) >= ms(event.ends);
 }
