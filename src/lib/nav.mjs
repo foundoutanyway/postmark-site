@@ -150,8 +150,7 @@ export const HARBOR = "https://1f4ee.town/";
  *             — decoration, never the name. The label alone still says what the
  *             chip is; `aria-hidden` in the row.
  *   alsoKeys  more keys that light THIS chip: pages that live inside the room
- *             without being its landing (the calendar and the Daily, on the
- *             Bulletin's board)
+ *             without being its landing
  *   flag      the chip hangs only when this NAV FLAG is on (see `navFlags`
  *             below) — for a chip whose page is built on another branch and
  *             has not landed here. A chip to a 404 is worse than no chip.
@@ -191,7 +190,8 @@ export const RAIL = [
   //                  repos start the Docs, and the Mail is a seat again
   //   Residents      gives its page to The Households (/residents/ forwards)
   //   Ferry's Daily  and the calendar leave the chips; they live on the
-  //                  Bulletin's board, so their pages light the Bulletin
+  //                  Bulletin's board, and (POS-273) so do the civic quarter
+  //                  and the meeps, so The Town has no row at all
   //
   // The laws the earlier rails produced — a page per read, the aggregate first,
   // one row per page, no two-faced seat, icons as decoration — are unchanged
@@ -199,28 +199,24 @@ export const RAIL = [
   // before this one are in this file's history.
   { key: "postmark", label: "Postmark", href: "/" },
 
-  // THE TOWN — "the Bulletin, the Civic Quarter, the Meeps", in that order
-  // (Keemin, 2026-09-26: the bulletin first, "the most important"). The first
-  // chip is the aggregate, so the seat opens the Bulletin. Its board carries
-  // the calendar and Ferry's Daily, so those pages light the Bulletin chip
-  // (`alsoKeys`). THE PROJECTS light the civic quarter's chip and have none of
-  // their own (Wright's ruling on POS-249, 2026-09-26): Keemin named the blurred
-  // boundary between the Works and the quarter, a project is where a drawn idea
-  // or an answered bounty gets built, and the quarter's page links it beside
-  // them. `votes` answers here because the Ballot House is a building of the
-  // quarter.
+  // THE TOWN — one seat, no row (Keemin, 2026-09-27: "I want the civic quarter
+  // and the meeps to themselves be pins on the bulletin board. that way we can
+  // just remove that subrail outright"). The seat opens the Bulletin, and the
+  // board holds the rest: the calendar, Ferry's Daily, the post-its, the meeps
+  // and the civic quarter, each opening over the cork (POS-273). Their pages
+  // stand at their URLs, because letters link them, and every one of them
+  // lights this seat. The FIRST alsoKey is the landing's own: /bulletin/
+  // claims `bulletin`, and the seat's `town` is what /town/ (the civic
+  // quarter) has always claimed. The PROJECTS answer here because a project
+  // is where a drawn idea or an answered bounty gets built (Wright's ruling on
+  // POS-249), and `votes` because the Ballot House is a building of the quarter.
+  // The rulings behind the three-chip row this replaced are in this file's
+  // history.
   {
     key: "town",
     label: "The Town",
     href: "/bulletin/",
-    alsoKeys: ["votes"],
-    members: [
-      { key: "bulletin", label: "the bulletin", href: "/bulletin/", icon: "bulletin",
-        alsoKeys: ["calendar", "daily"] },
-      { key: "town", label: "the civic quarter", href: "/town/", icon: "quarter",
-        alsoKeys: ["projects"] },
-      { key: "meeps", label: "the meeps", href: "/meeps/", icon: "meeps" },
-    ],
+    alsoKeys: ["bulletin", "calendar", "daily", "meeps", "projects", "votes"],
   },
 
   // THE WORLD — the living map, conversations, replay (where the settlements
