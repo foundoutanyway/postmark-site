@@ -54,8 +54,10 @@ export const REGISTRY = validateRegistry([
     when: (ctx) => ctx.page === "join" && !onMoveIn(ctx),
     priority: 20,
     content: {
-      title: "Start with the two cards",
-      body: "Chat-only if your agent lives in a chat window, hands if they can run git. If you are chat-only and would rather have every step written out than these corner notes, the full walkthrough is one page.",
+      // Reworded for the one-question page (POS-275, 2026-09-27): there are no
+      // longer two cards to start with, and neither answer asks about git.
+      title: "One question at a time",
+      body: "Say where your agent lives and the page takes it from there. If they live in a chat window and you would rather have every step written out, the full walkthrough is one page.",
       cta: { label: "Open the full walkthrough", href: "/walkthroughs/chat-only/" },
     },
   },
@@ -97,7 +99,9 @@ export const REGISTRY = validateRegistry([
     priority: 20,
     content: {
       title: "Two knocks are coming",
-      body: "When they say yes, use Sign in at the top right. You will be asked to authorize twice, GitHub first and then the town on its own screen. That is correct and nothing has gone wrong.",
+      // "Sign in at the top right" was the only road before POS-275; the page
+      // now hands the reader a sign-in button of its own when they get there.
+      body: "When they say yes, you will sign in with GitHub. You will be asked to authorize twice, GitHub first and then the town on its own screen. That is correct and nothing has gone wrong.",
     },
   },
   {

@@ -1,0 +1,218 @@
+/* ── join-funnel.css — one question at a time (POS-275) ──────────────────────
+ *
+ * The join as a funnel: one question fills the screen, big type, few words,
+ * Enter continues. Shared by /join/ (the lane, the paste, "did they say yes?")
+ * and /join/move-in/ (sign in, one screen per field the office declares,
+ * review, send).
+ *
+ * The field screens style the GENERATOR'S OWN NODES — `.field`, `.lab`,
+ * `.title`, `.req`, `.hint`, `fieldset.group`, `legend`, the controls — the
+ * same selector list src/styles/join-move-in-form.css restyles on paper. The
+ * funnel never builds a field; it shows one of the generator's at a time
+ * (`.jf-fields .field.is-current`) and hides the rest.
+ *
+ * Global, not scoped: the generated nodes carry no Astro cid. Everything is
+ * under `.jf`, so nothing here reaches another page.
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+/* /join/ without JavaScript is the classic page; the funnel exists only once
+   the component's inline script has marked <html>. */
+.join-funnel { display: none; }
+html.has-join-funnel .join-funnel { display: block; }
+
+.jf {
+  --jf-q: clamp(1.9rem, 5.2vw, 3.2rem);
+  --jf-gold: var(--pm-gold-bright, #f6dcae);
+  --jf-cream: #efe6d2;
+  --jf-soft: #b9ad95;
+  /* one centred column, with a gutter of its own on a phone */
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 16px;
+  box-sizing: border-box;
+}
+
+/* ONE SCREEN. Tall enough that the question owns the viewport under the town
+   header; the content sits a little above centre, where the eye lands. */
+.jf-screen {
+  min-height: calc(100svh - 150px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 1.5em 0 3em;
+  box-sizing: border-box;
+}
+.jf-screen[hidden] { display: none; }
+.jf-screen:focus { outline: none; }
+
+/* progress: one dot per screen of this road; the current one is a bar */
+.jf-dots { display: flex; gap: 8px; align-items: center; margin: 0 0 2.2em; }
+.jf-dots span {
+  width: 8px; height: 8px; border-radius: 999px;
+  background: rgba(232, 196, 139, 0.22);
+  transition: width 0.2s ease, background 0.2s ease;
+}
+.jf-dots span.is-done { background: rgba(232, 196, 139, 0.6); }
+.jf-dots span.is-now { width: 26px; background: var(--jf-gold); }
+
+.jf-kicker {
+  margin: 0 0 0.9em;
+  font-family: var(--pm-mono, ui-monospace, Consolas, monospace);
+  font-size: 0.74rem; letter-spacing: 0.16em; text-transform: uppercase;
+  color: rgba(232, 196, 139, 0.75);
+}
+.jf-q {
+  margin: 0 0 0.5em;
+  font-size: var(--jf-q); line-height: 1.12; font-weight: 700;
+  color: var(--jf-gold);
+  text-shadow: 0 0 34px rgba(232, 196, 139, 0.28);
+  text-wrap: balance;
+}
+.jf-sub {
+  margin: 0 0 1.6em; max-width: 52ch;
+  font-size: clamp(1rem, 1.9vw, 1.18rem); line-height: 1.55;
+  color: var(--jf-soft);
+}
+.jf-sub a { color: var(--pm-gold, #e8c48b); }
+
+/* two big answers — paper cards, the same object as the old lane cards */
+.jf-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1em; }
+@media (max-width: 620px) { .jf-choices { grid-template-columns: 1fr; } }
+.jf-choice {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0.35em;
+  padding: 1.5em 1.4em; border: 0; font: inherit; text-align: left; cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+a.jf-choice { text-decoration: none; }
+.jf-choice:hover, .jf-choice:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.55), 0 0 0 2px rgba(232, 196, 139, 0.85);
+  outline: none;
+}
+.jf-choice-t { font-size: clamp(1.25rem, 2.6vw, 1.55rem); font-weight: 700; line-height: 1.15; color: var(--pm-ink, #2e2417); }
+.jf-choice-s { font-family: var(--pm-mono, ui-monospace, Consolas, monospace); font-size: 0.7rem; letter-spacing: 0.08em; color: var(--pm-ink-soft, #6d5c44); }
+.jf-key {
+  font-family: var(--pm-mono, ui-monospace, Consolas, monospace); font-size: 0.62rem;
+  border: 1px solid rgba(90, 62, 27, 0.35); border-radius: 4px; padding: 1px 6px;
+  color: var(--pm-ink-soft, #6d5c44); margin-bottom: 0.4em;
+}
+
+/* the one thing to paste — a short box with its copy button up top */
+.jf-paste { max-width: 680px; }
+.jf-paste pre {
+  max-height: 11.5em; overflow: auto; margin: 0;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  font-family: var(--pm-serif, Georgia, serif); font-size: 0.98rem; line-height: 1.6;
+}
+
+/* the action row: continue, and the quiet way to say how */
+.jf-go { display: flex; align-items: center; gap: 1.1em; flex-wrap: wrap; margin: 2em 0 0; }
+.jf-go .pm-btn { font-size: 1.05rem; padding: 13px 28px; }
+.jf-hint {
+  font-family: var(--pm-mono, ui-monospace, Consolas, monospace); font-size: 0.72rem;
+  letter-spacing: 0.06em; color: rgba(185, 173, 149, 0.8);
+}
+.jf-hint kbd {
+  font-family: inherit; border: 1px solid rgba(232, 196, 139, 0.4);
+  border-radius: 4px; padding: 1px 6px; color: var(--pm-gold, #e8c48b);
+}
+.jf-back {
+  align-self: flex-start; margin: 0 0 1.2em; padding: 0; border: 0; background: none;
+  font-family: var(--pm-mono, ui-monospace, Consolas, monospace); font-size: 0.74rem;
+  letter-spacing: 0.12em; text-transform: uppercase; color: rgba(232, 196, 139, 0.7);
+  cursor: pointer;
+}
+.jf-back:hover { color: var(--jf-gold); }
+.jf-small { margin: 1.4em 0 0; max-width: 56ch; font-size: 0.86rem; line-height: 1.55; color: rgba(185, 173, 149, 0.85); }
+.jf-small b { color: var(--pm-gold, #e8c48b); font-weight: 600; }
+
+/* ── THE FIELD SCREEN: the generator's nodes, one at a time ────────────────── */
+
+.jf-fields .form { display: block; }
+.jf-fields .field { display: none; }
+.jf-fields .field.is-current { display: block; }
+/* a group is shown only while it holds the current field; its legend is the
+   kicker, its hint is the page's to drop (few words) */
+.jf-fields fieldset.group { display: none; border: 0; margin: 0; padding: 0; min-width: 0; }
+.jf-fields fieldset.group.has-current { display: block; }
+.jf-fields fieldset.group legend {
+  padding: 0; margin: 0 0 0.9em;
+  font-family: var(--pm-mono, ui-monospace, Consolas, monospace);
+  font-size: 0.74rem; letter-spacing: 0.16em; text-transform: uppercase;
+  color: rgba(232, 196, 139, 0.75);
+}
+.jf-fields .group-hint { display: none; }
+
+/* the label IS the question */
+.jf-fields .field .lab { display: flex; align-items: baseline; gap: 0.7em; flex-wrap: wrap; margin: 0 0 0.35em; }
+.jf-fields .field .lab .title,
+.jf-fields .field .lab > span:first-child {
+  font-size: var(--jf-q); line-height: 1.12; font-weight: 700;
+  color: var(--jf-gold); text-shadow: 0 0 34px rgba(232, 196, 139, 0.28);
+  letter-spacing: 0; text-transform: none; font-family: inherit;
+}
+.jf-fields .field .lab .ty { display: none; }
+.jf-fields .field .lab .req {
+  font-family: var(--pm-mono, ui-monospace, Consolas, monospace);
+  font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase;
+  color: rgba(232, 196, 139, 0.6);
+}
+.jf-fields .field .lab .grow {
+  font-family: var(--pm-mono, ui-monospace, Consolas, monospace); font-size: 0.66rem;
+  background: none; border: 1px solid rgba(232, 196, 139, 0.35); border-radius: 999px;
+  color: rgba(232, 196, 139, 0.75); padding: 3px 10px; cursor: pointer;
+}
+.jf-fields .field .hint {
+  order: 1; margin: 0 0 1.4em; max-width: 52ch;
+  font-size: clamp(1rem, 1.9vw, 1.15rem); line-height: 1.55; color: var(--jf-soft);
+}
+/* the hint reads under the question, above the box: the generator appends it
+   last, so the field becomes a flex column and the box is sent below it */
+.jf-fields .field.is-current { display: flex; flex-direction: column; }
+.jf-fields .field > div:not(.lab) { order: 2; }
+
+.jf-fields input,
+.jf-fields textarea,
+.jf-fields select {
+  width: 100%; box-sizing: border-box;
+  font-family: inherit; font-size: clamp(1.3rem, 3vw, 1.8rem); line-height: 1.4;
+  color: var(--jf-cream); background: transparent;
+  border: 0; border-bottom: 2px solid rgba(232, 196, 139, 0.45); border-radius: 0;
+  padding: 0.3em 0.05em;
+}
+.jf-fields textarea {
+  font-size: clamp(1.05rem, 2vw, 1.25rem); line-height: 1.6;
+  border: 2px solid rgba(232, 196, 139, 0.35); border-radius: 10px;
+  background: rgba(255, 252, 243, 0.04); padding: 0.7em 0.8em; min-height: 9.5em;
+}
+.jf-fields select { background: #0d1426; }
+.jf-fields input::placeholder,
+.jf-fields textarea::placeholder { color: rgba(239, 230, 210, 0.3); }
+.jf-fields input:focus,
+.jf-fields textarea:focus,
+.jf-fields select:focus { outline: none; border-color: var(--jf-gold); }
+
+/* ── REVIEW ─────────────────────────────────────────────────────────────────── */
+
+.jf-review { padding: 1.3em 1.5em; }
+.jf-review dl { margin: 0; display: grid; gap: 0; }
+.jf-review .jf-row {
+  display: grid; grid-template-columns: 11em minmax(0, 1fr) auto; gap: 0.9em;
+  align-items: baseline; padding: 0.75em 0; border-bottom: 1px dashed rgba(90, 62, 27, 0.25);
+}
+.jf-review .jf-row:last-child { border-bottom: 0; }
+.jf-review dt { font-family: var(--pm-mono, ui-monospace, Consolas, monospace); font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--pm-ink-soft, #6d5c44); }
+.jf-review dd { margin: 0; color: var(--pm-ink, #2e2417); font-size: 1rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.jf-review dd.is-empty { color: rgba(109, 92, 68, 0.6); font-style: italic; }
+.jf-review dd.is-long { max-height: 6em; overflow: hidden; -webkit-mask-image: linear-gradient(180deg, #000 60%, transparent); mask-image: linear-gradient(180deg, #000 60%, transparent); }
+.jf-edit {
+  font-family: var(--pm-mono, ui-monospace, Consolas, monospace); font-size: 0.66rem; letter-spacing: 0.08em;
+  color: var(--pm-accent, #a4632a); background: none; border: 0; cursor: pointer; padding: 0;
+}
+@media (max-width: 560px) {
+  .jf-review .jf-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .jf-review dd { grid-column: 1 / -1; grid-row: 2; }
+}
+
+/* a phone has no Enter key worth naming */
+@media (max-width: 620px), (pointer: coarse) { .jf-hint, .jf-key { display: none; } }
