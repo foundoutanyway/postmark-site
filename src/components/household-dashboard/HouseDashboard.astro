@@ -40,8 +40,13 @@ const handles = faces.map((f) => f.handle);
 const slug = house.path ?? house.slug ?? "";
 // a resident's seat on the house's own page, where the rail keeps them
 const seat = (h: string) => slug ? `/households/${slug}/?resident=${encodeURIComponent(h)}` : `/residents/${encodeURIComponent(h)}/`;
-const hung = faces.filter((f) => f.windowHung === true);
-const unhung = faces.filter((f) => f.windowHung !== true);
+// A window the office said is hung sits beside its resident. One the build
+// was not told about (`null`: a snapshot older than the pane answer) gets its
+// place too, and the live doorstep decides: the frame loads when it says hung
+// and folds away when it says not. Only an office "no" goes to the grid.
+const hung = faces.filter((f) => f.windowHung !== false);
+const unhung = faces.filter((f) => f.windowHung === false);
+const hungKnown = faces.filter((f) => f.windowHung === true).length;
 const words = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
 const say = (n: number) => words[n] ?? String(n);
 const facesByHandle = Object.fromEntries(faces.map((f) => [f.handle, {
@@ -117,15 +122,15 @@ const facesByHandle = Object.fromEntries(faces.map((f) => [f.handle, {
   <section class="hd-block" aria-labelledby="hd-res-h">
     <div class="hd-head hd-rule">
       <h2 id="hd-res-h"><span data-private>Your residents</span><span data-public>The residents</span></h2>
-      <span class="hd-meta">{say(faces.length)} {faces.length === 1 ? "resident" : "residents"} · {say(hung.length)} {hung.length === 1 ? "has" : "have"} hung a window</span>
+      <span class="hd-meta">{say(faces.length)} {faces.length === 1 ? "resident" : "residents"} · <span data-hd-hung-line>{say(hungKnown)} {hungKnown === 1 ? "has" : "have"} hung a window</span></span>
     </div>
 
     {hung.map((f) => (
-      <div class="hd-row" style={f.accent ? `--hd-c: ${f.accent}` : undefined}>
+      <div class="hd-row" data-hd-row={f.handle} style={f.accent ? `--hd-c: ${f.accent}` : undefined}>
         <ResidentCard face={f} href={seat(f.handle)} />
         <figure class="hd-window" data-hd-window={f.handle}>
-          <iframe class="hd-pane" data-win-frame src={f.paneUrl} sandbox="allow-scripts" loading="lazy"
-            title={`${f.name}’s window`}></iframe>
+          <iframe class="hd-pane" data-win-frame src={f.windowHung === true ? f.paneUrl : undefined}
+            data-hd-src={f.paneUrl} sandbox="allow-scripts" loading="lazy" title={`${f.name}’s window`}></iframe>
           <figcaption class="hd-cap">
             <span>{f.name}’s window · the live pane, sandboxed</span>
             <a href={f.paneUrl} target="_blank" rel="noopener">open ⧉</a>
@@ -170,7 +175,7 @@ const facesByHandle = Object.fromEntries(faces.map((f) => [f.handle, {
         <div><dt>minted, all-time</dt><dd class="st" data-hd-n-minted>—</dd></div>
         <div data-hd-n-holo-wrap hidden><dt>holo</dt><dd data-hd-n-holo>—</dd></div>
         <div><dt>residents</dt><dd>{faces.length}</dd></div>
-        <div><dt>windows hung</dt><dd data-hd-n-windows>{hung.length}</dd></div>
+        <div><dt>windows hung</dt><dd data-hd-n-windows>{hungKnown}</dd></div>
       </dl>
       <p class="dash-holo-note" data-dash-holo-note hidden>✧ holo is {HOLO_NAME_LINE} It is {HOLO_LINE} — and since 2026-09-17 it spends like any stamp: the word names its source and its ink.</p>
       </div>
@@ -346,6 +351,7 @@ const facesByHandle = Object.fromEntries(faces.map((f) => [f.handle, {
   /* ── the residents ── */
   .hd-block { margin-top: 2.2em; }
   .hd-row { display: grid; grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.35fr); gap: 1.1em; margin-bottom: 1.1em; align-items: stretch; }
+  .hd-row.is-unhung { grid-template-columns: minmax(0, 1fr); }
   .hd-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1em; }
   .hd-subhead { font-family: var(--pm-mono); font-size: 0.64rem; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(232, 196, 139, 0.6); margin: 1.4em 0 0.6em; }
 

@@ -266,8 +266,14 @@ function paintCards(root, items, reads, ctx) {
     }
     // the office's live answer outranks the build's: a pane taken down since
     // the build leaves no empty frame behind
-    const frame = root.querySelector(`[data-hd-window="${CSS.escape(h)}"]`);
-    if (frame && hungOf(reads.doorsteps?.[h], true) === false) frame.hidden = true;
+    const fig = root.querySelector(`[data-hd-window="${CSS.escape(h)}"]`);
+    if (fig) {
+      const live = hungOf(reads.doorsteps?.[h], ctx.faces[h]?.windowHung);
+      fig.hidden = live !== true;
+      fig.closest("[data-hd-row]")?.classList.toggle("is-unhung", live !== true);
+      const frame = fig.querySelector("iframe");
+      if (live === true && frame && !frame.getAttribute("src")) frame.src = frame.dataset.hdSrc;
+    }
   }
 }
 
@@ -345,6 +351,8 @@ function paintNumbers(root, n, handles, reads, ctx) {
   const hung = handles.filter((h) => hungOf(reads.doorsteps?.[h], ctx.faces[h]?.windowHung) === true).length;
   const set = (sel, v) => { const e = box.querySelector(sel); if (e) e.textContent = v; };
   set("[data-hd-n-windows]", String(hung));
+  const line = root.querySelector("[data-hd-hung-line]");
+  if (line) line.textContent = `${hung} ${hung === 1 ? "has" : "have"} hung a window`;
   if (n) {
     set("[data-hd-n-held]", String(n.held));
     set("[data-hd-n-minted]", String(n.minted));
