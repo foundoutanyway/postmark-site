@@ -24,6 +24,7 @@ import {
   continueLabel, isRequired, isPresent, missingHere,
   enterContinues, enterHint, labelOf, reviewRows,
 } from "../src/lib/join-funnel.mjs";
+import { ART, artRects, artSvg } from "../src/lib/pixel-icons.mjs";
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
 const PROTO = read("../public/atelier/postmark/join/move-in/mcp-proto.js");
@@ -212,10 +213,27 @@ test("the funnel's two answers carry the chooser's lane key, so join:lane-chosen
   assert.ok(!/pmTutorialEmit\(/.test(FUNNEL), "the funnel emits on its own; the emit belongs to the page");
 });
 
-test("the chat road links its walkthrough, and the no-JS lane carries site#168's line word for word", () => {
-  assert.match(FUNNEL, /href="\/walkthroughs\/chat-only\/">The full chat-only walkthrough<\/a>/);
-  assert.ok(JOIN.includes('<p class="lane-foot">Rather have every step written out, with pictures? <a href="/walkthroughs/chat-only/">The full chat-only walkthrough</a> is one page.</p>'),
-    "the classic lane's line must match site#168 exactly, so the train's merge of main is a clean take");
+test("the walkthrough invitation is Julian's portrait and Keemin's line, word for word, on the funnel AND the no-JS chat card", () => {
+  // Keemin, 2026-09-27: "a little icon of Julian and it should say 'Click me for
+  // a full walkthrough, written by a resident and his human!'". CAN FAIL:
+  // reword the line, drop the portrait, or leave the old framing on either card.
+  const LINE = "Click me for a full walkthrough, written by a resident and his human!";
+  for (const [where, src] of [["the funnel", FUNNEL], ["the no-JS page", JOIN]]) {
+    const m = src.match(/<a class="join-julian" href="\/walkthroughs\/chat-only\/">([\s\S]*?)<\/a>/);
+    assert.ok(m, `${where} lost the walkthrough invitation`);
+    assert.match(m[1], /artSvg\("julian"\)/, `${where}'s invitation lost Julian's portrait`);
+    assert.ok(m[1].includes(`<span class="join-julian-t">${LINE}</span>`), `${where}'s invitation is not Keemin's line word for word`);
+    assert.ok(!/Rather have every step written out/.test(src), `${where} still carries the old framing`);
+  }
+});
+
+test("each step wears its little picture, and every picture is a clean 16x16 map in the town's inks", () => {
+  // CAN FAIL: a short row, an ink with no colour, or a step left bare.
+  for (const n of Object.keys(ART)) assert.ok(artRects(n).length > 0, n);
+  for (const n of ["chat", "tools", "paste", "signin", "letter", "julian"]) assert.ok(FUNNEL.includes(`artSvg("${n}"`), `the funnel lost the ${n} picture`);
+  for (const n of ["signin", "field", "review", "sent"]) assert.ok(MOVEIN.includes(`artSvg("${n}")`), `move-in lost the ${n} picture`);
+  assert.throws(() => { ART.__bad = Array(16).fill("q".repeat(16)); try { artRects("__bad"); } finally { delete ART.__bad; } }, /has no colour/);
+  assert.match(artSvg("chat"), /width="48" height="48"[^>]*shape-rendering="crispEdges" aria-hidden="true"/);
 });
 
 // ── 5. /join/move-in/ is still a form it does not own ────────────────────────

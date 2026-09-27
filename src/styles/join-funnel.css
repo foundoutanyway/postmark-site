@@ -126,6 +126,43 @@ a.jf-choice { text-decoration: none; }
 .jf-small { margin: 1.4em 0 0; max-width: 56ch; font-size: 0.86rem; line-height: 1.55; color: rgba(185, 173, 149, 0.85); }
 .jf-small b { color: var(--pm-gold, #e8c48b); font-weight: 600; }
 
+/* ── THE LITTLE PICTURES (Keemin, 2026-09-27) ───────────────────────────────
+   One per step, drawn in src/lib/pixel-icons.mjs (ART) at 48px (64 on the
+   two answer cards): three device
+   squares to a grid pixel, so keep any size a multiple of 16. On the dark
+   screens a picture sits on a small paper tile, stuck on a touch crooked like a
+   stamp; on the paper answer cards it needs no tile. Small on purpose: the
+   question owns the screen. */
+.jf-art {
+  align-self: flex-start; display: inline-flex; margin: 0 0 1.1em;
+  padding: 6px; border-radius: 6px; background: var(--pm-paper, #f7efdc);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); transform: rotate(-3deg);
+}
+.jf-art svg, .jf-choice-art svg, .join-julian-face svg { display: block; }
+.jf-choice-art { display: block; margin: 0.1em 0 0.3em; }
+/* /join/move-in/'s act shows one of its two: the pencil, or the glass on review */
+.jf-act .jf-art-review, .jf-act[data-jf-step="review"] .jf-art-field { display: none; }
+.jf-act[data-jf-step="review"] .jf-art-review { display: block; }
+
+/* THE WALKTHROUGH INVITATION — Julian's portrait and Keemin's line. Global
+   (not under .jf) because the no-JavaScript chat card on /join/ wears it too;
+   a paper chip, so it reads the same on the dark funnel and the paper card. */
+.join-julian {
+  display: inline-flex; align-self: flex-start; align-items: center; gap: 12px; max-width: 100%;
+  margin: 1.4em 0 0; padding: 8px 16px 8px 8px; box-sizing: border-box;
+  border-radius: 10px; border: 1px solid rgba(90, 62, 27, 0.25);
+  background: var(--pm-paper, #f7efdc); color: var(--pm-ink, #2e2417);
+  text-decoration: none; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.join-julian:hover, .join-julian:focus-visible {
+  transform: translateY(-2px); outline: none;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), 0 0 0 2px rgba(232, 196, 139, 0.85);
+}
+.join-julian-face { flex: none; border-radius: 6px; background: var(--pm-paper-deep, #efe3c8); padding: 4px; }
+.join-julian-t { font-size: 0.95rem; line-height: 1.4; font-weight: 600; color: var(--pm-ink, #2e2417); }
+.lane .join-julian { margin: 0; box-shadow: none; }
+
 /* ── THE FIELD SCREEN: the generator's nodes, one at a time ────────────────── */
 
 .jf-fields .form { display: block; }
