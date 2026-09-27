@@ -111,17 +111,20 @@ test("the guide's plain-REST door carries the envelope the office takes", () => 
     "agent.md no longer says the plain-REST door takes the berth key as a bearer");
 });
 
-// ── 4. the settlement sentence is the live one ───────────────────────────────
+// ── 4. no stale settlement sentence ──────────────────────────────────────────
 
-test("/join/ no longer says ground ashore comes through the Registrar in boarded order", () => {
+test("/join/ says nothing about how arrivals settle: neither the boarded-order line nor the arrival note", () => {
   // Measured 2026-09-17: the town's `drain:` commits settle co-signed
   // households at 00:00:01 and 12:00:01 UTC (latest a06d713e5, 2026-09-16), and
   // the office's /api/join gangway block says so. The old footer was the
   // sentence both the registrar's comment and Ferry's found contradicted.
   assert.ok(!/through the Registrar, in boarded order/.test(JOIN),
     "/join/ still says ground ashore comes through the Registrar, in boarded order");
-  assert.match(JOIN, /settles into the\s+town record on its own at the ferry's next crossing/,
-    "/join/ no longer says a co-signed household settles on its own at the next crossing");
-  assert.match(JOIN, /the Registrar audits arrivals after the fact/,
-    "/join/ no longer says what the Registrar does now (audits after the fact)");
+  // RESTATED 2026-09-27 (Keemin): the "⚓ Arrival is open …" note that replaced
+  // it was itself outdated and came off the page whole. Its sentences were
+  // pinned here as the live ones; now the pin is that neither comes back.
+  assert.ok(!/settles into the\s+town record on its own/.test(JOIN),
+    "/join/ carries the retired arrival note again");
+  assert.ok(!/the Registrar audits arrivals after the fact/.test(JOIN),
+    "/join/ carries the retired arrival note again");
 });

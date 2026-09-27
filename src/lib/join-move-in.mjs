@@ -29,6 +29,7 @@
 // from, and that module's header is where the copy's papers live. Nothing
 // below writes a refusal sentence of its own.
 import { missingSentence } from "./ceremony-refusals.mjs";
+import { houseName } from "./houses.mjs";
 
 // ── which act belongs to this reader ────────────────────────────────────────
 //
@@ -60,6 +61,91 @@ export const ACT_FOR_TIER = Object.freeze({
 export function actForTier(tier) {
   const key = typeof tier === "string" ? tier : "";
   return Object.prototype.hasOwnProperty.call(ACT_FOR_TIER, key) ? ACT_FOR_TIER[key] : null;
+}
+
+// ── the house a keeper already keeps (Keemin, 2026-09-27) ───────────────────
+//
+// "it seems to allow starforge 2? confused as to why I even get a field for
+// household if I'm already registered." The add-resident form carries an
+// OPTIONAL household box in the door's "household" group. The office finds the
+// house BY ACCOUNT first (office src/residency.mjs § planRegistryJoin), so for
+// a settled house a name typed there is silently dropped and the resident joins
+// the account's own house: the box asks a question whose answer is thrown away.
+// So a reader who keeps a house is not asked it. Their house is named on the
+// review, fixed, and the send carries no household box at all.
+//
+// THE ONE HOUSE FOR WHICH THE ANSWER COUNTS: a PROVISIONAL house, whose key
+// was borrowed from its first resident's handle. There, the first naming
+// chooses the house's name, once (the same planRegistryJoin, THE HOUSE CHOOSES
+// ITS KEY, POS-197). For that house alone the box stays, marked as choosing
+// the name once. Whether a house is provisional is the town registry's word
+// (`provisional: true` on its row), which the site syncs at build.
+//
+// Keyed on the GROUP the door declares (`x-group`), never on a field's name:
+// whatever the office puts in its household group tomorrow, a keeper is not
+// asked it. The founding acts (declare, begin) are untouched, because there
+// the reader is naming the house they are about to found.
+
+/** The `x-group` the door draws the house's own boxes in. */
+export const HOUSE_GROUP = "household";
+
+/** Does this act add to a house the reader already keeps? */
+export function keepsHouse(act) {
+  return act === ACT_FOR_TIER.resident;
+}
+
+const groupOf = (spec) => (spec && typeof spec["x-group"] === "string" ? spec["x-group"].trim() : "");
+
+/** The names of the fields the door draws in its house group, in its order. */
+export function houseGroupNames(fields) {
+  if (!fields || typeof fields !== "object") return [];
+  return Object.keys(fields).filter((n) => groupOf(fields[n]) === HOUSE_GROUP);
+}
+
+/**
+ * The door's fields as this reader is asked them: the whole block for a
+ * founder, and for a keeper the block without its house group, unless the
+ * house they keep is provisional and still has its name to choose. The
+ * generator is fed THIS, so a dropped box has no screen, no review row and no
+ * place in the send; there is no second list to keep in step.
+ * @param {object|null} fields  the door's `fields` block
+ * @param {string|null} act
+ * @param {{provisional?: boolean}|null} [house]  houseOfMe's answer
+ */
+export function fieldsForReader(fields, act, house = null) {
+  if (!fields || typeof fields !== "object" || !keepsHouse(act)) return fields;
+  if (house && house.provisional === true) return fields;
+  const out = {};
+  for (const [name, spec] of Object.entries(fields)) {
+    if (groupOf(spec) !== HOUSE_GROUP) out[name] = spec;
+  }
+  return out;
+}
+
+/**
+ * The house a signed-in reader keeps, from what GET /me already answers: the
+ * per-handle block `households[handle]`, whose `slug` is the town's key for the
+ * house. `houses` is the site's synced registry, slug → { name, provisional }:
+ * it spells the house the way the site does and says whether its name is still
+ * borrowed. A slug the site has not synced yet still prints, title-cased, and
+ * is not treated as provisional. Null when /me names no house, and the page
+ * then says "your house" rather than guessing one.
+ * @param {object|null} me  GET /me
+ * @param {Record<string, {name?: string, provisional?: boolean}>} [houses]
+ * @returns {{slug: string, name: string, provisional: boolean}|null}
+ */
+export function houseOfMe(me, houses = {}) {
+  if (!me || typeof me !== "object") return null;
+  const handles = Array.isArray(me.handles) ? me.handles : Array.isArray(me.residents) ? me.residents : [];
+  for (const h of handles) {
+    const slug = me.households && me.households[h] && me.households[h].slug;
+    if (typeof slug === "string" && slug) {
+      const row = houses && houses[slug] && typeof houses[slug] === "object" ? houses[slug] : null;
+      const named = row && typeof row.name === "string" && row.name.trim();
+      return { slug, name: named || houseName(slug), provisional: !!(row && row.provisional === true) };
+    }
+  }
+  return null;
 }
 
 // ── reading the door ─────────────────────────────────────────────────────────
