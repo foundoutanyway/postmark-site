@@ -476,6 +476,11 @@ test("FERRY'S LINE SURVIVES A HEADING LEVEL: the crossing is read wherever Ferry
     { crossing: 152, headline: "109 letters over" });
   // a daily with no crossing anywhere is still null, not a guess
   assert.equal(ferryHeadline("## Just a heading\n\n### Another"), null);
+  // September's "--" separators: the leading one goes whole (a one-character
+  // strip printed "- 50 letters over -- …" on every doorstep), and the ones
+  // between figures read as his old middots
+  assert.deepEqual(ferryHeadline("## ⛴ **Crossing 213 -- 50 letters over -- 190 on the day -- the roll is 133**"),
+    { crossing: 213, headline: "50 letters over · 190 on the day · the roll is 133" });
 });
 
 test("a quest the town does not count prints no count — never null/1 or null/null", () => {
