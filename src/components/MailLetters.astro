@@ -19,7 +19,9 @@ const { html, base = "", olderIds = [] } = Astro.props;
   .mail-letters :global(.pm-letter) { scroll-margin-top: 5.5em; }
   .mail-letters :global(.fr-threadline) {
     font-family: var(--pm-mono); font-size: 0.74rem; letter-spacing: 0.06em;
-    margin: 0 0 0.55em;
+    /* inside the paper, aligned with the letterhead below it: with no inset it sat
+       on the card's top-left edge (visible at 390 wide, and on prod before this) */
+    margin: 0; padding: 0.9em 1.4em 0;
   }
   /* the unified stream reads as curated, not collapsed — a quiet rule where
      the thread changes (git-event legibility, 2026-07-19) */
