@@ -19,6 +19,6 @@
     "cytoscape": "^3.34.0",
     "js-yaml": "^4.1.1",
     "marked": "^18.0.5",
-    "postmark-world": "github:keeminlee/postmark-world#ab7540ce30d9fb0834ae69917451368ad7ea4095"
+    "postmark-world": "github:keeminlee/postmark-world#52c71a3a951c45325500592e0401238fa9cda5be"
   }
 }
