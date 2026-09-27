@@ -124,7 +124,7 @@ test("resident words render as text: no calendar page or card writes set:html", 
   // as markup is set:html. This is the arm CI can run; the built-page arm below
   // reads what the build actually wrote.
   for (const f of ["town/pages/calendar/index.astro", "town/pages/calendar/[host]/[slug].astro", "town/pages/calendar/[month].astro",
-    "src/components/CalendarCard.astro", "src/components/CalendarMonth.astro"]) {
+    "src/components/CalendarCard.astro", "src/components/CalendarMonth.astro", "src/components/CalendarPanel.astro"]) {
     // The attribute, not the word: a comment naming it is not a use of it.
     assert.equal(/\sset:html\s*=/.test(read(f)), false, `${f} writes set:html`);
   }

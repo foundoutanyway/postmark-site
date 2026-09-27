@@ -511,7 +511,7 @@ test("the built chip rows wear their pixel icons, and the lit chip is the right 
   const seat = (href) => {
     const s = readFileSync(builtPage(href), "utf8");
     const i = s.indexOf('class="pm-townnav-links"');
-    return [...s.slice(i, s.indexOf("</nav>", i)).matchAll(/<a[^>]*aria-current="page"[^>]*>([^<]*)/g)].map((m) => m[1].trim());
+    return [...s.slice(i, s.indexOf("</nav>", i)).matchAll(/<a\b[^>]*aria-current="page"[^>]*>([^<]*)/g)].map((m) => m[1].trim());
   };
   for (const href of ["/bulletin/", "/daily/", "/calendar/", "/town/", "/meeps/", "/projects/"]) {
     assert.equal(row(href), "", `${href} draws a chip row`);

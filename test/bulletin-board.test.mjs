@@ -2,11 +2,12 @@
 //
 //   node --test test/bulletin-board.test.mjs
 //
-// The board pins three kinds of thing, each the way into its page: this
-// month's calendar (/calendar/), Ferry's Daily's front page (/daily/) and a
-// post-it per posting (its notice, /bulletin/#<slug>). The rules live in
-// src/lib/bulletin-board.mjs; the built-page tests below are skipped until the
-// page is built, as POS-177 rules.
+// The board holds five pieces (POS-273, 2026-09-27): the calendar, Ferry's
+// Daily, a cluster of post-its, the meeps and the civic quarter's postcard.
+// Each opens its whole component in a panel over the cork, at its own hash;
+// the notices keep their /bulletin/#<slug> addresses inside the notices panel.
+// The rules live in src/lib/bulletin-board.mjs; the built-page tests below are
+// skipped until the page is built, as POS-177 rules.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -14,8 +15,12 @@ import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { POSTIT_PAPERS, TILTS, dailyFront, pinnedMonth, postitLook, tendedText } from "../src/lib/bulletin-board.mjs";
+import {
+  BOARD_PIECES, FRAMED, POSTIT_PAPERS, TILTS, boardIds, dailyFront, pinnedMonth, postitLook, tendedText,
+} from "../src/lib/bulletin-board.mjs";
 import { bulletinCards, bulletinPostings } from "../src/lib/bulletin-cards.mjs";
+import { LANES } from "../src/lib/civic.mjs";
+import { MEEPS } from "../src/lib/meeps-quarter.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const BULLETIN = JSON.parse(readFileSync(join(ROOT, "src", "data", "postmark", "bulletin.json"), "utf8"));
@@ -144,25 +149,68 @@ test("with no as_of the month is the build's own", () => {
   assert.equal(m.next, null);
 });
 
+// ── the pieces and their panels ────────────────────────────────────────────
+
+test("the board holds Keemin's five, in his order: calendar, Daily, post-its, meeps, quarter", () => {
+  assert.deepEqual(BOARD_PIECES.map((p) => p.key), ["calendar", "daily", "notices", "meeps", "quarter"]);
+  // with JavaScript off a piece is a link to its page, and every page still stands
+  assert.deepEqual(BOARD_PIECES.filter((p) => p.page).map((p) => p.page), ["/calendar/", "/daily/", "/meeps/", "/town/"]);
+  // the framed panels load only on open, and reach inside by a prefix
+  assert.deepEqual(Object.keys(FRAMED).sort(), ["daily", "meeps", "quarter"]);
+  assert.equal(FRAMED.quarter.deep, "quarter-");
+  assert.equal(FRAMED.meeps.deep, "meeps-");
+});
+
+test("NO NOTICE SLUG IS ONE OF THE BOARD'S OWN IDS — /bulletin/#quests stays the notice", () => {
+  const own = new Set(boardIds({ quarter: LANES.map((l) => l.id), meeps: MEEPS.map((m) => m.key) }));
+  const clash = bulletinPostings(BULLETIN).map((p) => p.slug).filter((s) => own.has(s));
+  assert.deepEqual(clash, [], `these notices would open a piece instead: ${clash.join(", ")}`);
+  // two of the quarter's lane anchors are notice slugs and one is the board
+  // itself; the prefix is what keeps them apart
+  const lanes = LANES.map((l) => l.id);
+  assert.ok(lanes.includes("quests") && lanes.includes("board"));
+  assert.equal(own.has("quests"), false);
+  assert.equal(own.has("quarter-quests"), true);
+});
+
 // ── THE BUILT PAGES ─────────────────────────────────────────────────────────
 
 const bulletinHtml = builtPage("bulletin");
 
-test("the built board pins the calendar and the Daily, each linking its page",
+test("the built board pins every piece as a link to its page, each opening its panel",
   { skip: !existsSync(bulletinHtml) }, () => {
   const page = readFileSync(bulletinHtml, "utf8");
-  assert.match(page, /<a[^>]*href="\/calendar\/"[^>]*data-pinned="calendar"/, "the calendar is not pinned as a link to /calendar/");
-  assert.match(page, /<a[^>]*href="\/daily\/"[^>]*data-pinned="daily"/, "the newspaper is not pinned as a link to /daily/");
+  for (const p of BOARD_PIECES) {
+    const href = p.page ?? `#${p.hash}`;
+    assert.match(page, new RegExp(`<a[^>]*class="piece[^"]*"[^>]*href="${href}"[^>]*data-pinned="${p.key}"[^>]*data-open="${p.hash}"`),
+      `${p.key} is not pinned as a link to ${href}`);
+    assert.match(page, new RegExp(`<section[^>]*class="bp[^"]*"[^>]*id="${p.hash}"`), `${p.key} has no panel at #${p.hash}`);
+  }
   assert.match(page, /data-board-month="\d{4}-\d{2}"/);
   assert.match(page, /<td[^>]*class="[^"]*\btoday\b[^"]*"/, "the pinned month marks no today");
+  // the calendar's panel is /calendar/'s own body (CalendarPanel), not a copy
+  const at = page.indexOf('id="calendar"');
+  const cal = page.slice(at, page.indexOf('data-panel="notices"', at));
+  assert.match(cal, /data-cal-month=/, "the calendar panel has no month");
+  for (const g of ["now", "coming", "ended"]) assert.match(cal, new RegExp(`data-group="${g}"`), `the calendar panel has no ${g} group`);
 });
 
-test("every note is a plain link to its notice, and every notice answers its #slug without a script",
+test("THE PAGE WEIGHT: the framed panels carry no src until they open, and the quarter's and the meeps' markup is not on the board",
+  { skip: !existsSync(bulletinHtml) }, () => {
+  const page = readFileSync(bulletinHtml, "utf8").replace(/<noscript>[\s\S]*?<\/noscript>/g, "");
+  const frames = [...page.matchAll(/<iframe\b[^>]*>/g)].map((m) => m[0]);
+  assert.equal(frames.length, 3, `${frames.length} frames`);
+  for (const f of frames) assert.equal(/\ssrc=/.test(f), false, `a frame loads with the board: ${f}`);
+  assert.equal(page.includes('class="c-lane"'), false, "the quarter's lanes are inlined on the board");
+  assert.equal(page.includes('class="meep-card"'), false, "the meeps' cards are inlined on the board");
+});
+
+test("every pinned notice is listed in the notices panel as a link, and every notice answers its #slug without a script",
   { skip: !existsSync(bulletinHtml) }, () => {
   const page = readFileSync(bulletinHtml, "utf8");
   for (const p of bulletinCards(BULLETIN)) {
     const note = new RegExp(`<a[^>]*href="#${p.slug}"[^>]*data-card="${p.slug}"`);
-    assert.match(page, note, `${p.slug}'s note is not a link to #${p.slug}`);
+    assert.match(page, note, `${p.slug} is not listed as a link to #${p.slug}`);
   }
   for (const p of bulletinPostings(BULLETIN)) {
     assert.match(page, new RegExp(`<article[^>]*id="${p.slug}"[^>]*data-post="${p.slug}"`),
