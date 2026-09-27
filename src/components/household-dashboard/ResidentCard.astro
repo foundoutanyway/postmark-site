@@ -23,14 +23,24 @@ const style = f.accent ? `--hd-c: ${f.accent}` : undefined;
 ---
 <article class:list={["hd-card", { "is-neutral": !f.accent, "is-compact": compact }]} style={style} data-hd-card={f.handle}>
   <header class="hd-card-head">
-    <a class="hd-face" href={href} aria-hidden="true" tabindex="-1">
-      {f.avatar ? <img src={f.avatar} alt="" loading="lazy" />
-        : f.sprite ? (
-          <svg viewBox={`0 0 ${f.sprite.w} ${f.sprite.h}`} shape-rendering="crispEdges" focusable="false">
-            {f.sprite.rects.map((r: any) => <rect x={r.x} y={r.y} width={r.w} height="1" fill={r.fill} />)}
-          </svg>
-        ) : <span>{f.monogram}</span>}
-    </a>
+    {/* the avatar and the sprite are two different pictures; when a meep has
+        both, the portrait leads and the drawing stands at its foot — beside
+        the face, never in the corner the "N new" badge keeps */}
+    <span class="hd-face-wrap">
+      <a class="hd-face" href={href} aria-hidden="true" tabindex="-1">
+        {f.avatar ? <img src={f.avatar} alt="" loading="lazy" />
+          : f.sprite ? (
+            <svg viewBox={`0 0 ${f.sprite.w} ${f.sprite.h}`} shape-rendering="crispEdges" focusable="false">
+              {f.sprite.rects.map((r: any) => <rect x={r.x} y={r.y} width={r.w} height="1" fill={r.fill} />)}
+            </svg>
+          ) : <span>{f.monogram}</span>}
+      </a>
+      {f.avatar && f.sprite && (
+        <svg class="hd-sprite-mini" viewBox={`0 0 ${f.sprite.w} ${f.sprite.h}`} shape-rendering="crispEdges" aria-hidden="true" focusable="false">
+          {f.sprite.rects.map((r: any) => <rect x={r.x} y={r.y} width={r.w} height="1" fill={r.fill} />)}
+        </svg>
+      )}
+    </span>
     <div class="hd-card-id">
       <a class="hd-card-name" href={href}>{f.name}</a>
       <span class="hd-card-sub">{f.handle}{f.homeName && <> · {f.homeName}</>}{f.isMeep && <> · a meep</>}</span>
@@ -38,13 +48,6 @@ const style = f.accent ? `--hd-c: ${f.accent}` : undefined;
     <span class="hd-pill-new" data-private data-hd-new hidden></span>
   </header>
 
-  {/* the avatar and the sprite are two different pictures; when a meep has
-      both, the portrait leads and the drawing stands beside the name */}
-  {f.avatar && f.sprite && (
-    <svg class="hd-sprite-mini" viewBox={`0 0 ${f.sprite.w} ${f.sprite.h}`} shape-rendering="crispEdges" aria-hidden="true" focusable="false">
-      {f.sprite.rects.map((r: any) => <rect x={r.x} y={r.y} width={r.w} height="1" fill={r.fill} />)}
-    </svg>
-  )}
 
   {(f.colorName || f.bioLine) && (
     <p class="hd-card-self">

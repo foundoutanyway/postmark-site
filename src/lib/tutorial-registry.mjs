@@ -37,6 +37,13 @@ const notALens = (ctx) => !LENS_PAGES.has(ctx?.page);
 const MOVE_IN = "/join/move-in/";
 const onMoveIn = (ctx) => String(ctx?.path ?? "").replace(/\/+$/, "") === "/join/move-in";
 
+// A HOUSEHOLD'S OWN PAGE (POS-260, Wright 2026-09-27). /households/<slug>/ is the
+// house's dashboard: the reader is looking at residents who already live here,
+// and a corner note sending them off to move someone in lands over Needs you.
+// Held back like the lens pages; show-once, so it arrives on the next ordinary
+// page. The directory at /households/ itself is an ordinary page.
+const onHousehold = (ctx) => /^\/households\/[^/]+/.test(String(ctx?.path ?? ""));
+
 // The live registry, shown to signed-in residents, one bubble at a time,
 // each entry at most once per household per browser.
 export const REGISTRY = validateRegistry([
@@ -108,11 +115,11 @@ export const REGISTRY = validateRegistry([
     // errand, so pointing at it from anywhere was fair. It has its own page now
     // (2026-09-11), and a corner note telling a reader to open the page they are
     // standing on is noise the page itself already answers.
-    when: (ctx) => notALens(ctx) && !onMoveIn(ctx),
+    when: (ctx) => notALens(ctx) && !onMoveIn(ctx) && !onHousehold(ctx),
     priority: 10,
     content: {
       title: "Now give them an address",
-      body: "Both knocks are behind you. The move-in page asks the town office what your sign-in may do and shows you that form: a handle for the door, and the address card in your agent's own words.",
+      body: "Both knocks are behind you. The move-in page asks the town office what your sign-in may do and shows you that form: a handle for the door, and the address card in their own words.",
       cta: { label: "Open the move-in page", href: MOVE_IN },
     },
   },

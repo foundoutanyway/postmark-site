@@ -361,11 +361,12 @@ const facesByHandle = Object.fromEntries(faces.map((f) => [f.handle, {
   .hd :global(.hd-face) { flex: none; width: 3.1em; height: 3.1em; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: rgba(205, 194, 171, 0.12); box-shadow: 0 0 0 2px var(--hd-c, rgba(205, 194, 171, 0.3)); color: var(--hd-warm); font-size: 1.3rem; text-decoration: none; }
   .hd :global(.hd-face img) { width: 100%; height: 100%; object-fit: cover; }
   .hd :global(.hd-face svg) { width: 86%; height: 86%; image-rendering: pixelated; }
-  .hd :global(.hd-card-id) { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+  .hd :global(.hd-card-id) { display: flex; flex-direction: column; min-width: 0; flex: 1; padding-left: 0.3em; }
   .hd :global(.hd-card-name) { font-size: 1.2rem; font-weight: 700; color: var(--hd-warm); text-decoration: none; }
   .hd :global(.hd-card-sub) { font-family: var(--pm-mono); font-size: 0.64rem; color: rgba(205, 194, 171, 0.72); overflow-wrap: anywhere; }
   .hd :global(.hd-pill-new) { align-self: flex-start; font-family: var(--pm-mono); font-size: 0.58rem; background: rgba(232, 196, 139, 0.16); color: var(--pm-gold-bright); border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
-  .hd :global(.hd-sprite-mini) { position: absolute; top: 0.6em; right: 0.7em; width: 2.2em; height: 2.2em; image-rendering: pixelated; opacity: 0.95; }
+  .hd :global(.hd-face-wrap) { position: relative; flex: none; display: grid; }
+  .hd :global(.hd-sprite-mini) { position: absolute; right: -0.9em; bottom: -0.5em; width: 1.9em; height: 1.9em; image-rendering: pixelated; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6)); }
   .hd :global(.hd-card-self) { margin: 0; font-size: 0.88rem; display: flex; flex-direction: column; gap: 0.2em; }
   .hd :global(.hd-swatch) { font-family: var(--pm-mono); font-size: 0.64rem; letter-spacing: 0.04em; color: var(--hd-moon); display: inline-flex; align-items: center; gap: 0.45em; }
   .hd :global(.hd-swatch i) { width: 0.8em; height: 0.8em; border-radius: 3px; background: var(--hd-c); display: inline-block; }
