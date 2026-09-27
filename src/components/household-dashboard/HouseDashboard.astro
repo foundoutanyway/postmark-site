@@ -8,8 +8,10 @@
 // can use from what the residents customized for themselves the better."
 //
 // THE ORDER IS THE DESIGN'S: the house, since you last looked, needs you, the
-// residents (each hung window beside its resident), coming up, and quests and
-// numbers last.
+// day's quests, the residents (each hung window beside its resident), coming
+// up, and the numbers last. The quests are the house's own board, handed in by
+// Household.astro through the `quests` slot (Keemin, 2026-09-27: "put them
+// between 'Since you last looked' and 'your residents'").
 //
 // SIGNED IN AND SIGNED OUT ARE ONE PAGE. The doorstep is public, so a visitor
 // sees almost everything the house sees. What only the house's own sign-in
@@ -118,6 +120,9 @@ const facesByHandle = Object.fromEntries(faces.map((f) => [f.handle, {
     </aside>
   </div>
 
+  {/* ═════════ THE DAY'S QUESTS (Household.astro draws the board) ═════════ */}
+  <slot name="quests" />
+
   {/* ═════════ THE RESIDENTS, AND THEIR WINDOWS ═════════ */}
   <section class="hd-block" aria-labelledby="hd-res-h">
     <div class="hd-head hd-rule">
@@ -158,12 +163,8 @@ const facesByHandle = Object.fromEntries(faces.map((f) => [f.handle, {
     <div class="hd-events" data-hd-events></div>
   </section>
 
-  {/* ═════════ QUESTS AND NUMBERS, SMALLER, LAST ═════════ */}
+  {/* ═════════ NUMBERS, SMALLER, LAST ═════════ */}
   <section class="hd-small">
-    <div class="hd-panel" data-hd-quests hidden>
-      <div class="hd-head"><h2>Today’s quests</h2><span class="hd-meta" data-hd-share></span></div>
-      <div data-hd-qrows></div>
-    </div>
     {/* `dash-stamps` names the shared house's numbers for the holo law: on a
         shared household page the expansion rides THIS note, once (the
         founder's placement rule, 2026-08-26; test/funding.test.mjs). */}
@@ -400,15 +401,11 @@ const facesByHandle = Object.fromEntries(faces.map((f) => [f.handle, {
   .hd-events :global(p) { margin: 0.15em 0 0; font-size: 0.88rem; }
   .hd-events :global(.hd-going) { display: flex; gap: 0.5em; flex-wrap: wrap; justify-content: flex-end; font-size: 0.85rem; }
 
-  /* ── quests and numbers ── */
-  .hd-small { margin-top: 2.2em; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 1.1em; font-size: 0.86rem; }
+  /* ── the quests (drawn by Household.astro) and the numbers ── */
+  .hd :global([data-quests]) { margin: 0 0 1.8em; }
+  .hd-small { margin-top: 2.2em; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.1em; font-size: 0.86rem; }
   .hd-small .hd-panel { padding: 0.8em 0.95em; }
   .hd-small h2 { font-size: 1rem; }
-  .hd-small :global(.hd-q) { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.2em 0.8em; align-items: center; padding: 0.4em 0; border-top: 1px dashed rgba(232, 196, 139, 0.12); }
-  .hd-small :global(.hd-q:first-child) { border-top: 0; }
-  .hd-small :global(.bar) { grid-column: 1 / -1; height: 6px; background: rgba(128, 128, 128, 0.25); border-radius: 999px; overflow: hidden; }
-  .hd-small :global(.bar i) { display: block; height: 100%; background: var(--pm-stamp); }
-  .hd-small :global(.n) { font-family: var(--pm-mono); font-size: 0.64rem; }
   .hd-nums { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(6.5em, 1fr)); gap: 0.6em; }
   .hd-nums dd { margin: 0; font-size: 1.2rem; color: var(--hd-warm); }
   .hd-nums dd.st { color: var(--pm-stamp-bright); }
@@ -432,6 +429,5 @@ const facesByHandle = Object.fromEntries(faces.map((f) => [f.handle, {
     .hd :global(.hd-card-live), .hd :global(.hd-card.is-compact .hd-card-live) { grid-template-columns: 5.2em minmax(0, 1fr); }
     .hd-events :global(.hd-event) { grid-template-columns: 4em minmax(0, 1fr); }
     .hd-events :global(.hd-going) { grid-column: 1 / -1; justify-content: flex-start; }
-    .hd-small { grid-template-columns: minmax(0, 1fr); }
   }
 </style>

@@ -92,7 +92,7 @@ export function paintHouse(root, reads, ctx) {
   if (owner) paintNeeds(root, needsOf(handles, reads.doorsteps), ctx);
   paintCards(root, items, reads, ctx);
   paintComing(root, comingUpOf(reads.calendar, handles), ctx);
-  paintQuests(root, questsOf(handles, reads.quests), handles, reads, ctx);
+  paintShare(root, questsOf(handles, reads.quests), handles);
   paintNumbers(root, numbersOf(handles, reads.doorsteps), handles, reads, ctx);
   root.querySelector("[data-hd-loading]")?.remove();
   return items;
@@ -313,36 +313,12 @@ function paintComing(root, events, ctx) {
   sec.hidden = false;
 }
 
-function paintQuests(root, q, handles, reads, ctx) {
-  const box = root.querySelector("[data-hd-quests]");
-  if (!box) return;
-  const hung = handles.filter((h) => hungOf(reads.doorsteps?.[h], ctx.faces[h]?.windowHung) === true).length;
-  const rows = [...(q?.rows ?? []).map((r) => ({ title: r.title, n: `house ${r.done} / ${r.target} today`, pct: r.target ? Math.min(100, (100 * r.done) / r.target) : 0, why: r.source })),
-    { title: "Hang your window", n: `${hung} of ${handles.length} hung`, pct: handles.length ? (100 * hung) / handles.length : 0, why: "A window is a pane the resident keeps on its own origin." }];
-  const list = box.querySelector("[data-hd-qrows]");
-  list.textContent = "";
-  for (const r of rows) {
-    const d = el("div", "hd-q");
-    d.title = r.why;
-    d.appendChild(el("span", null, r.title));
-    d.appendChild(el("span", "n", r.n));
-    const bar = el("div", "bar");
-    const fill = el("i");
-    fill.style.width = r.pct.toFixed(0) + "%";
-    bar.appendChild(fill);
-    d.appendChild(bar);
-    list.appendChild(d);
-  }
+// The day's quest cards are the house's board, drawn by Household.astro into
+// the dashboard's `quests` slot; what the dashboard keeps is the plate's line.
+function paintShare(root, q, handles) {
   const share = q?.shareSize;
-  const meta = box.querySelector("[data-hd-share]");
-  if (meta && share != null) {
-    meta.textContent = share < handles.length
-      ? `the house shares the daily mint, ${share} of ${handles.length}`
-      : "the house shares the daily mint";
-  }
   const plate = root.querySelector("[data-hd-share-sub]");
   if (plate && share != null && share < handles.length) { plate.textContent = `${share} of them share the daily mint`; plate.hidden = false; }
-  box.hidden = false;
 }
 
 function paintNumbers(root, n, handles, reads, ctx) {
