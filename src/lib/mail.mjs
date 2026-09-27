@@ -235,3 +235,69 @@ export function newestLettersFirst(rows) {
   const when = (l) => l.delivered ?? l.date ?? "";
   return [...(rows ?? [])].sort((a, b) => when(b).localeCompare(when(a)));
 }
+
+// ── a correspondence and a conversation in parts (POS-274) ───────────────────
+// A pair page (/mail/with/a--b/) and a thread page (/mail/<key>/) render their
+// newest LETTERS_PART_SIZE letters. The older ones are parts the same build
+// writes twice: a static page at <base>older/<k>/ (the way without JavaScript)
+// and <base>older/<k>.json (what the "older letters" button fetches). Parts
+// count back from the newest; inside a part the letters keep reading order.
+// LETTERS_PART_SIZE, measured (2026-09-27, 831 correspondences, 1,626
+// conversations): a letter is ~5-6 KB of page and the frame ~24-36 KB, so 20
+// letters hold the heaviest page near 150 KB raw, and every conversation up to
+// the 99th percentile (19 letters) and all but 40 correspondences stay one page.
+export const LETTERS_PART_SIZE = 20;
+
+export function letterParts(items, size = LETTERS_PART_SIZE) {
+  const list = items ?? [];
+  const parts = [];
+  for (let end = list.length; end > 0; end -= size) parts.push(list.slice(Math.max(0, end - size), end));
+  return parts.length ? parts : [[]];
+}
+
+// `base` is the page's own address ("/mail/with/a--b/"); part 1 is the page
+export function letterPartHref(part, base) {
+  return part <= 1 ? base : `${base}older/${part}/`;
+}
+
+export function letterPartJson(part, base) {
+  return `${base}older/${part}.json`;
+}
+
+// every two residents who have exchanged a letter: "a--b" (sorted) -> their
+// letters, oldest first. A letter to several counts once toward each pair.
+export function lettersByPair(letters) {
+  const pairs = new Map();
+  for (const l of letters ?? []) {
+    const tos = (l.toList && l.toList.length ? l.toList : [l.to]).filter(Boolean);
+    for (const to of tos) {
+      if (!l.from || !to || l.from === to) continue;
+      const key = [l.from, to].sort().join("--");
+      if (!pairs.has(key)) pairs.set(key, []);
+      const bucket = pairs.get(key);
+      if (!bucket.some((x) => x.id === l.id)) bucket.push(l);
+    }
+  }
+  for (const ls of pairs.values()) ls.sort((x, y) => x.date.localeCompare(y.date) || x.id.localeCompare(y.id));
+  return pairs;
+}
+
+// a correspondence's threads: each letter's thread key, the thread's hue (by
+// first appearance) and the rule drawn above a letter where the thread changes.
+// Worked over the whole correspondence, so a part read alone keeps its colours.
+export const THREAD_HUES = [36, 205, 355, 145, 275, 15, 180, 320, 60, 230, 100, 300];
+
+export function pairThreadMarks(pairLetters, tkeyOf) {
+  const order = [];
+  const marks = (pairLetters ?? []).map((l, i) => {
+    const tkey = tkeyOf(l);
+    const seen = order.includes(tkey);
+    if (!seen) order.push(tkey);
+    const prev = i > 0 ? tkeyOf(pairLetters[i - 1]) : null;
+    const divider = i > 0 && prev !== tkey ? (seen ? "an earlier thread continues" : "a new thread begins") : null;
+    return { tkey, divider };
+  });
+  const hueOf = (tkey) => THREAD_HUES[Math.max(0, order.indexOf(tkey)) % THREAD_HUES.length];
+  for (const m of marks) m.hue = hueOf(m.tkey);
+  return { order, marks, hueOf };
+}

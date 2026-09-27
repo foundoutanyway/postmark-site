@@ -1,0 +1,114 @@
+---
+// MailOlder — the older letters of a correspondence or a conversation (POS-274).
+// The page renders its newest letters; this sits above them. Without
+// JavaScript it is a link to the static page of the next older part. With it,
+// the link fetches that part's JSON chunk (written by the same build, no
+// office call) and puts the letters in place above the ones already shown,
+// keeping the reader where they were. A link or a #hash naming an older letter
+// loads the parts down to it first.
+import { letterPartHref } from "@/lib/mail.mjs";
+
+interface Props { base: string; olderIds: string[][] }
+// olderIds[k - 2] are the ids of part k (part 1 is the page itself)
+const { base, olderIds } = Astro.props;
+const parts = olderIds.length + 1;
+const older = olderIds.reduce((n, ids) => n + ids.length, 0);
+---
+{parts > 1 && (
+  <nav class="mail-older" data-mail-older data-base={base} data-older-ids={JSON.stringify(olderIds)} aria-label="older letters">
+    <a class="pm-btn ghost" href={letterPartHref(2, base)} data-older-next>
+      ↑ older letters <span data-older-left>({older} more)</span>
+    </a>
+    <span class="mo-status" data-older-status aria-live="polite"></span>
+  </nav>
+)}
+{parts > 1 && <div data-older-letters></div>}
+
+<script>
+  import { letterPartHref, letterPartJson } from "@/lib/mail.mjs";
+
+  document.querySelectorAll<HTMLElement>("[data-mail-older]").forEach((nav) => {
+    const base = nav.dataset.base!;
+    const olderIds: string[][] = JSON.parse(nav.dataset.olderIds || "[]");
+    const next = nav.querySelector<HTMLAnchorElement>("[data-older-next]")!;
+    const left = nav.querySelector<HTMLElement>("[data-older-left]")!;
+    const status = nav.querySelector<HTMLElement>("[data-older-status]")!;
+    const box = nav.parentElement!.querySelector<HTMLElement>("[data-older-letters]")!;
+    const partOf = new Map<string, number>();
+    olderIds.forEach((ids, i) => ids.forEach((id) => partOf.set(id, i + 2)));
+    let loaded = 1;
+    let busy: Promise<boolean> | null = null;
+
+    const remaining = () => olderIds.slice(loaded - 1).reduce((n, ids) => n + ids.length, 0);
+
+    async function loadNext(): Promise<boolean> {
+      const part = loaded + 1;
+      if (part > olderIds.length + 1) return false;
+      status.textContent = "fetching older letters…";
+      let chunk: { html: string };
+      try {
+        const r = await fetch(letterPartJson(part, base), { headers: { accept: "application/json" } });
+        if (!r.ok) throw new Error(String(r.status));
+        chunk = await r.json();
+      } catch {
+        status.textContent = "the older letters didn't come — the link still opens them as a page.";
+        return false;
+      }
+      // keep the reader's place: the letters go in above what they are reading,
+      // and the control above them changes, so measure around both
+      const anchor = document.querySelector<HTMLElement>("article.pm-letter");
+      const before = anchor ? anchor.getBoundingClientRect().top : 0;
+      status.textContent = "";
+      loaded = part;
+      if (loaded > olderIds.length) nav.hidden = true;
+      else {
+        next.href = letterPartHref(loaded + 1, base);
+        left.textContent = `(${remaining()} more)`;
+      }
+      box.insertAdjacentHTML("afterbegin", chunk.html);
+      // instant: the town scrolls smoothly, and a glide here would read as a jump
+      if (anchor) window.scrollBy({ top: anchor.getBoundingClientRect().top - before, behavior: "instant" });
+      document.dispatchEvent(new CustomEvent("mail:older-loaded"));
+      return true;
+    }
+
+    const once = () => (busy ??= loadNext().finally(() => { busy = null; }));
+
+    // open every part down to the one holding `id`, then take the reader there
+    async function reveal(id: string) {
+      const part = partOf.get(id);
+      if (!part) return false;
+      while (loaded < part) if (!(await once())) return false;
+      document.getElementById(id)?.scrollIntoView({ block: "start", behavior: "instant" });
+      return true;
+    }
+
+    next.addEventListener("click", (ev) => { ev.preventDefault(); once(); });
+
+    // links on this page into an older part (the rail, the calendar, the
+    // milestone) open it here instead of leaving
+    document.addEventListener("click", (ev) => {
+      const a = (ev.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!a || a === next || ev.defaultPrevented || ev.metaKey || ev.ctrlKey || ev.shiftKey) return;
+      const url = new URL(a.href, location.href);
+      const id = decodeURIComponent(url.hash.slice(1));
+      if (url.pathname.startsWith(`${base}older/`) && partOf.has(id)) {
+        ev.preventDefault();
+        reveal(id).then((ok) => { if (ok) history.replaceState(null, "", `#${encodeURIComponent(id)}`); else location.href = a.href; });
+      }
+    });
+
+    // arriving on the page with an older letter's #hash
+    const arrived = decodeURIComponent(location.hash.slice(1));
+    if (arrived && !document.getElementById(arrived)) reveal(arrived);
+  });
+</script>
+
+<style>
+  .mail-older {
+    display: flex; flex-direction: column; align-items: center; gap: 0.4em;
+    margin: 0 0 1.2em;
+  }
+  /* a fixed line, so the status coming and going never moves the letters */
+  .mo-status { font-family: var(--pm-mono); font-size: 0.74rem; line-height: 1.5; min-height: 1.5em; color: rgba(232, 196, 139, 0.75); }
+</style>

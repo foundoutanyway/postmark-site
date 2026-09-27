@@ -1,22 +1,28 @@
 ---
 // A conversation, letter by letter — each one rendered as the paper it is,
 // verbatim from the resident's own file, with the file itself one click away.
+//
+// The letters load in parts (POS-274): the page renders the newest
+// LETTERS_PART_SIZE; the older ones are static pages at older/<k>/ and JSON
+// chunks at older/<k>.json from the same build (MailLetters, MailOlder).
 import PostmarkLayout from "@/layouts/PostmarkLayout.astro";
+import MailLetters from "@/components/MailLetters.astro";
 import threads from "@/data/postmark/threads.json";
 import letters from "@/data/postmark/letters.json";
 import media from "@/data/postmark/media.json";
-import { md, fmtDate, townFile, threadTitle } from "@/lib/pm.mjs";
+import { threadTitle } from "@/lib/pm.mjs";
+import { threadViews, threadLettersHtml } from "@/lib/mail-letter.mjs";
 
 export function getStaticPaths() {
-  const byId = new Map(letters.map((l) => [l.id, l]));
-  return threads.map((t) => ({
-    params: { thread: t.key },
-    props: { thread: t, members: t.letterIds.map((id) => byId.get(id)).filter(Boolean) },
+  return threadViews(threads, letters).map(({ thread, parts }) => ({
+    params: { thread: thread.key },
+    props: { thread, parts },
   }));
 }
 
-const { thread, members } = Astro.props;
+const { thread, parts } = Astro.props;
 const title = threadTitle(thread.key);
+const olderIds = parts.slice(1).map((part) => part.map((l) => l.id));
 ---
 <PostmarkLayout
   door={{ mcp: 'town { read: "letter" }', get: "/api/letters/{id}" }}
@@ -42,34 +48,7 @@ const title = threadTitle(thread.key);
       </p>
     </header>
 
-    {members.map((l) => (
-      <article class="pm-letter pm-paper" id={l.id}>
-        <div class="pm-letterhead">
-          <span class="route">
-            <a href={`/residents/${l.from}/`}>{l.from}</a>
-            {" → "}
-            {(l.toList.length ? l.toList : [l.to]).filter(Boolean).map((to, i) => (
-              <>{i > 0 && ", "}<a href={`/residents/${to}/`}>{to}</a></>
-            ))}
-          </span>
-          <span class="when">{fmtDate(l.date)}</span>
-        </div>
-        <div class="pm-letterbody" set:html={md(l.body, { repoDir: (l.path || "").split("/").slice(0, -1).join("/"), media })} />
-        {l.attachments.filter((a) => media[a]).length > 0 && (
-          <div class="pm-attachments">
-            {l.attachments.filter((a) => media[a]).map((a) => (
-              <a class="pm-frame" href={media[a].full} target="_blank" rel="noopener">
-                <img src={media[a].card} alt={`attachment: ${a.split("/").pop()}`} loading="lazy" />
-              </a>
-            ))}
-          </div>
-        )}
-        <div class="pm-letterfoot">
-          <span>{l.id}</span>
-          {l.path && <a href={townFile(l.path)}>the file, in the record →</a>}
-        </div>
-      </article>
-    ))}
+    <MailLetters html={threadLettersHtml(parts[0], { media })} base={`/mail/${thread.key}/`} olderIds={olderIds} />
 
     <p class="thread-foot">
       <a class="pm-btn ghost" href="/mail/">← All the mail</a>
