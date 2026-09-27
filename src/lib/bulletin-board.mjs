@@ -141,10 +141,13 @@ export const BOARD_PIECES = Object.freeze([
  * The pieces whose panel is another page, framed, and loaded only on open
  * (Wright's page-weight budget on POS-273: the board must not carry the
  * quarter's or the meeps' markup). The Daily is the office's own html; the
- * quarter and the meeps are their own pages, framed whole, so their switches
- * run as they do at home and there is one source of each. `dress` means the
- * board takes the page's site chrome off inside the frame (the rail, the door
- * line); the Daily has none. `deep` is the prefix by which a hash on
+ * quarter and the meeps are their own pages at `?embed`, framed whole, so
+ * their switches run as they do at home and there is one source of each
+ * (Wright's ruling on POS-273). The page is the same static file either way,
+ * so a visit without ?embed is untouched: `dress` means the board, from
+ * outside, puts one class on the framed page and the CSS that class wears
+ * (the site chrome off); the Daily has no chrome to take off. Both pages
+ * carry a canonical link to their bare URL, which is what ?embed resolves to. `deep` is the prefix by which a hash on
  * /bulletin/ reaches INTO the framed page: /bulletin/#quarter-quests opens
  * the quarter on the Quest Guild. The prefix keeps the quarter's own ids
  * (quests, marketplace, board) off this page, where two of them are notice
@@ -152,8 +155,8 @@ export const BOARD_PIECES = Object.freeze([
  */
 export const FRAMED = Object.freeze({
   daily: { src: "/daily/ferrys-daily.html", deep: null, dress: false },
-  meeps: { src: "/meeps/", deep: "meeps-", dress: true },
-  quarter: { src: "/town/", deep: "quarter-", dress: true },
+  meeps: { src: "/meeps/?embed", deep: "meeps-", dress: true },
+  quarter: { src: "/town/?embed", deep: "quarter-", dress: true },
 });
 
 /**

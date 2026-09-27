@@ -21,6 +21,7 @@ import {
 import { bulletinCards, bulletinPostings } from "../src/lib/bulletin-cards.mjs";
 import { LANES } from "../src/lib/civic.mjs";
 import { MEEPS } from "../src/lib/meeps-quarter.mjs";
+import { SOCIALS } from "../src/lib/door-line.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const BULLETIN = JSON.parse(readFileSync(join(ROOT, "src", "data", "postmark", "bulletin.json"), "utf8"));
@@ -203,6 +204,53 @@ test("THE PAGE WEIGHT: the framed panels carry no src until they open, and the q
   for (const f of frames) assert.equal(/\ssrc=/.test(f), false, `a frame loads with the board: ${f}`);
   assert.equal(page.includes('class="c-lane"'), false, "the quarter's lanes are inlined on the board");
   assert.equal(page.includes('class="meep-card"'), false, "the meeps' cards are inlined on the board");
+});
+
+// ── ?embed (Wright's ruling on POS-273) ─────────────────────────────────────
+// /town/?embed and /meeps/?embed are the same static files as /town/ and
+// /meeps/. The embed state is one class, put on the framed page by the board,
+// and CSS that only that class wears; so the bare page cannot change with it.
+
+test("?EMBED IS ONE CLASS AND ITS CSS — the bare /town/ and /meeps/ carry no embed hook, and point canonical at themselves",
+  { skip: !existsSync(builtPage("town")) || !existsSync(builtPage("meeps")) || !existsSync(bulletinHtml) }, () => {
+  for (const [key, bare] of [["quarter", "/town/"], ["meeps", "/meeps/"]]) {
+    assert.equal(FRAMED[key].src, `${bare}?embed`);
+    const html = readFileSync(builtPage(bare.replaceAll("/", "")), "utf8");
+    assert.equal(html.includes("pm-embed"), false, `${bare} carries an embed hook of its own`);
+    assert.match(html, new RegExp(`<link rel="canonical" href="https://postmark\\.town${bare}">`), `${bare} has no canonical to its bare URL`);
+  }
+  // the board's dress: every rule it adds is scoped under the one class
+  const page = readFileSync(bulletinHtml, "utf8");
+  const dress = /st\.textContent = "([^"]*)"/.exec(page)?.[1] ?? "";
+  assert.ok(dress.length > 0, "the board no longer dresses its frames");
+  for (const rule of dress.split("}").filter(Boolean)) {
+    for (const sel of rule.split("{")[0].split(",")) {
+      assert.match(sel.trim(), /^\.pm-embed\b/, `the dress styles "${sel}" outside the embed class`);
+    }
+  }
+  assert.match(page, /classList\.add\("pm-embed"\)/);
+});
+
+// ── the stickers (Keemin: "the social media links on the corkboard as little stickers") ──
+
+test("THE STICKERS: every social from the door line's list, a plain external link with a name; one not open yet is no link",
+  { skip: !existsSync(bulletinHtml) }, () => {
+  const page = readFileSync(bulletinHtml, "utf8");
+  const board = page.slice(page.indexOf('id="board"'), page.indexOf('class="sill"'));
+  for (const s of SOCIALS) {
+    if (s.href) {
+      const a = new RegExp(`<a class="sticker[^"]*" href="${s.href.replace(/[.?/]/g, "\\$&")}" target="_blank" rel="noopener" data-social="${s.key}" aria-label="Postmark on ${s.name}[^"]*"`);
+      assert.match(board, a, `${s.name}'s sticker is not a plain, named, external link`);
+    } else {
+      assert.match(board, new RegExp(`<span class="sticker[^"]*is-soon[^"]*" data-social="${s.key}"`), `${s.name} is not a greyed sticker`);
+      assert.equal(new RegExp(`<a[^>]*data-social="${s.key}"`).test(board), false, `${s.name} is a link before it is open`);
+    }
+  }
+  // the URLs live in door-line.mjs and nowhere else in the board's source
+  const src = readFileSync(join(ROOT, "town", "pages", "bulletin", "index.astro"), "utf8");
+  for (const s of SOCIALS.filter((x) => x.href)) {
+    assert.equal(src.includes(new URL(s.href).host), false, `the board's source copies ${s.name}'s URL`);
+  }
 });
 
 test("every pinned notice is listed in the notices panel as a link, and every notice answers its #slug without a script",
