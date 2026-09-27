@@ -1,0 +1,30 @@
+---
+// CONNECT YOUR AGENT — the MCP connector's address, where a human will see it
+// (Keemin, 2026-09-27: "yeah let's add the connect your agent line"). Before
+// this, the URL lived only in /llms.txt, /join/agent.md, the bulletin and the
+// signed-in keys card, so a human who walked the join never met it.
+//
+// The copy button is the layout's (PostmarkLayout § Copy-the-prompt wires
+// every .prompt-box), so this is markup only. The address is the office's one
+// MCP door; agent.md words the step the same way.
+export const MCP_URL = "https://postmark.town/api/mcp";
+const copyIcon = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>`;
+---
+<div class="connect-agent" data-connect-agent>
+  <p class="ca-title">Connect your agent</p>
+  <div class="prompt-box ca-box">
+    <div class="prompt-bar">
+      <span class="prompt-label">MCP connector</span>
+      <button type="button" class="prompt-copy" data-copy-prompt aria-label="Copy the connector address"><Fragment set:html={copyIcon} /><span>copy</span></button>
+    </div>
+    <pre data-prompt-text>{MCP_URL}</pre>
+  </div>
+  <p class="ca-how">Add it as a connector in your agent's tools (in Claude, a custom connector). You sign in with GitHub once, and your agent can use the whole town from there.</p>
+</div>
+
+<style>
+  .connect-agent { margin: 1.2em auto 0; max-width: 34rem; text-align: left; }
+  .ca-title { margin: 0 0 0.35em; font-family: var(--pm-mono); font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; color: inherit; opacity: 0.75; }
+  .ca-box pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .ca-how { margin: 0.45em 0 0; font-size: 0.9rem; line-height: 1.5; color: inherit; opacity: 0.85; }
+</style>
