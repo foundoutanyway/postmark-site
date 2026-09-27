@@ -2,11 +2,12 @@
 //
 //   node --test test/bulletin-board.test.mjs
 //
-// The board pins three kinds of thing, each the way into its page: this
-// month's calendar (/calendar/), Ferry's Daily's front page (/daily/) and a
-// post-it per posting (its notice, /bulletin/#<slug>). The rules live in
-// src/lib/bulletin-board.mjs; the built-page tests below are skipped until the
-// page is built, as POS-177 rules.
+// The board holds five pieces (POS-273, 2026-09-27): the calendar, Ferry's
+// Daily, a cluster of post-its, the meeps and the civic quarter's postcard.
+// Each opens its whole component in a panel over the cork, at its own hash;
+// the notices keep their /bulletin/#<slug> addresses inside the notices panel.
+// The rules live in src/lib/bulletin-board.mjs; the built-page tests below are
+// skipped until the page is built, as POS-177 rules.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -14,8 +15,13 @@ import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { POSTIT_PAPERS, TILTS, dailyFront, pinnedMonth, postitLook, tendedText } from "../src/lib/bulletin-board.mjs";
+import {
+  BOARD_PIECES, FRAMED, POSTIT_PAPERS, TILTS, boardIds, dailyFront, pinnedMonth, postitLook, tendedText,
+} from "../src/lib/bulletin-board.mjs";
 import { bulletinCards, bulletinPostings } from "../src/lib/bulletin-cards.mjs";
+import { LANES } from "../src/lib/civic.mjs";
+import { MEEPS } from "../src/lib/meeps-quarter.mjs";
+import { SOCIALS } from "../src/lib/door-line.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const BULLETIN = JSON.parse(readFileSync(join(ROOT, "src", "data", "postmark", "bulletin.json"), "utf8"));
@@ -72,6 +78,31 @@ test("the newspaper reads Ferry's crossing line, his date and his lead story", (
   });
 });
 
+// THE SEPTEMBER SHAPE, as the office served it on 2026-09-26 (crossing 213):
+// "Tended on" where the date used to be "last on", and "--" where the
+// figures used to be middots. The committed snapshot still carries the August
+// shape, so only a fixture can hold this one.
+test("the Daily's September shape: \"Tended on\" and \"--\" separators read the same", () => {
+  const body = [
+    "# The office -- Ferry's Daily",
+    "",
+    "*A curated look over the town's letters, kept by Ferry -- the mailman. Tended on **2026-09-26** (Saturday morning).*",
+    "",
+    "## Crossing 213 -- 50 letters over -- 10,128 delivered all told -- 191 resident doors -- no bounces",
+    "",
+    "## Four doors ashore",
+    "",
+    "Four harbor declarations became settled addresses on this crossing.",
+  ].join("\n");
+  assert.deepEqual(dailyFront([{ slug: "ferrys-daily", body }]), {
+    tended: "2026-09-26",
+    crossing: 213,
+    figures: "50 letters over · 10,128 delivered all told · 191 resident doors · no bounces",
+    lead: "Four doors ashore",
+    standfirst: "Four harbor declarations became settled addresses on this crossing.",
+  });
+});
+
 test("a Daily that changes its shape still pins a newspaper, with nothing made up", () => {
   const empty = { tended: null, crossing: null, figures: null, lead: null, standfirst: null };
   assert.deepEqual(dailyFront([]), empty);
@@ -119,25 +150,115 @@ test("with no as_of the month is the build's own", () => {
   assert.equal(m.next, null);
 });
 
+// ── the pieces and their panels ────────────────────────────────────────────
+
+test("the board holds Keemin's five, in his order: calendar, Daily, post-its, meeps, quarter", () => {
+  assert.deepEqual(BOARD_PIECES.map((p) => p.key), ["calendar", "daily", "notices", "meeps", "quarter"]);
+  // with JavaScript off a piece is a link to its page, and every page still stands
+  assert.deepEqual(BOARD_PIECES.filter((p) => p.page).map((p) => p.page), ["/calendar/", "/daily/", "/meeps/", "/town/"]);
+  // the framed panels load only on open, and reach inside by a prefix
+  assert.deepEqual(Object.keys(FRAMED).sort(), ["daily", "meeps", "quarter"]);
+  assert.equal(FRAMED.quarter.deep, "quarter-");
+  assert.equal(FRAMED.meeps.deep, "meeps-");
+});
+
+test("NO NOTICE SLUG IS ONE OF THE BOARD'S OWN IDS — /bulletin/#quests stays the notice", () => {
+  const own = new Set(boardIds({ quarter: LANES.map((l) => l.id), meeps: MEEPS.map((m) => m.key) }));
+  const clash = bulletinPostings(BULLETIN).map((p) => p.slug).filter((s) => own.has(s));
+  assert.deepEqual(clash, [], `these notices would open a piece instead: ${clash.join(", ")}`);
+  // two of the quarter's lane anchors are notice slugs and one is the board
+  // itself; the prefix is what keeps them apart
+  const lanes = LANES.map((l) => l.id);
+  assert.ok(lanes.includes("quests") && lanes.includes("board"));
+  assert.equal(own.has("quests"), false);
+  assert.equal(own.has("quarter-quests"), true);
+});
+
 // ── THE BUILT PAGES ─────────────────────────────────────────────────────────
 
 const bulletinHtml = builtPage("bulletin");
 
-test("the built board pins the calendar and the Daily, each linking its page",
+test("the built board pins every piece as a link to its page, each opening its panel",
   { skip: !existsSync(bulletinHtml) }, () => {
   const page = readFileSync(bulletinHtml, "utf8");
-  assert.match(page, /<a[^>]*href="\/calendar\/"[^>]*data-pinned="calendar"/, "the calendar is not pinned as a link to /calendar/");
-  assert.match(page, /<a[^>]*href="\/daily\/"[^>]*data-pinned="daily"/, "the newspaper is not pinned as a link to /daily/");
+  for (const p of BOARD_PIECES) {
+    const href = p.page ?? `#${p.hash}`;
+    assert.match(page, new RegExp(`<a[^>]*class="piece[^"]*"[^>]*href="${href}"[^>]*data-pinned="${p.key}"[^>]*data-open="${p.hash}"`),
+      `${p.key} is not pinned as a link to ${href}`);
+    assert.match(page, new RegExp(`<section[^>]*class="bp[^"]*"[^>]*id="${p.hash}"`), `${p.key} has no panel at #${p.hash}`);
+  }
   assert.match(page, /data-board-month="\d{4}-\d{2}"/);
   assert.match(page, /<td[^>]*class="[^"]*\btoday\b[^"]*"/, "the pinned month marks no today");
+  // the calendar's panel is /calendar/'s own body (CalendarPanel), not a copy
+  const at = page.indexOf('id="calendar"');
+  const cal = page.slice(at, page.indexOf('data-panel="notices"', at));
+  assert.match(cal, /data-cal-month=/, "the calendar panel has no month");
+  for (const g of ["now", "coming", "ended"]) assert.match(cal, new RegExp(`data-group="${g}"`), `the calendar panel has no ${g} group`);
 });
 
-test("every note is a plain link to its notice, and every notice answers its #slug without a script",
+test("THE PAGE WEIGHT: the framed panels carry no src until they open, and the quarter's and the meeps' markup is not on the board",
+  { skip: !existsSync(bulletinHtml) }, () => {
+  const page = readFileSync(bulletinHtml, "utf8").replace(/<noscript>[\s\S]*?<\/noscript>/g, "");
+  const frames = [...page.matchAll(/<iframe\b[^>]*>/g)].map((m) => m[0]);
+  assert.equal(frames.length, 3, `${frames.length} frames`);
+  for (const f of frames) assert.equal(/\ssrc=/.test(f), false, `a frame loads with the board: ${f}`);
+  assert.equal(page.includes('class="c-lane"'), false, "the quarter's lanes are inlined on the board");
+  assert.equal(page.includes('class="meep-card"'), false, "the meeps' cards are inlined on the board");
+});
+
+// ── ?embed (Wright's ruling on POS-273) ─────────────────────────────────────
+// /town/?embed and /meeps/?embed are the same static files as /town/ and
+// /meeps/. The embed state is one class, put on the framed page by the board,
+// and CSS that only that class wears; so the bare page cannot change with it.
+
+test("?EMBED IS ONE CLASS AND ITS CSS — the bare /town/ and /meeps/ carry no embed hook, and point canonical at themselves",
+  { skip: !existsSync(builtPage("town")) || !existsSync(builtPage("meeps")) || !existsSync(bulletinHtml) }, () => {
+  for (const [key, bare] of [["quarter", "/town/"], ["meeps", "/meeps/"]]) {
+    assert.equal(FRAMED[key].src, `${bare}?embed`);
+    const html = readFileSync(builtPage(bare.replaceAll("/", "")), "utf8");
+    assert.equal(html.includes("pm-embed"), false, `${bare} carries an embed hook of its own`);
+    assert.match(html, new RegExp(`<link rel="canonical" href="https://postmark\\.town${bare}">`), `${bare} has no canonical to its bare URL`);
+  }
+  // the board's dress: every rule it adds is scoped under the one class
+  const page = readFileSync(bulletinHtml, "utf8");
+  const dress = /st\.textContent = "([^"]*)"/.exec(page)?.[1] ?? "";
+  assert.ok(dress.length > 0, "the board no longer dresses its frames");
+  for (const rule of dress.split("}").filter(Boolean)) {
+    for (const sel of rule.split("{")[0].split(",")) {
+      assert.match(sel.trim(), /^\.pm-embed\b/, `the dress styles "${sel}" outside the embed class`);
+    }
+  }
+  assert.match(page, /classList\.add\("pm-embed"\)/);
+});
+
+// ── the stickers (Keemin: "the social media links on the corkboard as little stickers") ──
+
+test("THE STICKERS: every social from the door line's list, a plain external link with a name; one not open yet is no link",
+  { skip: !existsSync(bulletinHtml) }, () => {
+  const page = readFileSync(bulletinHtml, "utf8");
+  const board = page.slice(page.indexOf('id="board"'), page.indexOf('class="sill"'));
+  for (const s of SOCIALS) {
+    if (s.href) {
+      const a = new RegExp(`<a class="sticker[^"]*" href="${s.href.replace(/[.?/]/g, "\\$&")}" target="_blank" rel="noopener" data-social="${s.key}" aria-label="Postmark on ${s.name}[^"]*"`);
+      assert.match(board, a, `${s.name}'s sticker is not a plain, named, external link`);
+    } else {
+      assert.match(board, new RegExp(`<span class="sticker[^"]*is-soon[^"]*" data-social="${s.key}"`), `${s.name} is not a greyed sticker`);
+      assert.equal(new RegExp(`<a[^>]*data-social="${s.key}"`).test(board), false, `${s.name} is a link before it is open`);
+    }
+  }
+  // the URLs live in door-line.mjs and nowhere else in the board's source
+  const src = readFileSync(join(ROOT, "town", "pages", "bulletin", "index.astro"), "utf8");
+  for (const s of SOCIALS.filter((x) => x.href)) {
+    assert.equal(src.includes(new URL(s.href).host), false, `the board's source copies ${s.name}'s URL`);
+  }
+});
+
+test("every pinned notice is listed in the notices panel as a link, and every notice answers its #slug without a script",
   { skip: !existsSync(bulletinHtml) }, () => {
   const page = readFileSync(bulletinHtml, "utf8");
   for (const p of bulletinCards(BULLETIN)) {
     const note = new RegExp(`<a[^>]*href="#${p.slug}"[^>]*data-card="${p.slug}"`);
-    assert.match(page, note, `${p.slug}'s note is not a link to #${p.slug}`);
+    assert.match(page, note, `${p.slug} is not listed as a link to #${p.slug}`);
   }
   for (const p of bulletinPostings(BULLETIN)) {
     assert.match(page, new RegExp(`<article[^>]*id="${p.slug}"[^>]*data-post="${p.slug}"`),

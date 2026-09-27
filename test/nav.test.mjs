@@ -113,8 +113,13 @@ test("SEVEN SEATS: Postmark · The Town · The World · The Mail · The Househol
 
 test("each seat's row, in Keemin's words and order", () => {
   const row = (k) => chipsFor(k)?.chips.map((c) => c.label) ?? null;
-  assert.deepEqual(row("town"), ["the bulletin", "the civic quarter", "the meeps"],
-    "The Town = the Bulletin, the Civic Quarter, the Meeps, in that order");
+  // THE TOWN HAS NO ROW (Keemin, 2026-09-27: the civic quarter and the meeps
+  // are "pins on the bulletin board. that way we can just remove that subrail
+  // outright"). What was its row is its alsoKeys, so every one of those pages
+  // still lights the seat.
+  assert.equal(chipsFor("town"), null, "The Town grew its row back");
+  assert.deepEqual(RAIL.find((s) => s.key === "town").alsoKeys,
+    ["bulletin", "calendar", "daily", "meeps", "projects", "votes"]);
   assert.deepEqual(row("world"), ["the living map", "conversations", "replay", "the atlas", "the harbor · beyond the water"]);
   assert.deepEqual(row("docs"), ["the docs", "stamps", "the numbers", "the repos"]);
   // a seat whose family is one read wears no row
@@ -157,7 +162,12 @@ test("THE OTHER DIRECTION — every chip's route claims that chip's own key", ()
     if (e.depth === 0 && e.members) continue;   // a seat's landing belongs to its first chip
     const file = pageFileFor(e.href);
     if (!file) continue;                        // rule 1 owns that failure
-    if (!CLAIMED.get(e.key)?.has(file)) wrong.push(`${e.section}/${e.key} → ${e.href}`);
+    // a seat with no row whose landing is a room of another name (The Town
+    // opens /bulletin/) names that room as its FIRST alsoKey, and the page
+    // claims it; anything else must claim the seat's own key
+    const claims = CLAIMED.get(e.key)?.has(file) ||
+      (e.depth === 0 && !e.members && e.alsoKeys?.length > 0 && CLAIMED.get(e.alsoKeys[0])?.has(file));
+    if (!claims) wrong.push(`${e.section}/${e.key} → ${e.href}`);
   }
   assert.deepEqual(wrong, [], `a chip and its page disagree about the chip's name:\n  ${wrong.join("\n  ")}`);
 });
@@ -172,7 +182,8 @@ test("every chip row leads with its own aggregate — the seat opens its first c
   // THE TOWN, by name: the Bulletin leads (Keemin: "the bulletin first, the
   // most important"), so the seat opens the Bulletin and not the quarter.
   assert.equal(RAIL.find((s) => s.key === "town").href, "/bulletin/");
-  assert.equal(rowFor("bulletin").chips[0].key, "bulletin");
+  assert.equal(activeKeyOf(pageFileFor("/bulletin/")), RAIL.find((s) => s.key === "town").alsoKeys[0],
+    "the Town's landing does not claim the key its seat names first");
 });
 
 // ── the laws that carried over ───────────────────────────────────────────────
@@ -296,18 +307,18 @@ test("EVERY PAGE THAT CLAIMS A KEY LIGHTS A SEAT — no page is left with the ra
 
 // ── the moves this rail made ─────────────────────────────────────────────────
 
-test("THE CALENDAR AND FERRY'S DAILY LIVE ON THE BULLETIN'S BOARD — off the chips, and they light the Bulletin", () => {
+test("THE BOARD HOLDS THE TOWN — the calendar, the Daily, the meeps and the quarter are off the chips, and light the seat", () => {
   const chips = allEntries().filter((e) => e.depth === 1).map((e) => e.key);
-  assert.equal(chips.includes("calendar"), false, "the calendar is still a chip");
-  assert.equal(chips.includes("daily"), false, "the Daily is still a chip");
-  const bulletin = RAIL.find((s) => s.key === "town").members.find((m) => m.key === "bulletin");
-  assert.deepEqual(bulletin.alsoKeys, ["calendar", "daily"]);
-  // their pages stand, and claim their own keys
-  assert.equal(activeKeyOf(pageFileFor("/daily/")), "daily");
-  assert.equal(activeKeyOf(pageFileFor("/calendar/")), "calendar");
-  // the row the Daily draws is The Town's, and the lit chip is the Bulletin
-  for (const k of ["daily", "calendar"]) {
-    assert.equal(rowFor(k).of.key, "town");
+  for (const k of ["calendar", "daily", "bulletin", "meeps"]) {
+    assert.equal(chips.includes(k), false, `${k} is still a chip`);
+  }
+  assert.equal(allEntries().some((e) => e.depth === 1 && e.href === "/town/"), false, "the civic quarter is still a chip");
+  const town = RAIL.find((s) => s.key === "town");
+  // their pages stand, claim their own keys, draw no row, and light The Town
+  for (const [href, k] of [["/daily/", "daily"], ["/calendar/", "calendar"], ["/meeps/", "meeps"], ["/town/", "town"], ["/bulletin/", "bulletin"]]) {
+    assert.equal(activeKeyOf(pageFileFor(href)), k);
+    assert.equal(rowFor(k), null, `${href} draws a row`);
+    assert.equal(sectionOf(k), town, `${href} does not light The Town`);
   }
   const chipRow = readFileSync(join(ROOT, "src", "components", "ChipRow.astro"), "utf8");
   assert.match(chipRow, /\(c\.alsoKeys \?\? \[\]\)\.includes\(active\)/, "the row does not light the Bulletin for the pages on its board");
@@ -362,10 +373,9 @@ test("THE PROJECTS LIGHT THE CIVIC QUARTER — no chip of their own, one line on
   // Wright's ruling on POS-249 (2026-09-26): Keemin named the blurred boundary
   // between the Works and the civic quarter; Docs are guides, not resident builds.
   assert.equal(allEntries().some((e) => e.key === "projects" || e.href === "/projects/"), false, "The Projects grew a chip");
-  const quarter = RAIL.find((s) => s.key === "town").members.find((m) => m.href === "/town/");
-  assert.deepEqual(quarter.alsoKeys, ["projects"]);
+  assert.ok(RAIL.find((s) => s.key === "town").alsoKeys.includes("projects"));
   assert.equal(activeKeyOf(pageFileFor("/projects/")), "projects");
-  assert.equal(rowFor("projects").of.key, "town");
+  assert.equal(sectionOf("projects").key, "town");
   const hub = readFileSync(join(PAGES, "town", "index.astro"), "utf8");
   assert.ok(hub.includes('<a href="/projects/">the projects</a>'), "nothing on the quarter's page reaches The Projects");
 });
@@ -445,9 +455,7 @@ test("THE BALLOT, by name — the page the rail's law exists because of", () => 
 });
 
 test("THE NOTICE BOARD IS THE BULLETIN, so it matches up", () => {
-  const chip = allEntries().find((e) => e.key === "bulletin");
-  assert.equal(chip.label, "the bulletin");
-  assert.equal(chip.href, "/bulletin/");
+  assert.equal(RAIL.find((s) => s.key === "town").href, "/bulletin/");
   for (const e of allEntries()) assert.equal(/notice board/i.test(e.label ?? ""), false, `"${e.label}" says notice board`);
   assert.match(layoutTagOf(pageFileFor("/bulletin/")), /title="The bulletin — Postmark"/);
 });
@@ -456,7 +464,7 @@ test("/town/ IS NOT A DASHBOARD — the quarter, no cards restating the chips", 
   const src = readFileSync(join(PAGES, "town", "index.astro"), "utf8");
   assert.equal(/\bfrom "@\/lib\/nav\.mjs"/.test(src), false, "/town/ reads the rail to restate its own row as cards");
   assert.ok(src.includes('<section class="cq"'), "the civic quarter is gone from /town/");
-  assert.equal(rowFor("town").chips.find((c) => c.href === "/town/").label, "the civic quarter");
+  assert.equal(sectionOf("town").href, "/bulletin/", "the quarter's seat no longer opens the board it is pinned to");
 });
 
 // ── the nav flags ────────────────────────────────────────────────────────────
@@ -499,12 +507,18 @@ test("the built chip rows wear their pixel icons, and the lit chip is the right 
   };
   const lit = (href) => [...row(href).matchAll(/<a class="pm-chip[^"]*is-on[^"]*"[^>]*>[\s\S]*?<\/a>/g)]
     .map((m) => m[0].replace(/<svg[\s\S]*?<\/svg>/g, "").replace(/<[^>]+>/g, "").trim());
-  assert.deepEqual(lit("/daily/"), ["the bulletin"], "the Daily does not light the Bulletin");
-  assert.deepEqual(lit("/calendar/"), ["the bulletin"], "the calendar does not light the Bulletin");
-  assert.deepEqual(lit("/town/"), ["the civic quarter"]);
+  // The Town draws no row; its pages light the seat on the top rail instead
+  const seat = (href) => {
+    const s = readFileSync(builtPage(href), "utf8");
+    const i = s.indexOf('class="pm-townnav-links"');
+    return [...s.slice(i, s.indexOf("</nav>", i)).matchAll(/<a\b[^>]*aria-current="page"[^>]*>([^<]*)/g)].map((m) => m[1].trim());
+  };
+  for (const href of ["/bulletin/", "/daily/", "/calendar/", "/town/", "/meeps/", "/projects/"]) {
+    assert.equal(row(href), "", `${href} draws a chip row`);
+    assert.deepEqual(seat(href), ["The Town"], `${href} does not light The Town`);
+  }
   assert.deepEqual(lit("/docs/stamps/"), ["stampsbeta"]);
-  assert.deepEqual(lit("/projects/"), ["the civic quarter"], "The Projects do not light the civic quarter");
-  for (const href of ["/bulletin/", "/replay/", "/docs/"]) {
+  for (const href of ["/replay/", "/docs/"]) {
     const r = row(href);
     const chips = (r.match(/<a class="pm-chip/g) ?? []).length;
     assert.ok(chips >= 3, `${href} drew ${chips} chips`);

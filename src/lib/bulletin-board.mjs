@@ -68,10 +68,14 @@ export function pinnedMonth(calendar, now = new Date()) {
  * Ferry's Daily's front page, read from the posting the town keeps it in
  * (TOWN_BULLETIN/ferrys-daily.md, in bulletin.json as `ferrys-daily`):
  *
- *   tended     the date his italic line says he last tended it ("last on **…**")
+ *   tended     the date his italic line says he last tended it ("last on **…**",
+ *              and since September "Tended on **…**")
  *   crossing   the crossing number from his crossing line (ferryHeadline, the
  *              doorstep's own reader, so the two never read it differently)
- *   figures    the rest of that line: letters over, delivered, the roll
+ *   figures    the rest of that line: letters over, delivered, the roll, with
+ *              his separators read as the board's middots (he has written both
+ *              "·" and "--"; the doorstep's reader strips only the first char
+ *              of a "--", so its leftover dash is dropped here too)
  *   lead       the first `##` story after the crossing line
  *   standfirst that story's first paragraph, excerpted
  *
@@ -81,7 +85,7 @@ export function pinnedMonth(calendar, now = new Date()) {
 export function dailyFront(bulletin) {
   const posting = (bulletin ?? []).find((p) => p?.slug === "ferrys-daily");
   const body = String(posting?.body ?? "");
-  const tended = /last on \*{0,2}(\d{4}-\d{2}-\d{2})\*{0,2}/i.exec(body)?.[1] ?? null;
+  const tended = /(?:last|tended) on \*{0,2}(\d{4}-\d{2}-\d{2})\*{0,2}/i.exec(body)?.[1] ?? null;
   const line = ferryHeadline(body);
 
   let lead = null;
@@ -98,7 +102,9 @@ export function dailyFront(bulletin) {
   return {
     tended,
     crossing: line?.crossing ?? null,
-    figures: line?.headline ?? null,
+    figures: line?.headline
+      ? line.headline.replace(/^[\s·—:|-]+/, "").replace(/\s+(?:--|—)\s+/g, " · ").trim() || null
+      : null,
     lead,
     standfirst,
   };
@@ -110,4 +116,61 @@ export function tendedText(ymd) {
   const d = new Date(`${ymd}T12:00:00Z`);
   if (Number.isNaN(d.getTime())) return null;
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+}
+
+// ── THE BOARD HOLDS THE TOWN (POS-273, 2026-09-27) ─────────────────────────
+//
+// Keemin: "I want the civic quarter and the meeps to themselves be pins on the
+// bulletin board … Instead of taking you to different pages, the clicks should
+// show you that component integrated into the one cork board page." So the
+// board has five pieces, and each opens its whole component in one large
+// panel over the cork. A piece's `hash` is its panel's address on
+// /bulletin/, so a panel can be linked and Back closes it; its `page` is where
+// it lives on its own, and what the piece links to with JavaScript off.
+//
+// In Keemin's order, which is also the phone's order down the board.
+export const BOARD_PIECES = Object.freeze([
+  { key: "calendar", hash: "calendar", page: "/calendar/", label: "the calendar" },
+  { key: "daily", hash: "daily", page: "/daily/", label: "Ferry's Daily" },
+  { key: "notices", hash: "notices", page: null, label: "the notices" },
+  { key: "meeps", hash: "meeps", page: "/meeps/", label: "the meeps" },
+  { key: "quarter", hash: "quarter", page: "/town/", label: "the civic quarter" },
+]);
+
+/**
+ * The pieces whose panel is another page, framed, and loaded only on open
+ * (Wright's page-weight budget on POS-273: the board must not carry the
+ * quarter's or the meeps' markup). The Daily is the office's own html; the
+ * quarter and the meeps are their own pages at `?embed`, framed whole, so
+ * their switches run as they do at home and there is one source of each
+ * (Wright's ruling on POS-273). The page is the same static file either way,
+ * so a visit without ?embed is untouched: `dress` means the board, from
+ * outside, puts one class on the framed page and the CSS that class wears
+ * (the site chrome off); the Daily has no chrome to take off. Both pages
+ * carry a canonical link to their bare URL, which is what ?embed resolves to. `deep` is the prefix by which a hash on
+ * /bulletin/ reaches INTO the framed page: /bulletin/#quarter-quests opens
+ * the quarter on the Quest Guild. The prefix keeps the quarter's own ids
+ * (quests, marketplace, board) off this page, where two of them are notice
+ * slugs and one is the board itself.
+ */
+export const FRAMED = Object.freeze({
+  daily: { src: "/daily/ferrys-daily.html", deep: null, dress: false },
+  meeps: { src: "/meeps/?embed", deep: "meeps-", dress: true },
+  quarter: { src: "/town/?embed", deep: "quarter-", dress: true },
+});
+
+/**
+ * Every id the board itself owns on /bulletin/: `board`, each piece's panel,
+ * and one deep id per framed room (`ids` per piece: the lane anchors, the meep
+ * keys). A notice slug that equals any of these would open the wrong thing,
+ * so the suite holds the town's slugs against this list.
+ */
+export function boardIds(inner = {}) {
+  const out = ["board"];
+  for (const p of BOARD_PIECES) {
+    out.push(p.hash);
+    const deep = FRAMED[p.key]?.deep;
+    if (deep) for (const id of inner[p.key] ?? []) out.push(`${deep}${id}`);
+  }
+  return out;
 }

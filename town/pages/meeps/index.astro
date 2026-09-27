@@ -110,6 +110,7 @@ const switchCss = [
 <PostmarkLayout
   door={{ mcp: 'town { read: "residents", args: { office: true } }', get: "/api/residents?office=true" }}
   title="The Meeps — Postmark"
+  canonical={new URL("/meeps/", Astro.site).href}
   description="The town's staff: five meeps, each shown as itself, with its own profile, its latest and the door behind it, and the meeplings' bench, the box's machinery with its heartbeat."
   active="meeps"
 >

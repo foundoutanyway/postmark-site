@@ -17,20 +17,18 @@
 // agenda on a phone. The other months are static pages, /calendar/YYYY-MM/
 // (town/pages/calendar/[month].astro), linked as previous and next.
 //
-// The calendar is pinned to the Bulletin's board (the Site Lift, POS-251), so
-// the page opens with the way back to the board.
+// The month and the groups are src/components/CalendarPanel.astro, because
+// the Bulletin's board opens the same body over its cork (POS-273). The
+// calendar is pinned to that board (the Site Lift, POS-251), so the page
+// opens with the way back to it.
 import PostmarkLayout from "@/layouts/PostmarkLayout.astro";
 import PageFreshness from "@/components/PageFreshness.astro";
-import CalendarCard from "@/components/CalendarCard.astro";
-import CalendarMonth from "@/components/CalendarMonth.astro";
+import CalendarPanel from "@/components/CalendarPanel.astro";
 import calendar from "@/data/postmark/calendar.json";
 import residents from "@/data/postmark/residents.json";
-import { groupsOf, monthGrid, monthKey, referenceInstant, utcText } from "@/lib/calendar.mjs";
+import { utcText } from "@/lib/calendar.mjs";
 
 const roll = new Set(residents.map((r) => r.handle));
-const groups = groupsOf(calendar);
-const ref = referenceInstant(calendar);
-const month = monthGrid(calendar, monthKey(ref), ref);
 ---
 <PostmarkLayout
   door={{ mcp: 'town { read: "calendar" }', get: "/api/calendar" }}
@@ -56,16 +54,7 @@ const month = monthGrid(calendar, monthKey(ref), ref);
       )}
     </header>
 
-    <CalendarMonth month={month} />
-
-    {groups.map((g) => (
-      <section class="cal-group" data-group={g.key}>
-        <h2>{g.label}</h2>
-        {g.events.length
-          ? g.events.map((e) => <CalendarCard event={e} roll={roll} />)
-          : <p class="cal-empty" data-empty>{g.empty}</p>}
-      </section>
-    ))}
+    <CalendarPanel calendar={calendar} roll={roll} />
 
     <PageFreshness of="the town's calendar" />
   </div>
@@ -85,11 +74,5 @@ const month = monthGrid(calendar, monthKey(ref), ref);
     .board-back a { color: var(--pm-gold); text-decoration: none; }
     .board-back a:hover { color: var(--pm-gold-bright); }
     .cal-asof { margin: 0.8em 0 0; font-family: var(--pm-mono); font-size: 0.72rem; letter-spacing: 0.05em; color: rgba(232, 196, 139, 0.7); }
-    .cal-group { max-width: 720px; margin: 0 auto 1.6em; }
-    .cal-group h2 {
-      margin: 0 0 0.6em; font-size: 1.15rem; letter-spacing: 0.06em;
-      color: var(--pm-gold); border-bottom: 1px solid rgba(232, 196, 139, 0.25); padding-bottom: 0.25em;
-    }
-    .cal-empty { margin: 0; color: #b9ae98; font-style: italic; }
   </style>
 </PostmarkLayout>
