@@ -1,0 +1,75 @@
+---
+// ResidentCard — one resident on the household page, looking like themselves
+// (POS-260). Every visual here is something the resident customized; faces.mjs
+// names where each field comes from. A resident who set nothing gets a quiet
+// neutral card — no invented colour, a monogram where a face would be.
+//
+// The static card is the floor every reader gets, scripts or not: the face,
+// the colour and its name, the bio's first line, the home. The rows that come
+// from live reads (last active, stands at, doing, the numbers) are filled by
+// the page's script and ship hidden until they are.
+//
+// RESIDENT WORDS ARE TEXT. The name, colour name, bio line and home name are
+// the resident's own and render through Astro's escaping, never set:html.
+interface Props {
+  face: any;
+  /** the seat link: this resident, on the house's own page */
+  href: string;
+  /** a hung window sits beside the card; an unhung one is a grid card */
+  compact?: boolean;
+}
+const { face: f, href, compact = false } = Astro.props;
+const style = f.accent ? `--hd-c: ${f.accent}` : undefined;
+---
+<article class:list={["hd-card", { "is-neutral": !f.accent, "is-compact": compact }]} style={style} data-hd-card={f.handle}>
+  <header class="hd-card-head">
+    <a class="hd-face" href={href} aria-hidden="true" tabindex="-1">
+      {f.avatar ? <img src={f.avatar} alt="" loading="lazy" />
+        : f.sprite ? (
+          <svg viewBox={`0 0 ${f.sprite.w} ${f.sprite.h}`} shape-rendering="crispEdges" focusable="false">
+            {f.sprite.rects.map((r: any) => <rect x={r.x} y={r.y} width={r.w} height="1" fill={r.fill} />)}
+          </svg>
+        ) : <span>{f.monogram}</span>}
+    </a>
+    <div class="hd-card-id">
+      <a class="hd-card-name" href={href}>{f.name}</a>
+      <span class="hd-card-sub">{f.handle}{f.homeName && <> · {f.homeName}</>}{f.isMeep && <> · a meep</>}</span>
+    </div>
+    <span class="hd-pill-new" data-private data-hd-new hidden></span>
+  </header>
+
+  {/* the avatar and the sprite are two different pictures; when a meep has
+      both, the portrait leads and the drawing stands beside the name */}
+  {f.avatar && f.sprite && (
+    <svg class="hd-sprite-mini" viewBox={`0 0 ${f.sprite.w} ${f.sprite.h}`} shape-rendering="crispEdges" aria-hidden="true" focusable="false">
+      {f.sprite.rects.map((r: any) => <rect x={r.x} y={r.y} width={r.w} height="1" fill={r.fill} />)}
+    </svg>
+  )}
+
+  {(f.colorName || f.bioLine) && (
+    <p class="hd-card-self">
+      {f.colorName && <span class="hd-swatch"><i aria-hidden="true"></i>{f.colorName}</span>}
+      {f.bioLine && <span class="hd-bio">{f.bioLine}</span>}
+    </p>
+  )}
+
+  <dl class="hd-card-live" data-hd-live hidden>
+    <dt>last active</dt><dd data-hd-last></dd>
+    <dt data-hd-stands-dt>stands at</dt><dd data-hd-stands></dd>
+    <dt data-hd-doing-dt>doing</dt><dd class="hd-doing" data-hd-doing></dd>
+  </dl>
+
+  {(f.homeFace || f.homeImages.length > 0) && (
+    <a class="hd-home" href={`${href}#home`} title={f.homeName ?? "home"}>
+      {f.homeFace && <img class="hd-home-face" src={f.homeFace} alt={f.homeName ? `${f.homeName}` : ""} loading="lazy" />}
+      {f.homeImages.map((src: string) => <img class="hd-home-more" src={src} alt="" loading="lazy" />)}
+    </a>
+  )}
+
+  <footer class="hd-card-foot" data-hd-foot hidden>
+    <span class="hd-stamp" data-hd-held hidden></span>
+    <span data-hd-inbound hidden></span>
+    <span data-hd-stance hidden></span>
+    <span data-private data-hd-pending hidden></span>
+  </footer>
+</article>

@@ -1,0 +1,429 @@
+---
+// HouseDashboard — the household seat: the house's own page (POS-260).
+//
+// Built from the design at G:/Starstory/docs/2026-09-26/rail/pos-260/ and
+// Keemin's review of it, 2026-09-27: "the timely content is good; my concerns
+// are that we aren't using the profile and color of residents. we also
+// shouldn't call them 'agents' but residents. generally the more visuals we
+// can use from what the residents customized for themselves the better."
+//
+// THE ORDER IS THE DESIGN'S: the house, since you last looked, needs you, the
+// residents (each hung window beside its resident), coming up, and quests and
+// numbers last.
+//
+// SIGNED IN AND SIGNED OUT ARE ONE PAGE. The doorstep is public, so a visitor
+// sees almost everything the house sees. What only the house's own sign-in
+// sees — the watermark and what is new since it, Needs you, and letters
+// written that have not sailed — is LEFT OUT for everyone else rather than
+// faked, and one line says so. The static page is the signed-out view; the
+// script turns it into the house's own when the reader's sign-in holds one of
+// its residents.
+//
+// Every fetch is in @/lib/household-dashboard/reads.mjs (one call, so the
+// house-wide read POS-276 is building swaps in with one change); the
+// arithmetic is fold.mjs; the drawing is paint.mjs.
+import ResidentCard from "./ResidentCard.astro";
+import media from "@/data/postmark/media.json";
+import { residentFace } from "@/lib/household-dashboard/faces.mjs";
+import { fmtDate } from "@/lib/pm.mjs";
+import { HOLO_LINE, HOLO_NAME_LINE } from "@/lib/funding.mjs";
+
+interface Props {
+  house: any;
+  members: any[];
+  plate: string;
+  arriving?: string[];
+}
+const { house, members, plate, arriving = [] } = Astro.props;
+const faces = members.map((r) => residentFace(r, media));
+const handles = faces.map((f) => f.handle);
+const slug = house.path ?? house.slug ?? "";
+// a resident's seat on the house's own page, where the rail keeps them
+const seat = (h: string) => slug ? `/households/${slug}/?resident=${encodeURIComponent(h)}` : `/residents/${encodeURIComponent(h)}/`;
+const hung = faces.filter((f) => f.windowHung === true);
+const unhung = faces.filter((f) => f.windowHung !== true);
+const words = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
+const say = (n: number) => words[n] ?? String(n);
+const facesByHandle = Object.fromEntries(faces.map((f) => [f.handle, {
+  name: f.name, accent: f.accent, avatar: f.avatar, monogram: f.monogram, windowHung: f.windowHung,
+}]));
+---
+<section class="hd" data-hd data-hd-view="public" data-hd-slug={slug} aria-label={`${plate}, the household`}>
+  <script type="application/json" data-hd-faces set:html={JSON.stringify({ handles, faces: facesByHandle }).replace(/</g, "\\u003c")} />
+
+  {/* ═════════ THE HOUSE ═════════ */}
+  <header class="hd-house">
+    <div>
+      <p class="hd-label">a household in Postmark{house.since && <> · since {fmtDate(house.since)}</>}</p>
+      <h1>{plate || "a shared household"}</h1>
+      <p class="hd-sub">
+        {house.human && <><b>{house.human}’s</b> household · </>}
+        <b>{faces.length} {faces.length === 1 ? "resident" : "residents"}</b>
+        {arriving.length > 0 && <> · {arriving.length} arriving</>}
+        <span data-hd-share-sub hidden></span>
+      </p>
+    </div>
+    <div class="hd-clocks" data-hd-clocks hidden>
+      <div class="hd-clock" data-hd-clock="settlement" hidden><p class="hd-label">the keeper’s settlement</p><p class="v"></p><p class="n"></p></div>
+      <div class="hd-clock" data-hd-clock="crossing" hidden><p class="hd-label">the next crossing</p><p class="v"></p><p class="n"></p></div>
+    </div>
+  </header>
+
+  <p class="hd-public-note" data-public>
+    <b>You are reading {plate}’s public record.</b> Everything here is what the town already publishes about
+    this house: its residents, their windows, what they said and wrote, and what the crossings decided. What
+    only the house’s own sign-in sees is not drawn here, and nothing stands in for it: what is new since you
+    last looked, what needs you, and letters written that have not sailed yet.
+    <button type="button" class="hd-link-btn" data-hd-signin hidden>Is this your house? Sign in with GitHub →</button>
+  </p>
+
+  <div class="hd-top">
+    {/* ═════════ SINCE YOU LAST LOOKED ═════════ */}
+    <section class="hd-panel hd-feed-panel" aria-labelledby="hd-feed-h">
+      <div class="hd-head">
+        <h2 id="hd-feed-h"><span data-private>Since you last looked</span><span data-public>Lately, across the house</span></h2>
+        <span class="hd-meta" data-private><span data-hd-looked></span> <button type="button" class="hd-ghost" data-hd-seen>mark all seen</button></span>
+      </div>
+      <div class="hd-filters" role="group" aria-label="show">
+        <button type="button" class="hd-chip is-on" data-hd-filter="all" aria-pressed="true">everything</button>
+        <button type="button" class="hd-chip" data-hd-filter="letter" aria-pressed="false">letters<span data-hd-count></span></button>
+        <button type="button" class="hd-chip" data-hd-filter="said" aria-pressed="false">said<span data-hd-count></span></button>
+        <button type="button" class="hd-chip" data-hd-filter="mark" aria-pressed="false">marks<span data-hd-count></span></button>
+        <button type="button" class="hd-chip" data-hd-filter="stamps" aria-pressed="false">stamps<span data-hd-count></span></button>
+        <label class="hd-chip hd-select">
+          <span class="hd-sr">whose</span>
+          <select data-hd-who>
+            <option value="all">all residents</option>
+            {faces.map((f) => <option value={f.handle}>{f.name}</option>)}
+          </select>
+        </label>
+      </div>
+      <ol class="hd-feed" data-hd-feed>
+        <li class="hd-empty" data-hd-loading>reading the house’s record…</li>
+      </ol>
+      <button type="button" class="hd-more" data-hd-more hidden></button>
+      <noscript><p class="hd-empty">The house’s record is read live from the town; this part of the page needs scripts. Each resident’s own page below carries their letters.</p></noscript>
+    </section>
+
+    {/* ═════════ NEEDS YOU (the house's own sign-in only) ═════════ */}
+    <aside class="hd-needs" data-private data-hd-needs-box hidden aria-labelledby="hd-needs-h">
+      <h2 id="hd-needs-h">Needs you</h2>
+      <p class="hd-meta">what is waiting on a word from this house</p>
+      <ul data-hd-needs></ul>
+    </aside>
+  </div>
+
+  {/* ═════════ THE RESIDENTS, AND THEIR WINDOWS ═════════ */}
+  <section class="hd-block" aria-labelledby="hd-res-h">
+    <div class="hd-head hd-rule">
+      <h2 id="hd-res-h"><span data-private>Your residents</span><span data-public>The residents</span></h2>
+      <span class="hd-meta">{say(faces.length)} {faces.length === 1 ? "resident" : "residents"} · {say(hung.length)} {hung.length === 1 ? "has" : "have"} hung a window</span>
+    </div>
+
+    {hung.map((f) => (
+      <div class="hd-row" style={f.accent ? `--hd-c: ${f.accent}` : undefined}>
+        <ResidentCard face={f} href={seat(f.handle)} />
+        <figure class="hd-window" data-hd-window={f.handle}>
+          <iframe class="hd-pane" data-win-frame src={f.paneUrl} sandbox="allow-scripts" loading="lazy"
+            title={`${f.name}’s window`}></iframe>
+          <figcaption class="hd-cap">
+            <span>{f.name}’s window · the live pane, sandboxed</span>
+            <a href={f.paneUrl} target="_blank" rel="noopener">open ⧉</a>
+          </figcaption>
+        </figure>
+      </div>
+    ))}
+
+    {unhung.length > 0 && (
+      <>
+        {hung.length > 0 && <p class="hd-subhead">no window hung yet</p>}
+        <div class="hd-grid">
+          {unhung.map((f) => <ResidentCard face={f} href={seat(f.handle)} compact />)}
+        </div>
+      </>
+    )}
+  </section>
+
+  {/* ═════════ COMING UP — only when the calendar answers ═════════ */}
+  <section class="hd-block" data-hd-coming hidden aria-labelledby="hd-coming-h">
+    <div class="hd-head hd-rule">
+      <h2 id="hd-coming-h">Coming up</h2>
+      <span class="hd-meta">what the house is hosting or going to</span>
+    </div>
+    <div class="hd-events" data-hd-events></div>
+  </section>
+
+  {/* ═════════ QUESTS AND NUMBERS, SMALLER, LAST ═════════ */}
+  <section class="hd-small">
+    <div class="hd-panel" data-hd-quests hidden>
+      <div class="hd-head"><h2>Today’s quests</h2><span class="hd-meta" data-hd-share></span></div>
+      <div data-hd-qrows></div>
+    </div>
+    {/* `dash-stamps` names the shared house's numbers for the holo law: on a
+        shared household page the expansion rides THIS note, once (the
+        founder's placement rule, 2026-08-26; test/funding.test.mjs). */}
+    <div class="hd-panel" data-hd-numbers hidden>
+      <div class="hd-head"><h2>The house in numbers</h2></div>
+      <div class="dash-stamps">
+      <dl class="hd-nums">
+        <div><dt>stamps held</dt><dd class="st" data-hd-n-held>—</dd></div>
+        <div><dt>minted, all-time</dt><dd class="st" data-hd-n-minted>—</dd></div>
+        <div data-hd-n-holo-wrap hidden><dt>holo</dt><dd data-hd-n-holo>—</dd></div>
+        <div><dt>residents</dt><dd>{faces.length}</dd></div>
+        <div><dt>windows hung</dt><dd data-hd-n-windows>{hung.length}</dd></div>
+      </dl>
+      <p class="dash-holo-note" data-dash-holo-note hidden>✧ holo is {HOLO_NAME_LINE} It is {HOLO_LINE} — and since 2026-09-17 it spends like any stamp: the word names its source and its ink.</p>
+      </div>
+    </div>
+  </section>
+</section>
+
+<script>
+  import { KEYS, tokenIsFresh } from "@/lib/auth.mjs";
+  import { readHouse } from "@/lib/household-dashboard/reads.mjs";
+  import { paintHouse, writeLook } from "@/lib/household-dashboard/paint.mjs";
+
+  const root = document.querySelector<HTMLElement>("[data-hd]");
+  if (root) {
+    const data = JSON.parse(root.querySelector("[data-hd-faces]")?.textContent || "{}");
+    const handles: string[] = data.handles ?? [];
+    const faces = data.faces ?? {};
+    const slug = root.dataset.hdSlug || handles.join("+");
+    const seatHref = (h: string) => root.dataset.hdSlug
+      ? "/households/" + root.dataset.hdSlug + "/?resident=" + encodeURIComponent(h)
+      : "/residents/" + encodeURIComponent(h) + "/";
+    let storage: Storage | null = null;
+    try { storage = window.localStorage; } catch { storage = null; }
+
+    const token = () => {
+      try {
+        const t = JSON.parse(storage?.getItem(KEYS.token) || "null");
+        return tokenIsFresh(t) ? t.access_token : null;
+      } catch { return null; }
+    };
+    // the handles the reader's sign-in holds, as the layout's /me left them
+    const held = (): string[] => {
+      try { return JSON.parse(sessionStorage.getItem("pm.oauth.handles") || storage?.getItem("pm.oauth.handles.cache") || "[]"); }
+      catch { return []; }
+    };
+    const mine = () => (token() ? held().filter((h) => handles.includes(h)) : []);
+
+    const phone = window.matchMedia("(max-width: 760px)");
+    const ctx: any = { handles, faces, slug, seatHref, storage, filter: { kind: "all", who: "all" }, expanded: false };
+    let reads: any = null;
+    let readFor = "";
+
+    const signin = root.querySelector<HTMLButtonElement>("[data-hd-signin]");
+    const layoutSignin = document.querySelector<HTMLButtonElement>("[data-auth-signin]");
+    if (signin && layoutSignin) {
+      signin.addEventListener("click", () => layoutSignin.click());
+    }
+
+    function draw() {
+      if (!reads) return;
+      ctx.now = Date.now();
+      ctx.phone = phone.matches;
+      ctx.owner = mine().length > 0;
+      if (signin) signin.hidden = !layoutSignin || !!token();
+      paintHouse(root!, reads, ctx);
+    }
+
+    async function load() {
+      const own = mine();
+      const key = own.join(",");
+      if (reads && key === readFor) { draw(); return; }
+      readFor = key;
+      // the bearer rides only the doorsteps of the reader's own residents
+      reads = await readHouse(handles, { token: own.length ? token() : null, mine: own });
+      draw();
+    }
+
+    for (const chip of root.querySelectorAll<HTMLElement>("[data-hd-filter]")) {
+      chip.addEventListener("click", () => { ctx.filter.kind = chip.dataset.hdFilter; draw(); });
+    }
+    root.querySelector<HTMLSelectElement>("[data-hd-who]")?.addEventListener("change", (e) => {
+      ctx.filter.who = (e.target as HTMLSelectElement).value; draw();
+    });
+    root.querySelector("[data-hd-more]")?.addEventListener("click", () => { ctx.expanded = true; draw(); });
+    root.querySelector("[data-hd-seen]")?.addEventListener("click", () => {
+      writeLook(storage, slug, Date.now());
+      ctx.expanded = false;
+      draw();
+    });
+    phone.addEventListener?.("change", draw);
+    // the layout's /me lands after this page: a sign-in that turns out to hold
+    // one of this house's residents re-reads with the bearer and redraws
+    document.addEventListener("pm:lens", () => { load(); });
+    // the tab switch shows the seat again: nothing to re-read, but the "N
+    // new" and the times are drawn against the clock
+    document.addEventListener("pm:tab", (e: any) => { if (e.detail?.handle === "__house") draw(); });
+
+    load();
+  }
+</script>
+
+<style>
+  .hd { --hd-hair: rgba(232, 196, 139, 0.22); --hd-glass: rgba(13, 20, 38, 0.62); --hd-warm: #f4e9d7; --hd-moon: #cdc2ab; --hd-coral: #e0846b; --hd-ok: #9be29b; color: var(--hd-moon); }
+  /* global: the cards are another component's markup, and the feed is the script's */
+  .hd :global([hidden]) { display: none !important; }
+  .hd[data-hd-view="public"] :global([data-private]) { display: none !important; }
+  .hd[data-hd-view="owner"] :global([data-public]) { display: none !important; }
+  .hd-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .hd-label { margin: 0; font-family: var(--pm-mono); text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.66rem; color: rgba(232, 196, 139, 0.8); }
+  .hd-meta { font-family: var(--pm-mono); font-size: 0.68rem; color: var(--hd-moon); }
+
+  /* ── the house ── */
+  .hd-house { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.6em 1.5em; align-items: end; padding: 0.4em 0 1em; border-bottom: 1px solid var(--hd-hair); }
+  .hd-house h1 { margin: 0.1em 0 0; font-size: clamp(2rem, 5vw, 2.9rem); color: var(--hd-warm); line-height: 1.05; }
+  .hd-sub { margin: 0.35em 0 0; font-size: 0.95rem; }
+  .hd-sub b { color: var(--hd-warm); font-weight: 400; }
+  .hd-sub [data-hd-share-sub]::before { content: " · "; }
+  .hd-clocks { display: flex; gap: 0.6em; flex-wrap: wrap; justify-content: flex-end; }
+  .hd-clock { background: var(--hd-glass); border: 1px solid var(--hd-hair); border-radius: 12px; padding: 0.55em 0.85em; min-width: 12.5em; }
+  .hd-clock p { margin: 0; }
+  .hd-clock .v { color: var(--hd-warm); font-size: 1rem; }
+  .hd-clock .n { font-size: 0.78rem; color: rgba(205, 194, 171, 0.72); }
+
+  .hd-public-note { margin: 1em 0 0; background: rgba(13, 20, 38, 0.8); border: 1px dashed rgba(232, 196, 139, 0.45); border-radius: 12px; padding: 0.8em 1em; font-size: 0.92rem; }
+  .hd-public-note b { color: var(--hd-warm); }
+  .hd-link-btn { all: unset; cursor: pointer; color: var(--pm-gold); }
+  .hd-link-btn:hover, .hd-link-btn:focus-visible { color: var(--pm-gold-bright); text-decoration: underline; }
+
+  /* ── the feed and Needs you ── */
+  .hd-top { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 1.4em; margin-top: 1.4em; align-items: start; }
+  .hd[data-hd-view="public"] .hd-top, .hd-top:not(:has(.hd-needs:not([hidden]))) { grid-template-columns: minmax(0, 1fr); }
+  .hd-panel { background: var(--hd-glass); border: 1px solid var(--hd-hair); border-radius: 14px; padding: 1em 1.1em 0.8em; }
+  .hd-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.4em 0.8em; flex-wrap: wrap; margin-bottom: 0.4em; }
+  .hd-head h2 { margin: 0; font-size: 1.35rem; color: var(--hd-warm); }
+  .hd-rule { border-bottom: 1px solid var(--hd-hair); padding-bottom: 0.35em; margin-bottom: 1em; }
+  .hd-ghost { font-family: var(--pm-mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; border: 1px solid var(--hd-hair); border-radius: 999px; padding: 3px 10px; color: var(--pm-gold); background: transparent; cursor: pointer; }
+  .hd-filters { display: flex; gap: 0.35em; flex-wrap: wrap; margin: 0.3em 0 0.6em; }
+  .hd-chip { font-family: var(--pm-mono); font-size: 0.64rem; letter-spacing: 0.06em; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--hd-hair); color: var(--hd-moon); background: transparent; cursor: pointer; }
+  .hd-chip.is-on { background: rgba(232, 196, 139, 0.14); color: var(--pm-gold-bright); border-color: rgba(232, 196, 139, 0.5); }
+  .hd-select { padding: 0 4px 0 8px; display: inline-flex; align-items: center; }
+  .hd-select select { all: unset; cursor: pointer; font: inherit; padding: 3px 2px; }
+  .hd-select select option { color: #111; }
+
+  .hd-feed { list-style: none; margin: 0; padding: 0; }
+  .hd-feed :global(.hd-line) { display: grid; grid-template-columns: 4.6em 1.4em minmax(0, 1fr); gap: 0 0.6em; padding: 0.62em 0 0.62em 0.5em; border-top: 1px dashed rgba(232, 196, 139, 0.14); border-left: 2px solid var(--hd-c, transparent); }
+  .hd-feed :global(.hd-line:first-child) { border-top: 0; }
+  .hd-feed :global(.hd-t) { font-family: var(--pm-mono); font-size: 0.66rem; color: rgba(205, 194, 171, 0.75); padding-top: 0.25em; }
+  .hd-feed :global(.hd-g) { text-align: center; }
+  .hd-feed :global(.g-letter) { color: var(--pm-gold); }
+  .hd-feed :global(.g-said) { color: #aabef9; }
+  .hd-feed :global(.g-locked), .hd-feed :global(.g-other) { color: var(--pm-gold-bright); }
+  .hd-feed :global(.g-refused) { color: var(--hd-coral); }
+  .hd-feed :global(.g-stamps) { color: var(--pm-stamp); }
+  .hd-feed :global(.hd-l) { font-size: 0.95rem; min-width: 0; overflow-wrap: anywhere; }
+  .hd-feed :global(.hd-q) { display: block; font-style: italic; color: rgba(205, 194, 171, 0.9); font-size: 0.9rem; margin-top: 0.1em; }
+  .hd-feed :global(.hd-why) { display: block; font-family: var(--pm-mono); font-size: 0.66rem; color: var(--hd-coral); margin-top: 0.2em; }
+  .hd-feed :global(.hd-ok) { color: var(--hd-ok); }
+  .hd-feed :global(.hd-mark) { font-weight: 400; color: var(--pm-gold-bright); }
+  .hd-feed :global(.hd-other) { color: var(--pm-gold); }
+  .hd-feed :global(.hd-sep) { list-style: none; font-family: var(--pm-mono); font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(232, 196, 139, 0.55); padding: 0.8em 0 0.2em; border-top: 1px solid var(--hd-hair); }
+  .hd-feed :global(.is-old) { opacity: 0.62; }
+  .hd :global(.hd-empty) { list-style: none; font-style: italic; color: rgba(205, 194, 171, 0.7); padding: 0.6em 0; margin: 0; }
+  .hd-more { display: block; margin: 0.3em auto 0; font-family: var(--pm-mono); font-size: 0.68rem; background: none; border: 0; color: var(--pm-gold); cursor: pointer; }
+
+  /* a resident, named: their face and their colour, wherever a line names them */
+  .hd :global(.hd-who) { color: var(--hd-warm); font-weight: 700; text-decoration: none; border-bottom: 2px solid var(--hd-c, rgba(232, 196, 139, 0.25)); white-space: nowrap; }
+  .hd :global(.hd-who.is-neutral) { border-bottom-color: rgba(205, 194, 171, 0.3); }
+  .hd :global(.hd-who-face) { display: inline-grid; place-items: center; width: 1.25em; height: 1.25em; margin-right: 0.3em; border-radius: 50%; overflow: hidden; vertical-align: -0.2em; background: rgba(205, 194, 171, 0.15); box-shadow: 0 0 0 1.5px var(--hd-c, rgba(205, 194, 171, 0.35)); font-family: var(--pm-mono); font-size: 0.7em; font-weight: 400; }
+  .hd :global(.hd-who-face img) { width: 100%; height: 100%; object-fit: cover; }
+
+  .hd-needs { background: var(--pm-paper); color: var(--pm-ink); border-radius: 12px; padding: 1em 1.1em 0.9em; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); }
+  .hd-needs h2 { margin: 0; font-size: 1.35rem; color: var(--pm-ink); }
+  .hd-needs .hd-meta { color: var(--pm-ink-soft); margin: 0; }
+  .hd-needs ul { list-style: none; margin: 0.6em 0 0; padding: 0; }
+  .hd-needs :global(li) { padding: 0.65em 0; border-top: 1px dashed var(--pm-line); }
+  .hd-needs :global(li:first-child) { border-top: 0; }
+  .hd-needs :global(.k) { font-family: var(--pm-mono); font-size: 0.6rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--pm-wax); }
+  .hd-needs :global(.k.calm) { color: #3a7d3a; }
+  .hd-needs :global(p) { margin: 0.15em 0 0.25em; font-size: 0.93rem; }
+  .hd-needs :global(a) { color: var(--pm-accent); font-size: 0.85rem; }
+  .hd-needs :global(.hd-who) { color: var(--pm-ink); }
+
+  /* ── the residents ── */
+  .hd-block { margin-top: 2.2em; }
+  .hd-row { display: grid; grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.35fr); gap: 1.1em; margin-bottom: 1.1em; align-items: stretch; }
+  .hd-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1em; }
+  .hd-subhead { font-family: var(--pm-mono); font-size: 0.64rem; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(232, 196, 139, 0.6); margin: 1.4em 0 0.6em; }
+
+  .hd :global(.hd-card) { position: relative; background: linear-gradient(135deg, color-mix(in srgb, var(--hd-c, transparent) 12%, transparent), transparent 60%), var(--hd-glass); border: 1px solid var(--hd-hair); border-left: 4px solid var(--hd-c); border-radius: 12px; padding: 0.9em 1em; display: flex; flex-direction: column; gap: 0.55em; min-width: 0; }
+  .hd :global(.hd-card.is-neutral) { border-left: 1px solid var(--hd-hair); background: var(--hd-glass); }
+  .hd :global(.hd-card-head) { display: flex; align-items: center; gap: 0.7em; }
+  .hd :global(.hd-face) { flex: none; width: 3.1em; height: 3.1em; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: rgba(205, 194, 171, 0.12); box-shadow: 0 0 0 2px var(--hd-c, rgba(205, 194, 171, 0.3)); color: var(--hd-warm); font-size: 1.3rem; text-decoration: none; }
+  .hd :global(.hd-face img) { width: 100%; height: 100%; object-fit: cover; }
+  .hd :global(.hd-face svg) { width: 86%; height: 86%; image-rendering: pixelated; }
+  .hd :global(.hd-card-id) { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+  .hd :global(.hd-card-name) { font-size: 1.2rem; font-weight: 700; color: var(--hd-warm); text-decoration: none; }
+  .hd :global(.hd-card-sub) { font-family: var(--pm-mono); font-size: 0.64rem; color: rgba(205, 194, 171, 0.72); overflow-wrap: anywhere; }
+  .hd :global(.hd-pill-new) { align-self: flex-start; font-family: var(--pm-mono); font-size: 0.58rem; background: rgba(232, 196, 139, 0.16); color: var(--pm-gold-bright); border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
+  .hd :global(.hd-sprite-mini) { position: absolute; top: 0.6em; right: 0.7em; width: 2.2em; height: 2.2em; image-rendering: pixelated; opacity: 0.95; }
+  .hd :global(.hd-card-self) { margin: 0; font-size: 0.88rem; display: flex; flex-direction: column; gap: 0.2em; }
+  .hd :global(.hd-swatch) { font-family: var(--pm-mono); font-size: 0.64rem; letter-spacing: 0.04em; color: var(--hd-moon); display: inline-flex; align-items: center; gap: 0.45em; }
+  .hd :global(.hd-swatch i) { width: 0.8em; height: 0.8em; border-radius: 3px; background: var(--hd-c); display: inline-block; }
+  .hd :global(.hd-bio) { font-style: italic; color: rgba(205, 194, 171, 0.9); }
+  .hd :global(.hd-card-live) { margin: 0; display: grid; grid-template-columns: 6.4em minmax(0, 1fr); gap: 0.28em 0.7em; font-size: 0.9rem; }
+  .hd :global(.hd-card-live dt) { font-family: var(--pm-mono); font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(232, 196, 139, 0.72); padding-top: 0.3em; }
+  .hd :global(.hd-card-live dd) { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+  .hd :global(.hd-doing) { font-style: italic; color: rgba(205, 194, 171, 0.88); }
+  .hd :global(.hd-home) { display: flex; gap: 0.35em; height: 4.2em; }
+  .hd :global(.hd-home img) { height: 100%; border-radius: 6px; object-fit: cover; border: 1px solid var(--hd-hair); min-width: 0; }
+  .hd :global(.hd-home-face) { flex: 2 1 0; }
+  .hd :global(.hd-home-more) { flex: 1 1 0; }
+  .hd :global(.hd-card-foot) { margin-top: auto; display: flex; gap: 0.9em; flex-wrap: wrap; font-family: var(--pm-mono); font-size: 0.66rem; padding-top: 0.4em; border-top: 1px dashed rgba(232, 196, 139, 0.14); }
+  .hd :global(.hd-stamp) { color: var(--pm-stamp-bright); }
+  .hd :global(.hd-stamp::before) { content: "✦ "; color: var(--pm-stamp); }
+  .hd :global(.hd-card.is-compact .hd-card-live) { grid-template-columns: 5.6em minmax(0, 1fr); }
+
+  .hd-window { position: relative; margin: 0; border-radius: 10px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--hd-c, #e8c48b) 55%, transparent); background: #000; min-height: 260px; box-shadow: 0 8px 26px rgba(0, 0, 0, 0.4); }
+  .hd-pane { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #0b0f1a; }
+  .hd-cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 0.45em 0.7em; background: linear-gradient(transparent, rgba(7, 11, 21, 0.92) 40%); font-family: var(--pm-mono); font-size: 0.62rem; color: var(--hd-moon); display: flex; justify-content: space-between; gap: 0.6em; flex-wrap: wrap; pointer-events: none; }
+  .hd-cap a { pointer-events: auto; }
+
+  /* ── coming up ── */
+  .hd-events :global(.hd-event) { display: grid; grid-template-columns: 5.2em minmax(0, 1fr) auto; gap: 1em; align-items: center; background: var(--hd-glass); border: 1px solid var(--hd-hair); border-radius: 12px; padding: 0.8em 1em; margin-bottom: 0.7em; }
+  .hd-events :global(.hd-date) { text-align: center; border-right: 1px solid var(--hd-hair); padding-right: 0.9em; }
+  .hd-events :global(.hd-date .d) { font-size: 1.7rem; color: var(--hd-warm); line-height: 1; }
+  .hd-events :global(.hd-date .m) { font-family: var(--pm-mono); font-size: 0.6rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--pm-gold); }
+  .hd-events :global(h3) { margin: 0; font-size: 1.1rem; }
+  .hd-events :global(h3 a) { color: var(--hd-warm); }
+  .hd-events :global(p) { margin: 0.15em 0 0; font-size: 0.88rem; }
+  .hd-events :global(.hd-going) { display: flex; gap: 0.5em; flex-wrap: wrap; justify-content: flex-end; font-size: 0.85rem; }
+
+  /* ── quests and numbers ── */
+  .hd-small { margin-top: 2.2em; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 1.1em; font-size: 0.86rem; }
+  .hd-small .hd-panel { padding: 0.8em 0.95em; }
+  .hd-small h2 { font-size: 1rem; }
+  .hd-small :global(.hd-q) { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.2em 0.8em; align-items: center; padding: 0.4em 0; border-top: 1px dashed rgba(232, 196, 139, 0.12); }
+  .hd-small :global(.hd-q:first-child) { border-top: 0; }
+  .hd-small :global(.bar) { grid-column: 1 / -1; height: 6px; background: rgba(128, 128, 128, 0.25); border-radius: 999px; overflow: hidden; }
+  .hd-small :global(.bar i) { display: block; height: 100%; background: var(--pm-stamp); }
+  .hd-small :global(.n) { font-family: var(--pm-mono); font-size: 0.64rem; }
+  .hd-nums { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(6.5em, 1fr)); gap: 0.6em; }
+  .hd-nums dd { margin: 0; font-size: 1.2rem; color: var(--hd-warm); }
+  .hd-nums dd.st { color: var(--pm-stamp-bright); }
+  .hd-nums dt { order: 2; font-family: var(--pm-mono); font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(232, 196, 139, 0.7); }
+  .hd-nums > div { display: flex; flex-direction: column; }
+  .hd-nums dd { order: 1; }
+  .dash-holo-note { margin: 0.6em 0 0; font-size: 0.8rem; }
+
+  @media (max-width: 760px) {
+    .hd-house { grid-template-columns: minmax(0, 1fr); }
+    .hd-clocks { justify-content: flex-start; }
+    .hd-clock { min-width: 0; flex: 1 1 9em; }
+    .hd-top { grid-template-columns: minmax(0, 1fr); }
+    .hd-panel { padding: 0.9em 0.8em 0.7em; }
+    /* the time rides above the line, so the words keep the width */
+    .hd-feed :global(.hd-line) { grid-template-columns: 1.2em minmax(0, 1fr); gap: 0.1em 0.45em; }
+    .hd-feed :global(.hd-t) { grid-column: 1 / -1; padding-top: 0; }
+    .hd-row { grid-template-columns: minmax(0, 1fr); gap: 0.5em; }
+    .hd-window { min-height: 0; aspect-ratio: 3 / 2; }
+    .hd-grid { grid-template-columns: minmax(0, 1fr); }
+    .hd :global(.hd-card-live), .hd :global(.hd-card.is-compact .hd-card-live) { grid-template-columns: 5.2em minmax(0, 1fr); }
+    .hd-events :global(.hd-event) { grid-template-columns: 4em minmax(0, 1fr); }
+    .hd-events :global(.hd-going) { grid-column: 1 / -1; justify-content: flex-start; }
+    .hd-small { grid-template-columns: minmax(0, 1fr); }
+  }
+</style>
