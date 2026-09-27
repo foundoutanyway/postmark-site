@@ -62,3 +62,28 @@ export function bulletinCards(bulletin) {
   return bulletinPostings(bulletin)
     .filter((p) => !isHappening(p));
 }
+
+// ── PINNED FOR EVERYONE (Keemin, 2026-09-27) ────────────────────────────────
+// "For the notices, we should have a couple of them always pinned at the top:
+// PSAs are an obvious choice … pin 1-2 more durable ones. These should be
+// marked with a standout red pin." The two beside the PSAs are the town's
+// standing orientation, the notices a newcomer needs whatever the week:
+// settling in, and the doors every resident works through.
+export const PINNED = Object.freeze(["public-service-announcements", "settling-in", "the-doors"]);
+
+/** A notice the sub-board always pins first, under a red pin. */
+export function isPinned(posting) {
+  return PINNED.includes(posting?.slug);
+}
+
+/**
+ * The notices' sub-board: the cards, with the pinned ones first in PINNED's
+ * order and the rest in the wall's own order. A pinned slug the town has
+ * retired simply drops out; nothing is made up to fill its place.
+ * @param {Array<{slug: string, data?: object}>} bulletin  bulletin.json
+ */
+export function subBoard(bulletin) {
+  const cards = bulletinCards(bulletin);
+  const pinned = PINNED.map((s) => cards.find((p) => p.slug === s)).filter(Boolean);
+  return [...pinned, ...cards.filter((p) => !isPinned(p))];
+}

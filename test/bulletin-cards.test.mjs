@@ -15,7 +15,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { bulletinCards, bulletinPostings, isHappening, HAPPENING, ORDER } from "../src/lib/bulletin-cards.mjs";
+import { bulletinCards, bulletinPostings, isHappening, isPinned, subBoard, HAPPENING, ORDER, PINNED } from "../src/lib/bulletin-cards.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const BULLETIN = JSON.parse(readFileSync(join(ROOT, "src", "data", "postmark", "bulletin.json"), "utf8"));
@@ -102,7 +102,7 @@ test("the built bulletin pins no happening card and pins every other card",
 test("an unpinned happening still OPENS from its deep link — the store keeps every posting the wall used to",
   { skip: !existsSync(builtBulletin) }, () => {
   const page = readFileSync(builtBulletin, "utf8");
-  const openable = new Set([...page.matchAll(/data-post="([^"]+)"/g)].map((m) => m[1]));
+  const openable = new Set([...page.matchAll(/<template[^>]*data-note="([^"]+)"/g)].map((m) => m[1]));
   for (const p of bulletinPostings(BULLETIN)) {
     assert.equal(openable.has(p.slug), true, `/bulletin/#${p.slug} opens nothing on the built page`);
   }
@@ -115,4 +115,33 @@ test("bulletinPostings is the cards plus the happenings, never the Daily", () =>
   assert.deepEqual(all.filter((s) => bulletinCards(BULLETIN).some((c) => c.slug === s)), bulletinCards(BULLETIN).map((p) => p.slug));
   assert.deepEqual(all.filter((s) => !bulletinCards(BULLETIN).some((c) => c.slug === s)).sort(),
     BULLETIN.filter(isHappening).map((p) => p.slug).sort());
+});
+
+// ── PINNED FOR EVERYONE (Keemin, 2026-09-27: "a couple of them always pinned
+// at the top: PSAs are an obvious choice … marked with a standout red pin") ──
+
+test("the sub-board pins the PSAs and two standing notices first, in that order, then the wall's own order", () => {
+  assert.equal(PINNED[0], "public-service-announcements");
+  assert.equal(PINNED.length, 3);
+  const slugs = subBoard(BULLETIN).map((p) => p.slug);
+  assert.deepEqual(slugs.slice(0, PINNED.length), [...PINNED], "a pinned notice is missing from the town, or not first");
+  const rest = bulletinCards(BULLETIN).filter((p) => !isPinned(p)).map((p) => p.slug);
+  assert.deepEqual(slugs.slice(PINNED.length), rest);
+  assert.equal(slugs.length, bulletinCards(BULLETIN).length, "the sub-board lost or gained a notice");
+});
+
+test("a pinned slug the town retired drops out, and a happening is never pinned", () => {
+  const fixture = [post("the-doors", "guidance"), post("zeta", "news"), post("public-service-announcements", "happening")];
+  assert.deepEqual(subBoard(fixture).map((p) => p.slug), ["the-doors", "zeta"]);
+});
+
+test("the built sub-board hangs the pinned notices first, each under a red pin",
+  { skip: !existsSync(builtBulletin) }, () => {
+  const page = readFileSync(builtBulletin, "utf8");
+  const sticks = [...page.matchAll(/<li class="stick( is-pinned)?"[^>]*>\s*<a[^>]*data-note-open="([^"]+)"[^>]*>\s*<span class="pin( red)?"/g)]
+    .map((m) => ({ slug: m[2], pinned: !!m[1], red: !!m[3] }));
+  assert.equal(sticks.length, bulletinCards(BULLETIN).length, "the sub-board does not hang every notice");
+  assert.deepEqual(sticks.filter((s) => s.pinned).map((s) => s.slug), [...PINNED]);
+  assert.deepEqual(sticks.slice(0, PINNED.length).map((s) => s.slug), [...PINNED], "a pinned notice is not first");
+  for (const s of sticks) assert.equal(s.red, s.pinned, `${s.slug}: a red pin must mean pinned, and only that`);
 });

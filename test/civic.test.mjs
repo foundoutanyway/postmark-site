@@ -90,12 +90,12 @@ test("THE LAW: no lane keeps a copy of its own plaque", () => {
   }
 });
 
-test("the default lane is a lane, and it is the one the head's sentence is about", () => {
-  // Founder-ruled 2026-09-01. Held as "it is one of the five" plus the name,
+test("the default lane is a lane, and it is the Quest Guild", () => {
+  // Founder-ruled 2026-09-01 (the Think Tank), re-ruled 2026-09-27. Held as "it is one of the five" plus the name,
   // so a typo in the constant costs a red rather than a page that silently
   // opens with nothing showing.
   assert.ok(LANES.some((l) => l.key === DEFAULT_LANE), `DEFAULT_LANE "${DEFAULT_LANE}" is not a lane`);
-  assert.equal(DEFAULT_LANE, "ideas", "the panel must open on the Think Tank");
+  assert.equal(DEFAULT_LANE, "quests", "the panel must open on the Quest Guild (founder, 2026-09-27)");
 });
 
 test("the bounty lane reuses board.mjs's own place, rather than retyping it", () => {

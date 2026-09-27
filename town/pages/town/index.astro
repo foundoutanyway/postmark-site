@@ -438,13 +438,13 @@ const switchCss = [
         actually asking — "is the thing you named in here?" — and answers it
         for any depth, including ids nobody has written yet.
 
-        THE DEFAULT IS THE THINK TANK (civic.mjs's DEFAULT_LANE), founder-ruled:
-        it is the lane the head's own sentence is about. It shows when NOTHING
+        THE DEFAULT IS THE QUEST GUILD (civic.mjs's DEFAULT_LANE), founder-ruled
+        2026-09-27. It shows when NOTHING
         on the page is targeted, which is the honest condition — a hash aimed
         somewhere else on the page must not silently re-open the default.
 
         The script below is an enhancement over this and not its legs: all it
-        adds is a scroll measured after the swap, and the dialog for the "?".  */}
+        adds is keeping the page still, and the dialog for the "?".  */}
     <div class="cq-panels" data-default={DEFAULT_LANE}>
 
     {/* ── THE QUEST GUILD ─────────────────────────────────────────────── */}
@@ -1244,10 +1244,8 @@ const switchCss = [
      below and the comment above the panel. That matters for what this script
      is allowed to be: not the mechanism, only two conveniences over it.
 
-       1. THE SCROLL, measured after the swap. A fragment lands on a panel that
-          was `display:none` a frame ago, so the browser's own jump can measure
-          the pre-swap layout and stop somewhere else entirely. rAF is the fix,
-          and it is the same fix the fold router used for the same reason.
+       1. THE STILL PAGE. Nothing scrolls the page, on arrival (2026-09-27)
+          or on a click (2026-09-02): the panel swaps where the reader is.
        2. THE "?" DIALOG. A native <dialog> needs showModal() called, and the
           deck needs a step. Both are enhancement by definition — with the
           script off the "?" simply does nothing and the panel under it is the
@@ -1264,22 +1262,28 @@ const switchCss = [
     var main = document.querySelector("main.civic");
     if (!main) return;
 
-    function scrollToHash() {
+    // ── THE ARRIVAL DOES NOT SCROLL (founder, 2026-09-27) ───────────────
+    // "remove the auto scroll # for the civic quarter". A deep link still
+    // opens its panel (the CSS swap), and the page stays at its top: the
+    // script's arrival scroll is gone, and the browser's own jump to the
+    // fragment is taken back until the reader moves the page themselves.
+    // Script off = the browser's jump, the floor unmoved.
+    (function () {
       var id = decodeURIComponent((location.hash || "").slice(1));
-      if (!id) return;
-      var el = document.getElementById(id);
-      if (!el) return;
-      requestAnimationFrame(function () {
-        el.scrollIntoView({ block: "start", behavior: "smooth" });
+      if (!id || !document.getElementById(id)) return;
+      // a reload or a Back keeps the place the browser restores
+      var nav = performance.getEntriesByType && performance.getEntriesByType("navigation")[0];
+      if (nav && nav.type !== "navigate") return;
+      var moved = false;
+      var stop = function () { moved = true; };
+      ["wheel", "touchstart", "keydown", "mousedown"].forEach(function (t) {
+        window.addEventListener(t, stop, { once: true, passive: true });
       });
-    }
-    // ARRIVAL ONLY (founder, 2026-09-01 night, hotfix w37.1): a deep link
-    // still lands on its panel, but clicking a building no longer scrolls —
-    // the panel switches in place (the CSS swap) and the page stays where
-    // the reader put it. The hashchange listener that scrolled every click
-    // is gone; the native jump already no-ops because the target is
-    // display:none until :target applies.
-    scrollToHash();
+      var pin = function () { if (!moved) window.scrollTo(0, 0); };
+      pin();
+      requestAnimationFrame(pin);
+      window.addEventListener("load", function () { pin(); requestAnimationFrame(pin); }, { once: true });
+    })();
 
     // ── THE CLICK DOES NOT SCROLL (founder, 2026-09-02 — w37.2) ─────────
     // w37.1 removed the script's corrective scroll, but the BROWSER's own
