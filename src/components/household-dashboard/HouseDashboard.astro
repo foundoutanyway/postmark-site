@@ -126,7 +126,9 @@ const facesByHandle = Object.fromEntries(faces.map((f) => [f.handle, {
   {/* ═════════ THE RESIDENTS, AND THEIR WINDOWS ═════════ */}
   <section class="hd-block" aria-labelledby="hd-res-h">
     <div class="hd-head hd-rule">
-      <h2 id="hd-res-h"><span data-private>Your residents</span><span data-public>The residents</span></h2>
+      <h2 id="hd-res-h">{faces.length === 1
+        ? <><span data-private>Your resident</span><span data-public>The resident</span></>
+        : <><span data-private>Your residents</span><span data-public>The residents</span></>}</h2>
       <span class="hd-meta">{say(faces.length)} {faces.length === 1 ? "resident" : "residents"} · <span data-hd-hung-line>{say(hungKnown)} {hungKnown === 1 ? "has" : "have"} hung a window</span></span>
     </div>
 

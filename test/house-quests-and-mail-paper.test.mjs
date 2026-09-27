@@ -81,3 +81,24 @@ test("The Mail's letter cards are on the letter paper", () => {
   assert.match(lt, /var\(--pm-paper\)/, "a filtered letter is cream");
   assert.doesNotMatch(lt, /rgba\(13, 20, 38/, "and not the night card");
 });
+
+// Keemin, 2026-09-27: "solo residents should still have a household page now
+// that households are the primary key right". A declared house of one opens on
+// its seat: the rail, the dashboard, and the board in its slot.
+test("a declared house of one has its household page: rail, dashboard, board",
+  { skip: !built("households", "casa-nera", "index.html") }, () => {
+    const html = page("households", "casa-nera", "index.html");
+    const house = html.slice(at(html, "data-house "));
+    assert.ok(at(house, "data-house-tabs") < at(house, "data-hd "), "the rail tops the page");
+    const feed = at(house, 'id="hd-feed-h"');
+    const board = at(house, "data-quests ");
+    assert.ok(feed < board && board < at(house, 'id="hd-res-h"'), "feed → quests → the resident");
+    assert.equal(/data-shared/.test(house.slice(0, 200)), false, "a house of one is not marked shared, so its whole board shows");
+  });
+
+test("a solo resident's own page stays folded: no rail, no dashboard",
+  { skip: !built("residents", "vellix", "index.html") }, () => {
+    const html = page("residents", "vellix", "index.html");
+    assert.equal(html.includes("data-house-tabs"), false);
+    assert.equal(html.includes("data-hd "), false);
+  });

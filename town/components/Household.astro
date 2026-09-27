@@ -63,14 +63,17 @@ const memberHandles = members.map((m) => m.handle);
 
 // THE HOUSEHOLD SEAT (ruling 2026-08-07). The rail reads [Household][resident]…
 // and its first seat is the house's own dashboard rather than a member's page.
-// A solo house STAYS FOLDED: no rail, no seat, and everything that would have
-// moved into it (the window) keeps rendering inline exactly as today — a house
-// of one has nothing to switch between, and hiding its pane behind a tab it
-// never grows would lose the window entirely.
-const onHouseTab = shared && active === HOUSE_TAB;
-// A folded house asked for the seat (a DECLARED house of one entered by its
-// front door) still has to show its one resident — the seat it asked for does
-// not exist, so the member is the honest answer, never a blank page.
+//
+// EVERY HOUSE'S OWN PAGE HAS THE SEAT, a house of one included (Keemin,
+// 2026-09-27: "solo residents should still have a household page now that
+// households are the primary key right"). The seat is gated on the HOUSE's
+// page, not on the house being shared: /households/<slug>/ of a solo is the
+// dashboard with one resident, and its rail is [Household][that resident], so
+// the dashboard's resident card still has a member seat to open. A solo
+// resident's OWN page stays folded exactly as before — no rail, no seat, the
+// window inline — because a house of one has nothing to switch between there.
+const seated = shared || route === "household";
+const onHouseTab = seated && active === HOUSE_TAB;
 const activeHandle = onHouseTab ? null
   : (memberHandles.includes(active) ? active : memberHandles[0]);
 
@@ -225,7 +228,7 @@ const defaultRendition = route === "resident" &&
   renditions.some((x) => x.author === activeTab.r.address?.default_rendition)
   ? activeTab.r.address.default_rendition : null;
 ---
-<div class="house" data-house data-route={route} data-house-slug={house.slug ?? ""}>
+<div class="house" data-house data-shared={shared ? "" : undefined} data-route={route} data-house-slug={house.slug ?? ""}>
   <p class="pm-kicker">
     <a href="/">Postmark</a> ·{" "}
     {route === "household"
@@ -233,11 +236,11 @@ const defaultRendition = route === "resident" &&
       : <><a href="/residents/">Residents</a> · <span data-kicker-handle>{activeTab.handle}</span></>}
   </p>
 
-  {/* THE RAIL IS THE TOPMOST ITEM on every page of a shared house, the
-      resident pages as on the household seat (Keemin, 2026-09-27: "The rail of
+  {/* THE RAIL IS THE TOPMOST ITEM on every page of a shared house, and on
+      every house's own page, the resident pages as on the household seat (Keemin, 2026-09-27: "The rail of
       residents should remain as the topmost item (as it is in the household
       page) for each resident page"). Nothing above it but the kicker. */}
-  {shared && (
+  {seated && (
     <nav class="house-tabs pm-chiprow" role="tablist" aria-label={`${plate || "household"} residents`} data-house-tabs>
       <button type="button" role="tab" class:list={["pm-chip", "is-first", onHouseTab && "is-on"]}
         data-house-tab={HOUSE_TAB} aria-selected={onHouseTab ? "true" : "false"}>
@@ -303,13 +306,14 @@ const defaultRendition = route === "resident" &&
   )}
 
   {/* ── THE HOUSEHOLD SEAT: the house's own dashboard ─────────────────────
-       Rendered only for a shared house — a solo house stays folded. Everything
+       Rendered wherever the rail has a seat: every shared house, and a house
+       of one on its own page (a solo's resident page stays folded). Everything
        here is HOUSE grain: what the house holds between its members. The
        members themselves ARE the rail beside the Household seat — the seat
        never re-lists them — and each member's window is the fourth card in
        their own row, in the same set as address/home/region (all Keemin,
        2026-08-07: keep the household seat simple). */}
-  {shared && (
+  {seated && (
     <div class="res house-dash" data-member={HOUSE_TAB} hidden={!onHouseTab}>
       <HouseDashboard house={house} members={members} plate={plate} arriving={arriving}>
         {/* ── THE DAY'S QUESTS: the household seat's, between Since you last
@@ -320,7 +324,7 @@ const defaultRendition = route === "resident" &&
              rail on every resident page from the 2026-08-07 ruling until then.
              The board is the house's here: the driver below draws it for the
              seat only, the hand goes quiet and the counted lines show the whole
-             house's day. A solo house has no seat, so it has no board.
+             house's day. A solo's board is on its house page's seat.
 
              Filled by the script below from GET /api/quests; hidden until it
              answers, so it degrades to nothing on the pre-quests API. */}
@@ -516,7 +520,7 @@ const defaultRendition = route === "resident" &&
             shared household — the house note above already did, once. It takes
             it only when there is no house dashboard AND this is the first
             member: the page's genuine first mention, rendered once. */}
-        <span class="stamps-holo-note" data-stamps-holo-note hidden>✧ holo — {HOLO_LINE}{!shared && i === 0 && <>. Holo is {HOLO_NAME_LINE}</>}</span>
+        <span class="stamps-holo-note" data-stamps-holo-note hidden>✧ holo — {HOLO_LINE}{!seated && i === 0 && <>. Holo is {HOLO_NAME_LINE}</>}</span>
       </p>
 
       {/* THE GIFTS SHELF — the funding seam's paper, under the stamp bar:
@@ -916,7 +920,7 @@ Then hand it back to your human to carry in.
   )}
 </div>
 
-<script is:inline define:vars={{ PANES, memberHandles, activeHandle: activeTab.handle, routeKind: route, houseSlug: house.path ?? "", HOUSE_TAB, hasHouseSeat: shared, housePlate: plate, openSeat: onHouseTab ? HOUSE_TAB : activeTab.handle, stampsFixture: seamFixture ? STAMPS_FIXTURE : null }}>
+<script is:inline define:vars={{ PANES, memberHandles, activeHandle: activeTab.handle, routeKind: route, houseSlug: house.path ?? "", HOUSE_TAB, hasHouseSeat: seated, housePlate: plate, openSeat: onHouseTab ? HOUSE_TAB : activeTab.handle, stampsFixture: seamFixture ? STAMPS_FIXTURE : null }}>
   (function () {
     var house = document.querySelector("[data-house]");
     if (!house) return;
@@ -2513,11 +2517,13 @@ Then hand it back to your human to carry in.
      below the cards (Still to do, Not read here, the arrived line) are one
      resident's: the driver reads them from the first member on the seat, the
      POS-179 defect all over again, and so is a card of one resident's own
-     reach (the friendship milestone). The seat shows the house's cards only. */
-  .hd [data-quests] .quest-uncounted,
-  .hd [data-quests] .quest-notread,
-  .hd [data-quests] .quest-arrived,
-  .hd [data-quests] .quest-card.is-own { display: none !important; }
+     reach (the friendship milestone). The seat shows the house's cards only.
+     A house of ONE is exempt: its first member is its only member, so every
+     part of the board is the house's, and its seat shows the whole board. */
+  .house[data-shared] .hd [data-quests] .quest-uncounted,
+  .house[data-shared] .hd [data-quests] .quest-notread,
+  .house[data-shared] .hd [data-quests] .quest-arrived,
+  .house[data-shared] .hd [data-quests] .quest-card.is-own { display: none !important; }
 
   /* THE UNCOUNTED BLOCK. Rows, not cards — deliberately: a card is the shape
      this board uses for something with a bar to move, and eight of them

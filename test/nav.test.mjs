@@ -571,9 +571,12 @@ test("A SHARED HOUSE'S PAGE TAKES NO ROW FROM THE NAV — its own member rail is
   // The Households has no row now, but the predicate stays: the day a second
   // read joins the family, a shared house must not show the nav's row stacked
   // over its own.
-  for (const file of [join(PAGES, "households", "[slug].astro"), join(PAGES, "residents", "[handle].astro")]) {
-    assert.match(layoutTagOf(file), /\bownChips=\{isShared\(house, members\)\}/, `${file.slice(PAGES.length + 1)} does not pass ownChips`);
-  }
+  const resident = join(PAGES, "residents", "[handle].astro");
+  assert.match(layoutTagOf(resident), /\bownChips=\{isShared\(house, members\)\}/, "residents/[handle].astro does not pass ownChips");
+  // Every house's own page draws its rail, a house of one included (Keemin,
+  // 2026-09-27: solos have a household page too), so it always takes no row.
+  const house = join(PAGES, "households", "[slug].astro");
+  assert.match(layoutTagOf(house), /\bownChips=\{true\}/, "households/[slug].astro does not pass ownChips");
 });
 
 test("the built page of a shared house carries no chip row from the nav", { skip: !existsSync(builtPage("/households/starforge/")) }, () => {

@@ -1022,9 +1022,16 @@ test("each money surface teaches it exactly once outside the glossary, in both o
   // this keeps testing both shapes as the town's households change. The shared
   // house has a house-level dashboard and the expansion rides its note; the
   // unshared one has no such note and it rides the first member's stamp bar.
+  //
+  // Since 2026-09-27 every house's OWN page has the dashboard, a house of one
+  // included ("solo residents should still have a household page"), so the
+  // unshared shape lives on a solo resident's own page, which stays folded.
   const houses = everyBuiltPage(join(DIST, "households")).map((p) => [p, readFileSync(p, "utf8")]);
   const shared = houses.find(([, h]) => h.includes('class="dash-stamps"'));
-  const solo = houses.find(([, h]) => !h.includes('class="dash-stamps"'));
+  const residentPages = builtFamily("residents")
+    ? readdirSync(join(DIST, "residents")).map((h) => join(DIST, "residents", h, "index.html")).filter(existsSync)
+    : [];
+  const solo = residentPages.map((p) => [p, readFileSync(p, "utf8")]).find(([, h]) => !h.includes('class="dash-stamps"'));
   assert.ok(shared, "no shared household page in the build — the shared shape went untested");
   assert.ok(solo, "no single-resident household page in the build — that shape went untested");
 
