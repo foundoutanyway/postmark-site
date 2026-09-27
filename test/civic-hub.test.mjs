@@ -343,7 +343,7 @@ test("the civic quarter is the first screen, before any panel", () => {
   assert.ok(quarter < panel, "the panel opens above the civic quarter");
 });
 
-test("THE LAW: exactly one panel shows on arrival, and it is the Think Tank", () => {
+test("THE LAW: exactly one panel shows on arrival, and it is the Quest Guild", () => {
   // RETIRED AND REPLACED, 2026-09-01: this was "every lane ships shut but the
   // board", which asserted the fold default — the Bounty Board open, the rest
   // shut. The founder's one-panel ruling makes that shape nonexistent, so the
@@ -367,7 +367,7 @@ test("THE LAW: exactly one panel shows on arrival, and it is the Think Tank", ()
     "the panels must be hidden by default inside the @supports block");
   assert.ok(css.includes("${DEFAULT_LANE}"),
     "the default panel must be read from civic.mjs's DEFAULT_LANE, not typed here");
-  assert.equal(/data-panel="(quests|bounties|listings|votes)"\]\{display:block\}/.test(css), false,
+  assert.equal(/data-panel="(ideas|bounties|listings|votes)"\]\{display:block\}/.test(css), false,
     "a second lane is shown by default");
 
   // AND WHICH LANE THAT RESOLVES TO. The first version of this stopped at "the
@@ -375,10 +375,12 @@ test("THE LAW: exactly one panel shows on arrival, and it is the Think Tank", ()
   // DEFAULT_LANE to "quests" left this test green while the page opened on a
   // lane the founder did not name. A law titled "and it is the Think Tank" that
   // cannot see which lane it is, is a title doing the work of an assertion.
-  assert.equal(DEFAULT_LANE, "ideas",
-    "the panel must open on the Think Tank — the lane the head's own sentence is about");
-  const ideas = LANE_KEYS.indexOf(DEFAULT_LANE);
-  assert.ok(ideas >= 0, `DEFAULT_LANE "${DEFAULT_LANE}" is not one of the five lanes`);
+  // RE-RULED 2026-09-27 (Keemin): "make the Quest Guild the default instead of
+  // Think Tank".
+  assert.equal(DEFAULT_LANE, "quests",
+    "the panel must open on the Quest Guild");
+  const quests = LANE_KEYS.indexOf(DEFAULT_LANE);
+  assert.ok(quests >= 0, `DEFAULT_LANE "${DEFAULT_LANE}" is not one of the five lanes`);
 
   // and no panel carries an `open`-shaped default of its own
   assert.equal(/<section class="c-lane"[^>]*\bopen\b/.test(raw), false,

@@ -454,10 +454,13 @@ test("THE BALLOT, by name — the page the rail's law exists because of", () => 
   assert.ok(hub.includes('href="/votes/"'), "nothing on the hub opens the Ballot Box");
 });
 
-test("THE NOTICE BOARD IS THE BULLETIN, so it matches up", () => {
+// The page is named the Town (Keemin, 2026-09-27: "let's just call it The
+// Town even though it's technically a bulletin"); its address stays /bulletin/.
+test("THE NOTICE BOARD IS THE BULLETIN, and the page is named the Town", () => {
   assert.equal(RAIL.find((s) => s.key === "town").href, "/bulletin/");
   for (const e of allEntries()) assert.equal(/notice board/i.test(e.label ?? ""), false, `"${e.label}" says notice board`);
-  assert.match(layoutTagOf(pageFileFor("/bulletin/")), /title="The bulletin — Postmark"/);
+  assert.match(layoutTagOf(pageFileFor("/bulletin/")), /title="The Town — Postmark"/);
+  for (const e of allEntries()) assert.equal(/^the bulletin$/i.test(e.label ?? ""), false, `"${e.label}" still says the bulletin`);
 });
 
 test("/town/ IS NOT A DASHBOARD — the quarter, no cards restating the chips", () => {

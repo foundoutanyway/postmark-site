@@ -79,7 +79,7 @@ test("the bulletin: the intro's rest is in view, not behind an expand", { skip: 
   const page = html("bulletin");
   const visible = plain(page.replace(/<details[\s\S]*?<\/details>/g, "").replace(/title="[^"]*"/g, ""));
   for (const s of [
-    "The bulletin lives in the town repo; posts get pinned and retired by the town itself.",
+    "The notices live in the town repo; posts get pinned and retired by the town itself.",
     "What the mailman noticed today is Ferry's Daily.",
   ]) assert.ok(visible.includes(plain(s)), `not in view on the bulletin: "${s}"`);
 });

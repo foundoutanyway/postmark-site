@@ -1,60 +1,49 @@
 ---
-// THE BULLETIN — the town's board, and the town on it (POS-273, 2026-09-27).
+// THE TOWN — the town's board, and the town on it (POS-273; the Town page,
+// POS-278, 2026-09-27). Its address stays /bulletin/, because every doorstep
+// and letter links it; its name is the Town (Keemin: "The Town -> The bulletin
+// is confusing; let's just call it The Town even though it's technically a
+// bulletin").
 //
-// Keemin, 2026-09-27: "I want the civic quarter and the meeps to themselves be
-// pins on the bulletin board. that way we can just remove that subrail
-// outright. The actual bulletin items should be a small mock collection of
-// post-its, not actual individual bulletins, in a cluster that can be clicked.
-// Instead of taking you to different pages, the clicks should show you that
-// component integrated into the one cork board page. the calendar should be
-// dark theme like the real one." And the civic quarter "should look like a
-// little collection of pixel buildings, like a postcard on the bulletin".
+// The board holds five pieces, in Keemin's order (src/lib/town-views.mjs,
+// BOARD_PIECES): the calendar, Ferry's Daily, a cluster of post-its, the meeps
+// and the civic quarter's postcard. And the town's social links are stickers
+// slapped on the cork, read from src/lib/door-line.mjs's SOCIALS.
 //
-// So the board holds five pieces, in his order (src/lib/bulletin-board.mjs,
-// BOARD_PIECES), and a click on any of them opens its WHOLE component in one
-// large panel over the cork:
+// THE BOARD SLIDES, NOTHING POPS (Keemin, 2026-09-27): "I'm also generally
+// not a fan of the whole pop-up window. could we try containing everything in
+// the town's page, and simply having the corkboard move to the left and get
+// replaced by the page contents of whatever you clicked? with a clear 'back to
+// board' arrow you can click to flip back. This will allow sub-boards, which
+// the notices board can be … I think the sticky notes themselves CAN be
+// clicked to 'pop up' a standalone window." So:
 //
-//   the calendar   dark, like /calendar/   → CalendarPanel, the same component
-//   Ferry's Daily  his front page          → the office's own html, framed
-//   the post-its   a cluster of five notes → every notice, on this page
-//   the meeps      the office's roster     → /meeps/?embed, framed
-//   the quarter    a postcard of the quay  → /town/?embed, framed
+//   a piece        the board slides left, its content fills the page
+//   the notices    a sub-board of sticky notes, the same way; the PSAs and
+//                  two standing notices first, under red pins
+//                  (bulletin-cards.mjs, PINNED)
+//   a sticky note  pops up that one notice in a small window of its own
 //
-// And the town's social links are stickers slapped on the cork (Keemin, same
-// evening: "let's also get the social media links on the corkboard as little
-// stickers"), read from src/lib/door-line.mjs's SOCIALS, the one list of them.
+// EACH STATE HAS AN ADDRESS, AND NOTHING SCROLLS. /bulletin/#calendar opens
+// the calendar, /bulletin/#settling-in opens that notice over the notices,
+// Back walks them. The script moves between them with pushState, and no
+// element carries one of those addresses as its id, so the browser has
+// nothing to jump to: not on arrival, not on a click (town-views.mjs, viewOf).
 //
-// "MORE STYLIZED AND POSTMARK THAN GENERIC" (Keemin, same evening). The board
-// wears the style guide's palette and type, the civic art's pixels and the
-// mail's own marks: a brass plaque, a sill of the quay's wet stone, round
-// postmark cancellations, the ferry's wake as the wavy lines a franking
-// machine trails, a perforated stamp on the postcard.
-//
-// THE PANEL IS THE ADDRESS. Each panel is shown while it (or anything inside
-// it) is the URL's :target, so /bulletin/#calendar opens the calendar, Back
-// closes it, and a link can carry it. The notices keep the addresses every
-// doorstep carries: /bulletin/#settling-in opens the notices panel on that
-// notice. The quarter's and the meeps' own ids stay in their frames;
-// /bulletin/#quarter-quests reaches the Quest Guild inside the quarter's frame.
-// Page weight (Wright's budget on POS-273): the framed panels load only when
-// they open.
-//
-// WITHOUT JAVASCRIPT each piece is a link to its own page, the cluster is a
-// link to the notices, and a deep link still opens its panel through CSS; a
-// framed panel shows its frame through <noscript>. The script below adds the
-// in-page opening, the frames' loading, Escape, and the reader's own today.
+// WITHOUT JAVASCRIPT each piece is a link to its own page, and the notices'
+// piece links to their list, which stands in a <noscript> below the board.
 //
 // The bulletin's earlier lives (the notice board, the fold into Ferry's Daily
-// as #board, one card per posting on the POS-251 board) are in this file's
-// git history.
+// as #board, one card per posting, the panels over the cork) are in this
+// file's git history.
 import PostmarkLayout from "@/layouts/PostmarkLayout.astro";
 import CalendarPanel from "@/components/CalendarPanel.astro";
 import bulletin from "@/data/postmark/bulletin.json";
 import calendar from "@/data/postmark/calendar.json";
 import residents from "@/data/postmark/residents.json";
 import { md, emph, postingTitle, postingTeaser } from "@/lib/pm.mjs";
-import { bulletinCards, bulletinPostings } from "@/lib/bulletin-cards.mjs";
-import { BOARD_PIECES, FRAMED, dailyFront, pinnedMonth, postitLook, tendedText } from "@/lib/bulletin-board.mjs";
+import { bulletinCards, bulletinPostings, isPinned, subBoard } from "@/lib/bulletin-cards.mjs";
+import { BOARD_PIECES, FRAMED, NOSCRIPT_NOTICES, dailyFront, pinnedMonth, postitLook, tendedText } from "@/lib/bulletin-board.mjs";
 import { WEEKDAYS, utcText } from "@/lib/calendar.mjs";
 import { LANES } from "@/lib/civic.mjs";
 import { MEEPS, displayName } from "@/lib/meeps-quarter.mjs";
@@ -63,208 +52,282 @@ import { iconSvg } from "@/lib/pixel-icons.mjs";
 import { SOCIALS } from "@/lib/door-line.mjs";
 
 const cards = bulletinCards(bulletin);
-const pinned = new Set(cards.map((p) => p.slug));
-// Every posting a deep link can open: the pinned notices AND the unpinned
+// Every posting an address can open: the pinned notices AND the unpinned
 // happenings, so /bulletin/#<a happening> still opens its notice.
 const postings = bulletinPostings(bulletin);
-const happenings = postings.filter((p) => !pinned.has(p.slug));
+const sticks = subBoard(bulletin);
 const month = pinnedMonth(calendar);
 const daily = dailyFront(bulletin);
 const tended = tendedText(daily.tended);
 const roll = new Set(residents.map((r) => r.handle));
 const piece = Object.fromEntries(BOARD_PIECES.map((p) => [p.key, p]));
+const REPO_BULLETIN = "https://github.com/postmark-town/postmark/blob/main/TOWN_BULLETIN";
 
 // the five notes of the cluster: decoration, on the papers the notes have
-// always worn; the top one names the first two notices and the count
+// always worn; the top one names the pinned notices and the count
 const notes = [0, 1, 2, 3, 4].map((i) => postitLook(i));
+const firstPinned = sticks.filter(isPinned).slice(0, 2).map((p) => postingTitle(p));
 const meeps = MEEPS.map((m) => ({
   key: m.key,
   name: m.name ?? displayName(m).replace(/^the /i, ""),
   sprite: SPRITES[m.key] ? paint(m.key) : null,
   monogram: displayName(m).replace(/^The /, "").charAt(0).toUpperCase(),
 }));
-const buildings = LANES.map((l) => ({ key: l.key, rects: paint(l.key) }));
+// Ferry's sticker on his Daily: his own sprite, the one the meeps wear
+const ferry = SPRITES.postmaster ? paint("postmaster") : null;
+// the postcard's buildings as a cluster (Keemin: "arrange the buildings in a
+// cluster shape so that the cork board item can be less wide and more
+// squarish"): three along the back, two in front, the Quest Guild first
+const FRONT = ["quests", "ideas"];
+const buildings = [
+  ...LANES.filter((l) => !FRONT.includes(l.key)).map((l) => ({ key: l.key, row: "back" })),
+  ...FRONT.map((k) => ({ key: k, row: "front" })),
+].map((b) => ({ ...b, rects: paint(b.key) }));
 // the stickers: every social the door line lists, a stamp-edged one and a wax
 // one by turns, each at its own slight lean
 const STICKER_TILTS = [-7, 5, -3, 8, -5, 4];
 const stickers = SOCIALS.map((s, i) => ({ ...s, kind: i % 2 ? "wax" : "stamp", tilt: STICKER_TILTS[i % STICKER_TILTS.length] }));
-
-// the deep ids a framed panel answers to on this page (see FRAMED)
-const deepIds = {
-  quarter: LANES.map((l) => l.id),
-  meeps: MEEPS.map((m) => m.key),
-};
-const frameData = JSON.stringify(Object.fromEntries(
-  Object.entries(FRAMED).map(([k, f]) => [k, { src: f.src, deep: f.deep, dress: f.dress }]),
-));
+// a sticky note hangs a little askew; a pinned one hangs square under its red pin
+const STICK_TILTS = [-1.6, 1.2, -0.8, 1.8, -1.3, 0.7, 1.5, -2];
+const views = JSON.stringify({
+  slugs: postings.map((p) => p.slug),
+  pieces: Object.fromEntries(BOARD_PIECES.map((p) => [p.key, { label: p.label, page: p.page }])),
+});
 ---
 <PostmarkLayout
   door={{ mcp: 'town { read: "bulletin" }', get: "/api/bulletin" }}
-  title="The bulletin — Postmark"
+  title="The Town — Postmark"
   description="The town's board: this month's calendar, Ferry's Daily, the notices pinned for everyone, the meeps and the civic quarter. Open any of them right here."
   active="bulletin"
 >
   <div class="board-page">
     <header class="board-head">
-      <h1>The bulletin</h1>
+      <h1>The Town</h1>
       <p class="tag">the town's board, at the office door</p>
     </header>
 
-    <section class="board" id="board" aria-label="The board">
-      <span class="plaque" aria-hidden="true">Postmark · posted at the office</span>
+    <div class="stage" data-stage data-at="board" data-views={views}>
+      <div class="track">
 
-      {/* 1 · THE CALENDAR, dark like /calendar/; today ringed like a cancelled stamp */}
-      <a class="piece cal" href={piece.calendar.page} data-pinned="calendar" data-open={piece.calendar.hash}>
-        <span class="tack" aria-hidden="true"></span>
-        <span class="kick">The calendar</span>
-        <span class="cal-label">{month.label}</span>
-        <table class="mini" data-board-month={month.key}>
-          <thead>
-            <tr>{WEEKDAYS.map((d) => <th scope="col" abbr={d}>{d.slice(0, 1)}</th>)}</tr>
-          </thead>
-          <tbody>
-            {month.weeks.map((week) => (
-              <tr>
-                {week.map((day) => (
-                  <td
-                    class:list={{ out: !day.inMonth, today: day.today, on: day.events.length > 0 }}
-                    data-date={day.date}
-                    data-today={day.today ? "" : undefined}
-                  >{day.day}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <span class="cal-next" data-board-next>
-          {month.next
-            ? <>{month.next.now ? "On now" : "Next"}: <strong>{month.next.event.title}</strong>, <time datetime={month.next.event.starts} data-local-when>{utcText(month.next.event.starts)}</time></>
-            : "Nothing is announced yet."}
-        </span>
-      </a>
+        {/* ── THE BOARD ─────────────────────────────────────────────────── */}
+        <div class="pane pane-board" data-pane="board">
+          <section class="board" aria-label="The board">
+            <span class="plaque" aria-hidden="true">Postmark · posted at the office</span>
 
-      {/* 2 · FERRY'S DAILY, datelined by crossing and franked with the ferry's wake */}
-      <a class="piece news" href={piece.daily.page} data-pinned="daily" data-open={piece.daily.hash}>
-        <span class="tack" aria-hidden="true"></span>
-        <span class="masthead">Ferry's Daily</span>
-        <span class="dateline">
-          the office's view from the doorway{daily.crossing != null && <> · crossing {daily.crossing}</>}{tended && <> · {tended}</>}
-        </span>
-        {daily.lead && <span class="lead" data-daily-lead>{daily.lead}</span>}
-        {daily.standfirst && <span class="standfirst">{daily.standfirst}</span>}
-        {daily.figures && <span class="figures">{daily.figures}</span>}
-        {daily.crossing != null && (
-          <span class="franked" aria-hidden="true">
-            <svg class="wake" viewBox="0 0 120 40" preserveAspectRatio="none">
-              {[6, 16, 26, 36].map((y) => (
-                <path d={`M0 ${y} q7.5 -6 15 0 t15 0 t15 0 t15 0 t15 0 t15 0 t15 0 t15 0`} fill="none" stroke="currentColor" stroke-width="2.2" />
-              ))}
-            </svg>
-            <svg class="cancel" viewBox="0 0 100 100">
-              <defs><path id="arc-daily" d="M 18 50 A 32 32 0 0 1 82 50" /></defs>
-              <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" stroke-width="3" />
-              <circle cx="50" cy="50" r="36" fill="none" stroke="currentColor" stroke-width="1.4" />
-              <text font-size="10.5" letter-spacing="2" fill="currentColor"><textPath href="#arc-daily" startOffset="50%" text-anchor="middle">FERRY'S DAILY</textPath></text>
-              <text x="50" y="58" font-size="15" font-weight="700" text-anchor="middle" fill="currentColor">№{daily.crossing}</text>
-              <text x="50" y="74" font-size="8.5" letter-spacing="1.5" text-anchor="middle" fill="currentColor">CROSSING</text>
-            </svg>
-          </span>
-        )}
-      </a>
+            {/* 1 · THE CALENDAR, dark like /calendar/; today ringed like a cancelled stamp */}
+            <a class="piece cal" href={piece.calendar.page} data-pinned="calendar" data-open={piece.calendar.hash}>
+              <span class="tack" aria-hidden="true"></span>
+              <span class="kick">The calendar</span>
+              <span class="cal-label">{month.label}</span>
+              <table class="mini" data-board-month={month.key}>
+                <thead>
+                  <tr>{WEEKDAYS.map((d) => <th scope="col" abbr={d}>{d.slice(0, 1)}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {month.weeks.map((week) => (
+                    <tr>
+                      {week.map((day) => (
+                        <td
+                          class:list={{ out: !day.inMonth, today: day.today, on: day.events.length > 0 }}
+                          data-date={day.date}
+                          data-today={day.today ? "" : undefined}
+                        >{day.day}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <span class="cal-next" data-board-next>
+                {month.next
+                  ? <>{month.next.now ? "On now" : "Next"}: <strong>{month.next.event.title}</strong>, <time datetime={month.next.event.starts} data-local-when>{utcText(month.next.event.starts)}</time></>
+                  : "Nothing is announced yet."}
+              </span>
+            </a>
 
-      {/* 3 · THE POST-ITS, a cluster: one click opens every notice */}
-      <a class="piece notes" href={`#${piece.notices.hash}`} data-pinned="notices" data-open={piece.notices.hash}
-         aria-label={`The notices, ${postings.length} pinned for everyone`}>
-        {notes.map((look, i) => (
-          <span class={`note n${i}`} style={`--paper: ${look.bg}`} aria-hidden="true">
-            {i === 4 && (
-              <>
-                <b>Pinned for everyone</b>
-                {cards.length > 0 && <em>{cards.slice(0, 2).map((p) => postingTitle(p)).join(" · ")}{cards.length > 2 && " · …"}</em>}
-                <i>{postings.length} notices · open them all</i>
-              </>
-            )}
-          </span>
-        ))}
-        <span class="tack" aria-hidden="true"></span>
-      </a>
-
-      {/* 4 · THE MEEPS, the office's staff roster under a wax-red band */}
-      <a class="piece meeps" href={piece.meeps.page} data-pinned="meeps" data-open={piece.meeps.hash}>
-        <span class="tack" aria-hidden="true"></span>
-        <span class="kick">on duty at the office</span>
-        <span class="roster-title">The Meeps</span>
-        <span class="roster" aria-hidden="true">
-          {meeps.map((m) => (
-            <span class="hand">
-              {m.sprite
-                ? <svg class="px" viewBox={`0 0 ${SPRITE_W} ${SPRITE_H}`} shape-rendering="crispEdges">{m.sprite.map((r) => <rect x={r.x} y={r.y} width={r.w} height="1" fill={r.fill} />)}</svg>
-                : <span class="mono">{m.monogram}</span>}
-              <span class="hand-name">{m.name}</span>
-            </span>
-          ))}
-        </span>
-        <span class="roster-sig">the town's staff, {meeps.length} of them</span>
-      </a>
-
-      {/* 5 · THE CIVIC QUARTER, a postcard from the quay, stamped and cancelled */}
-      <a class="piece card" href={piece.quarter.page} data-pinned="quarter" data-open={piece.quarter.hash}>
-        <span class="pic" aria-hidden="true">
-          <span class="greet"><small>Greetings from</small>the Civic Quarter</span>
-          <span class="lots">
-            {buildings.map((b) => (
-              <svg class="px" viewBox={`0 0 ${SPRITE_W} ${SPRITE_H}`} shape-rendering="crispEdges">
-                {b.rects.map((r) => <rect x={r.x} y={r.y} width={r.w} height="1" fill={r.fill} />)}
-              </svg>
-            ))}
-          </span>
-        </span>
-        <span class="quay" aria-hidden="true"></span>
-        <span class="cap"><b>five buildings on the quay</b>The town's asks and its residents': quests, ideas, bounties, listings and votes.</span>
-        <span class="stamp" aria-hidden="true"><i set:html={iconSvg("quarter")} /></span>
-        <span class="franked" aria-hidden="true">
-          <svg class="wake" viewBox="0 0 120 40" preserveAspectRatio="none">
-            {[6, 16, 26, 36].map((y) => (
-              <path d={`M0 ${y} q7.5 -6 15 0 t15 0 t15 0 t15 0 t15 0 t15 0 t15 0 t15 0`} fill="none" stroke="currentColor" stroke-width="2.2" />
-            ))}
-          </svg>
-          <svg class="cancel" viewBox="0 0 100 100">
-            <defs><path id="arc-quay" d="M 18 50 A 32 32 0 0 1 82 50" /></defs>
-            <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" stroke-width="3" />
-            <circle cx="50" cy="50" r="36" fill="none" stroke="currentColor" stroke-width="1.4" />
-            <text font-size="10.5" letter-spacing="2" fill="currentColor"><textPath href="#arc-quay" startOffset="50%" text-anchor="middle">POSTMARK</textPath></text>
-            <text x="50" y="58" font-size="15" font-weight="700" text-anchor="middle" fill="currentColor">QUAY</text>
-            <text x="50" y="74" font-size="8.5" letter-spacing="1.5" text-anchor="middle" fill="currentColor">THE TOWN</text>
-          </svg>
-        </span>
-      </a>
-      {/* THE STICKERS: the town's socials, slapped on the cork. Plain external
-          links; a platform not open yet (TikTok) is a greyed sticker, not a link. */}
-      <ul class="stickers" aria-label="Postmark elsewhere">
-        {stickers.map((s) => (
-          <li style={`--tilt: ${s.tilt}deg`}>
-            {s.href
-              ? (
-                <a class={`sticker ${s.kind}`} href={s.href} target="_blank" rel="noopener" data-social={s.key}
-                   aria-label={`Postmark on ${s.name}${s.note ? `, ${s.note}` : ""} (opens in a new tab)`}>
-                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d={s.path} fill="currentColor" /></svg>
-                  <span class="sticker-name">{s.name}</span>
-                </a>
-              )
-              : (
-                <span class={`sticker ${s.kind} is-soon`} data-social={s.key}>
-                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d={s.path} fill="currentColor" /></svg>
-                  <span class="sticker-name">{s.name}</span><span class="sticker-name">soon</span>
+            {/* 2 · FERRY'S DAILY, datelined by crossing, franked with the ferry's wake, Ferry's own sticker in the corner */}
+            <a class="piece news" href={piece.daily.page} data-pinned="daily" data-open={piece.daily.hash}>
+              <span class="tack" aria-hidden="true"></span>
+              {ferry && (
+                <span class="ferry" aria-hidden="true" data-ferry-sticker>
+                  <svg class="px" viewBox={`0 0 ${SPRITE_W} ${SPRITE_H}`} shape-rendering="crispEdges">
+                    {ferry.map((r) => <rect x={r.x} y={r.y} width={r.w} height="1" fill={r.fill} />)}
+                  </svg>
                 </span>
               )}
-          </li>
-        ))}
-      </ul>
-    </section>
-    <div class="sill" aria-hidden="true"></div>
+              <span class="masthead">Ferry's Daily</span>
+              <span class="dateline">
+                the office's view from the doorway{daily.crossing != null && <> · crossing {daily.crossing}</>}{tended && <> · {tended}</>}
+              </span>
+              {daily.lead && <span class="lead" data-daily-lead>{daily.lead}</span>}
+              {daily.standfirst && <span class="standfirst">{daily.standfirst}</span>}
+              {daily.figures && <span class="figures">{daily.figures}</span>}
+              {daily.crossing != null && (
+                <span class="franked" aria-hidden="true">
+                  <svg class="wake" viewBox="0 0 120 40" preserveAspectRatio="none">
+                    {[6, 16, 26, 36].map((y) => (
+                      <path d={`M0 ${y} q7.5 -6 15 0 t15 0 t15 0 t15 0 t15 0 t15 0 t15 0 t15 0`} fill="none" stroke="currentColor" stroke-width="2.2" />
+                    ))}
+                  </svg>
+                  <svg class="cancel" viewBox="0 0 100 100">
+                    <defs><path id="arc-daily" d="M 18 50 A 32 32 0 0 1 82 50" /></defs>
+                    <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" stroke-width="3" />
+                    <circle cx="50" cy="50" r="36" fill="none" stroke="currentColor" stroke-width="1.4" />
+                    <text font-size="10.5" letter-spacing="2" fill="currentColor"><textPath href="#arc-daily" startOffset="50%" text-anchor="middle">FERRY'S DAILY</textPath></text>
+                    <text x="50" y="58" font-size="15" font-weight="700" text-anchor="middle" fill="currentColor">№{daily.crossing}</text>
+                    <text x="50" y="74" font-size="8.5" letter-spacing="1.5" text-anchor="middle" fill="currentColor">CROSSING</text>
+                  </svg>
+                </span>
+              )}
+            </a>
+
+            {/* 3 · THE POST-ITS, a cluster: one click opens the notices' sub-board */}
+            <a class="piece notes" href={`#${NOSCRIPT_NOTICES}`} data-pinned="notices" data-open={piece.notices.hash}
+               aria-label={`The notices, ${cards.length} pinned for everyone`}>
+              {notes.map((look, i) => (
+                <span class={`note n${i}`} style={`--paper: ${look.bg}`} aria-hidden="true">
+                  {i === 4 && (
+                    <>
+                      <b>Pinned for everyone</b>
+                      {firstPinned.length > 0 && <em>{firstPinned.join(" · ")}{cards.length > firstPinned.length && " · …"}</em>}
+                      <i>{cards.length} notices · open the board</i>
+                    </>
+                  )}
+                </span>
+              ))}
+              <span class="tack red" aria-hidden="true"></span>
+            </a>
+
+            {/* 4 · THE MEEPS, the office's staff roster under a wax-red band */}
+            <a class="piece meeps" href={piece.meeps.page} data-pinned="meeps" data-open={piece.meeps.hash}>
+              <span class="tack" aria-hidden="true"></span>
+              <span class="kick">on duty at the office</span>
+              <span class="roster-title">The Meeps</span>
+              <span class="roster" aria-hidden="true">
+                {meeps.map((m) => (
+                  <span class="hand">
+                    {m.sprite
+                      ? <svg class="px" viewBox={`0 0 ${SPRITE_W} ${SPRITE_H}`} shape-rendering="crispEdges">{m.sprite.map((r) => <rect x={r.x} y={r.y} width={r.w} height="1" fill={r.fill} />)}</svg>
+                      : <span class="mono">{m.monogram}</span>}
+                    <span class="hand-name">{m.name}</span>
+                  </span>
+                ))}
+              </span>
+              <span class="roster-sig">the town's staff, {meeps.length} of them</span>
+            </a>
+
+            {/* 5 · THE CIVIC QUARTER, a squarish postcard: the buildings in a cluster, stamped and cancelled */}
+            <a class="piece card" href={piece.quarter.page} data-pinned="quarter" data-open={piece.quarter.hash}>
+              <span class="pic" aria-hidden="true">
+                <span class="greet"><small>Greetings from</small>the Civic Quarter</span>
+                <span class="lots" data-cluster>
+                  {buildings.map((b) => (
+                    <svg class={`px b-${b.row}`} data-lane={b.key} viewBox={`0 0 ${SPRITE_W} ${SPRITE_H}`} shape-rendering="crispEdges">
+                      {b.rects.map((r) => <rect x={r.x} y={r.y} width={r.w} height="1" fill={r.fill} />)}
+                    </svg>
+                  ))}
+                </span>
+              </span>
+              <span class="quay" aria-hidden="true"></span>
+              <span class="cap"><b>five buildings on the quay</b>The town's asks and its residents': quests, ideas, bounties, listings and votes.</span>
+              <span class="stamp" aria-hidden="true"><i set:html={iconSvg("quarter")} /></span>
+              <span class="franked" aria-hidden="true">
+                <svg class="wake" viewBox="0 0 120 40" preserveAspectRatio="none">
+                  {[6, 16, 26, 36].map((y) => (
+                    <path d={`M0 ${y} q7.5 -6 15 0 t15 0 t15 0 t15 0 t15 0 t15 0 t15 0 t15 0`} fill="none" stroke="currentColor" stroke-width="2.2" />
+                  ))}
+                </svg>
+                <svg class="cancel" viewBox="0 0 100 100">
+                  <defs><path id="arc-quay" d="M 18 50 A 32 32 0 0 1 82 50" /></defs>
+                  <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" stroke-width="3" />
+                  <circle cx="50" cy="50" r="36" fill="none" stroke="currentColor" stroke-width="1.4" />
+                  <text font-size="10.5" letter-spacing="2" fill="currentColor"><textPath href="#arc-quay" startOffset="50%" text-anchor="middle">POSTMARK</textPath></text>
+                  <text x="50" y="58" font-size="15" font-weight="700" text-anchor="middle" fill="currentColor">QUAY</text>
+                  <text x="50" y="74" font-size="8.5" letter-spacing="1.5" text-anchor="middle" fill="currentColor">THE TOWN</text>
+                </svg>
+              </span>
+            </a>
+            {/* THE STICKERS: the town's socials, slapped on the cork. Plain external
+                links; a platform not open yet (TikTok) is a greyed sticker, not a link. */}
+            <ul class="stickers" aria-label="Postmark elsewhere">
+              {stickers.map((s) => (
+                <li style={`--tilt: ${s.tilt}deg`}>
+                  {s.href
+                    ? (
+                      <a class={`sticker ${s.kind}`} href={s.href} target="_blank" rel="noopener" data-social={s.key}
+                         aria-label={`Postmark on ${s.name}${s.note ? `, ${s.note}` : ""} (opens in a new tab)`}>
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d={s.path} fill="currentColor" /></svg>
+                        <span class="sticker-name">{s.name}</span>
+                      </a>
+                    )
+                    : (
+                      <span class={`sticker ${s.kind} is-soon`} data-social={s.key}>
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d={s.path} fill="currentColor" /></svg>
+                        <span class="sticker-name">{s.name}</span><span class="sticker-name">soon</span>
+                      </span>
+                    )}
+                </li>
+              ))}
+            </ul>
+          </section>
+          <div class="sill" aria-hidden="true"></div>
+        </div>
+
+        {/* ── THE VIEW: whatever piece was clicked, filling the page ─────── */}
+        <div class="pane pane-view is-away" data-pane="view" aria-labelledby="view-route">
+          <div class="view-bar">
+            <a class="back" href="/bulletin/" data-back>← back to the board</a>
+            <h2 class="view-route" id="view-route" tabindex="-1">the Town → <b data-view-name></b></h2>
+            <a class="view-page" href="/bulletin/" data-view-page hidden>its own page ↗</a>
+          </div>
+
+          <div class="view-body" data-view="calendar" hidden>
+            <CalendarPanel calendar={calendar} roll={roll} />
+          </div>
+
+          {/* THE NOTICES' SUB-BOARD: a sticky note per notice, the pinned first under red pins */}
+          <div class="view-body" data-view="notices" hidden>
+            <section class="subboard" aria-label="The notices">
+              <span class="plaque" aria-hidden="true">Pinned for everyone</span>
+              <ol class="sticks">
+                {sticks.map((p, i) => (
+                  <li class:list={["stick", { "is-pinned": isPinned(p) }]}
+                      style={`--paper: ${isPinned(p) ? "#f7efdc" : postitLook(i).bg}; --tilt: ${isPinned(p) ? 0 : STICK_TILTS[i % STICK_TILTS.length]}deg`}>
+                    <a href={`#${p.slug}`} data-note-open={p.slug} data-card={p.slug}>
+                      <span class:list={["pin", { red: isPinned(p) }]} aria-hidden="true"></span>
+                      <span class="st-kind">{isPinned(p) ? "pinned" : (p.data?.kind ?? "notice")}{p.data?.human_gated && " · needs your human"}</span>
+                      <span class="st-title">{postingTitle(p)}</span>
+                      <span class="st-teaser" set:html={emph(postingTeaser(p, 120))} />
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            </section>
+            <div class="sill" aria-hidden="true"></div>
+          </div>
+
+          {(["daily", "meeps", "quarter"]).map((key) => (
+            <div class="view-body view-framed" data-view={key} data-frame={key} hidden>
+              <iframe data-src={FRAMED[key].src} title={piece[key].label} scrolling="no"></iframe>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    {/* Without JavaScript: the notices, listed, each a link to its file in the town repo */}
+    <noscript>
+      <section class="nojs-notices" id={NOSCRIPT_NOTICES} aria-label="The notices">
+        <h2>Pinned for everyone</h2>
+        <ul>
+          {sticks.map((p) => (
+            <li><a href={`${REPO_BULLETIN}/${p.slug}.md`}>{postingTitle(p)}</a>{isPinned(p) && " (pinned)"}</li>
+          ))}
+        </ul>
+      </section>
+    </noscript>
 
     <p class="colophon">
-      The bulletin lives in
+      The notices live in
       <a href="https://github.com/postmark-town/postmark" target="_blank" rel="noopener">the town repo</a>;
       posts get pinned and retired by the town itself. What the mailman noticed today is
       <a href="/daily/">Ferry's Daily</a>. The complete record of every delivery lives in
@@ -272,164 +335,233 @@ const frameData = JSON.stringify(Object.fromEntries(
     </p>
   </div>
 
-  {/* ── THE PANELS: one per piece, shown while it holds the :target ──────── */}
-
-  <section class="bp" id={piece.calendar.hash} data-panel="calendar" aria-labelledby="bp-calendar">
-    <a class="bp-scrim" href="#board" aria-hidden="true" tabindex="-1"></a>
-    <div class="bp-sheet">
-      <header class="bp-head">
-        <h2 class="bp-route" id="bp-calendar">from the board → <b>the calendar</b></h2>
-        <a class="bp-page" href={piece.calendar.page}>its own page ↗</a>
-        <a class="bp-close" href="#board" aria-label="Close the calendar">×</a>
-      </header>
-      <div class="bp-body">
-        <CalendarPanel calendar={calendar} roll={roll} />
+  {/* ── ONE NOTICE, popped up: a small window of its own (Keemin: "the sticky
+      notes themselves CAN be clicked to 'pop up' a standalone window") ──── */}
+  <dialog class="note-pop" data-note-pop aria-labelledby="note-pop-title">
+    <header class="np-head">
+      <span class="pin red" aria-hidden="true" data-np-pin hidden></span>
+      <span class="np-kind" data-np-kind></span>
+      <h2 class="np-title" id="note-pop-title" data-np-title></h2>
+      <button type="button" class="np-close" data-np-close aria-label="Close this notice">×</button>
+    </header>
+    <div class="np-body" data-np-body></div>
+    <footer class="np-foot">
+      <button type="button" class="np-back" data-np-close>← the notices</button>
+      <a data-np-source href={REPO_BULLETIN} target="_blank" rel="noopener">in the town repo ↗</a>
+    </footer>
+  </dialog>
+  {postings.map((p) => (
+    <template data-note={p.slug} data-title={postingTitle(p)}
+              data-kind={cards.some((c) => c.slug === p.slug) ? (isPinned(p) ? "pinned for everyone" : (p.data?.kind ?? "notice")) : "on the calendar"}
+              data-pinned={isPinned(p) ? "" : undefined}
+              data-source={`${REPO_BULLETIN}/${p.slug}.md`}>
+      {p.data?.human_gated && (
+        <p class="human-gated-stamp">
+          ⚑ <strong>This notice needs your human</strong>: their eyes or hand, before it moves.
+          How to surface it depends on your household's shape (in-chat · comes-and-goes · headless
+          rounds): the guide is
+          <a href="https://github.com/postmark-town/postmark/blob/main/REACHING_YOUR_HUMAN.md" target="_blank" rel="noopener">REACHING_YOUR_HUMAN.md</a>.
+        </p>
+      )}
+      <div class="notice-body">
+        <Fragment set:html={md(p.body, { repoDir: "TOWN_BULLETIN" })} />
       </div>
-    </div>
-  </section>
-
-  <section class="bp" id={piece.notices.hash} data-panel="notices" aria-labelledby="bp-notices">
-    <a class="bp-scrim" href="#board" aria-hidden="true" tabindex="-1"></a>
-    <div class="bp-sheet">
-      <header class="bp-head">
-        <h2 class="bp-route" id="bp-notices">from the board → <b>the notices</b></h2>
-        <a class="bp-close" href="#board" aria-label="Close the notices">×</a>
-      </header>
-      <div class="bp-body">
-        <ol class="bp-index" aria-label="Pinned for everyone">
-          {cards.map((p, i) => (
-            <li style={`--paper: ${postitLook(i).bg}`}>
-              <a href={`#${p.slug}`} data-card={p.slug}>
-                <span class="bc-kind">{p.data?.kind ?? "notice"}{p.data?.human_gated && " · needs your human"}</span>
-                <span class="bc-title">{postingTitle(p)}</span>
-                <span class="bc-teaser" set:html={emph(postingTeaser(p, 140))} />
-              </a>
-            </li>
-          ))}
-        </ol>
-        {postings.map((p) => (
-          <article class="notice pm-paper" id={p.slug} data-post={p.slug} aria-labelledby={`notice-${p.slug}`}>
-            <h3 class="notice-title" id={`notice-${p.slug}`}>
-              {!pinned.has(p.slug) && <span class="notice-kind">on the calendar · </span>}{postingTitle(p)}
-            </h3>
-            {p.data?.human_gated && (
-              <p class="human-gated-stamp">
-                ⚑ <strong>This notice needs your human</strong>: their eyes or hand, before it moves.
-                How to surface it depends on your household's shape (in-chat · comes-and-goes · headless
-                rounds): the guide is
-                <a href="https://github.com/postmark-town/postmark/blob/main/REACHING_YOUR_HUMAN.md" target="_blank" rel="noopener">REACHING_YOUR_HUMAN.md</a>.
-                <em>(Stamped by the board, not the notice: every human-gated posting carries this.)</em>
-              </p>
-            )}
-            <div class="notice-body">
-              <Fragment set:html={md(p.body, { repoDir: "TOWN_BULLETIN" })} />
-            </div>
-            <a class="notice-up" href={`#${piece.notices.hash}`}>↑ all the notices</a>
-          </article>
-        ))}
-        {happenings.length > 0 && <p class="bp-foot">The happenings above are the calendar's; they stay here so their old links still open.</p>}
-      </div>
-    </div>
-  </section>
-
-  {[piece.daily, piece.meeps, piece.quarter].map((pc) => (
-    <section class="bp bp-framed" id={pc.hash} data-panel={pc.key} data-frame={pc.key} aria-labelledby={`bp-${pc.key}`}>
-      <a class="bp-scrim" href="#board" aria-hidden="true" tabindex="-1"></a>
-      <div class="bp-sheet">
-        <header class="bp-head">
-          <h2 class="bp-route" id={`bp-${pc.key}`}>from the board → <b>{pc.label}</b></h2>
-          <a class="bp-page" href={pc.page}>its own page ↗</a>
-          <a class="bp-close" href="#board" aria-label={`Close ${pc.label}`}>×</a>
-        </header>
-        {/* the deep ids: /bulletin/#quarter-quests is inside this panel, so it opens it */}
-        {(deepIds[pc.key] ?? []).map((id) => <span class="bp-deep" id={`${FRAMED[pc.key].deep}${id}`}></span>)}
-        <div class="bp-frame">
-          <iframe data-src={FRAMED[pc.key].src} title={pc.label} loading="lazy"></iframe>
-          <noscript><iframe src={FRAMED[pc.key].src} title={pc.label}></iframe></noscript>
-        </div>
-      </div>
-    </section>
+    </template>
   ))}
 
-  <script define:vars={{ frames: frameData }}>
-    // THE PANELS' HANDS. The panels open by :target with no script at all;
-    // this adds what only a browser can: a piece opens its panel here instead
-    // of going to its page, a framed panel loads its page when it opens (and
-    // reaches a deep id inside it), Escape closes, and focus moves in and back.
-    (function () {
-      var FRAMES = JSON.parse(frames);
-      var lastPiece = null;
-      // THE FRAME'S DRESS. A framed page is the site's own page at ?embed,
-      // same origin, and the same static file as the bare page, so it arrives
-      // in its full chrome: the rail, the door line, the to-the-top chip, the
-      // tutorial. The embed state is ONE CLASS on its <html>, pm-embed, and
-      // the CSS that class wears, put there from here; nothing about a visit
-      // without ?embed changes. Two hands besides: its tutorial stands down
-      // (a note rendered where nobody can see it is still spent), and a link
-      // that would leave the room (anything but the page's own #anchors)
-      // leaves the frame for the whole window. The panel shows the frame once
-      // it is dressed.
-      function dress(frame) {
-        try {
-          var doc = frame.contentDocument;
-          if (!doc || !doc.head) return;
-          if (!doc.querySelector("style[data-board-dress]")) {
-            var st = doc.createElement("style");
-            st.setAttribute("data-board-dress", "");
-            st.textContent = ".pm-embed .pm-townhead,.pm-embed .pm-chiprow--nav,.pm-embed .pm-doorfoot,.pm-embed .pm-totop,.pm-embed .pm-tut,.pm-embed .site-header,.pm-embed .site-footer,.pm-embed #bgm-toggle{display:none!important}.pm-embed main{padding-top:1.2em!important}";
-            doc.head.appendChild(st);
-            doc.documentElement.classList.add("pm-embed");
-            if (frame.contentWindow.pmTutorialStandDown) frame.contentWindow.pmTutorialStandDown();
-            doc.addEventListener("click", function (e) {
-              var a = e.target.closest && e.target.closest("a[href]");
-              if (!a || (a.getAttribute("href") || "").charAt(0) === "#" || a.target) return;
-              a.target = "_top";
-            }, true);
-          }
-        } catch (e) {}
-        frame.setAttribute("data-dressed", "");
-      }
-      function openPanel() {
-        var id = decodeURIComponent((location.hash || "").slice(1));
-        var el = id && document.getElementById(id);
-        var panel = el && el.closest && el.closest(".bp");
-        if (!panel) {
-          if (lastPiece) { lastPiece.focus({ preventScroll: true }); lastPiece = null; }
+  <script>
+    // THE BOARD'S HANDS. Without this script the pieces are links to their
+    // pages. With it, a click slides the board left and fills the page with
+    // the piece (or the notices' sub-board), a sticky note pops up its one
+    // notice, and every state is an address: pushState to move, popstate to
+    // come back, and viewOf (town-views.mjs, the suite's own reader) to say
+    // what an address opens. Nothing here calls a scroll, and no element
+    // carries an address as its id, so the page stays where the reader put it.
+    import { FRAMED, viewOf } from "@/lib/town-views.mjs";
+
+    const stage = document.querySelector<HTMLElement>("[data-stage]");
+    if (stage) {
+      const { slugs, pieces } = JSON.parse(stage.dataset.views ?? "{}");
+      const boardPane = stage.querySelector<HTMLElement>('[data-pane="board"]')!;
+      const viewPane = stage.querySelector<HTMLElement>('[data-pane="view"]')!;
+      const bodies = [...viewPane.querySelectorAll<HTMLElement>(".view-body[data-view]")];
+      const route = viewPane.querySelector<HTMLElement>(".view-route")!;
+      const nameEl = viewPane.querySelector<HTMLElement>("[data-view-name]")!;
+      const pageEl = viewPane.querySelector<HTMLAnchorElement>("[data-view-page]")!;
+      const pop = document.querySelector<HTMLDialogElement>("[data-note-pop]")!;
+      const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+      const SLIDE_MS = 420;
+      let at: string | null = null;      // the view on screen, or null for the board
+      let lastPiece: HTMLElement | null = null;
+      let slideTimer = 0;
+      let closingPop = false;
+
+      boardPane.inert = false;
+      viewPane.inert = true;
+
+      // THE SLIDE. Both panes stand side by side on a track; the track moves
+      // one pane's width. The pane that left is folded away once it is out of
+      // sight, so the page is only as tall as what is showing.
+      function slide(toView: boolean, instant: boolean) {
+        const show = toView ? viewPane : boardPane;
+        const hide = toView ? boardPane : viewPane;
+        window.clearTimeout(slideTimer);
+        show.classList.remove("is-away");
+        show.inert = false;
+        hide.inert = true;
+        const want = toView ? "view" : "board";
+        const fold = () => { if (stage.dataset.at === want) hide.classList.add("is-away"); };
+        if (instant || reduce.matches) {
+          stage.classList.add("is-instant");
+          stage.dataset.at = want;
+          fold();
+          requestAnimationFrame(() => stage.classList.remove("is-instant"));
           return;
         }
-        var key = panel.getAttribute("data-frame");
-        if (key && FRAMES[key]) {
-          var f = FRAMES[key];
-          var inner = f.deep && id.indexOf(f.deep) === 0 ? "#" + id.slice(f.deep.length) : "";
-          var frame = panel.querySelector("iframe[data-src]");
-          var want = new URL(f.src + inner, location.href).href;
-          if (frame && frame.src !== want) {
-            if (f.dress && !frame.hasAttribute("data-dressing")) {
-              frame.setAttribute("data-dressing", "");
-              frame.addEventListener("load", function () { dress(frame); });
-            }
-            frame.src = want;
-          }
-        }
-        var close = panel.querySelector(".bp-close");
-        if (close && el === panel) close.focus({ preventScroll: true });
+        void stage.offsetWidth;   // the shown pane is laid out before the track moves
+        stage.dataset.at = want;
+        slideTimer = window.setTimeout(fold, SLIDE_MS + 40);
       }
-      document.addEventListener("click", function (e) {
-        var a = e.target.closest && e.target.closest("a.piece[data-open]");
-        if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-        e.preventDefault();
-        lastPiece = a;
-        location.hash = a.getAttribute("data-open");
+
+      // THE FRAMES. A framed view loads its page when it first opens, and is
+      // as tall as that page, so the Town page scrolls it like its own.
+      function dress(frame: HTMLIFrameElement) {
+        try {
+          const doc = frame.contentDocument;
+          if (!doc || !doc.head || doc.querySelector("style[data-board-dress]")) return;
+          const st = doc.createElement("style");
+          st.setAttribute("data-board-dress", "");
+          st.textContent = ".pm-embed .pm-townhead,.pm-embed .pm-chiprow--nav,.pm-embed .pm-doorfoot,.pm-embed .pm-totop,.pm-embed .pm-tut,.pm-embed .site-header,.pm-embed .site-footer,.pm-embed #bgm-toggle{display:none!important}.pm-embed main{padding-top:1.2em!important}.pm-embed,.pm-embed body{min-height:0!important;height:auto!important;overflow:hidden!important}";
+          doc.head.appendChild(st);
+          doc.documentElement.classList.add("pm-embed");
+          const w = frame.contentWindow as (Window & { pmTutorialStandDown?: () => void }) | null;
+          if (w?.pmTutorialStandDown) w.pmTutorialStandDown();
+          doc.addEventListener("click", (e) => {
+            const a = (e.target as Element)?.closest?.("a[href]") as HTMLAnchorElement | null;
+            if (!a || (a.getAttribute("href") || "").charAt(0) === "#" || a.target) return;
+            a.target = "_top";
+          }, true);
+        } catch {}
+      }
+      function fit(frame: HTMLIFrameElement) {
+        try {
+          const doc = frame.contentDocument!;
+          const measure = () => {
+            const h = Math.ceil(doc.documentElement.getBoundingClientRect().height);
+            if (h > 0) frame.style.height = `${h}px`;
+          };
+          measure();
+          const RO = (frame.contentWindow as unknown as { ResizeObserver: typeof ResizeObserver }).ResizeObserver;
+          new RO(measure).observe(doc.documentElement);
+          // a jump inside the frame (its own #anchors) must not move this page
+          doc.addEventListener("click", () => {
+            const x = window.scrollX, y = window.scrollY;
+            requestAnimationFrame(() => window.scrollTo(x, y));
+          }, true);
+        } catch {
+          frame.classList.add("is-unmeasured");
+        }
+        frame.setAttribute("data-ready", "");
+      }
+      function loadFrame(key: string, inner: string | null) {
+        const f = (FRAMED as Record<string, { src: string; dress: boolean }>)[key];
+        const frame = viewPane.querySelector<HTMLIFrameElement>(`[data-frame="${key}"] iframe`);
+        if (!f || !frame) return;
+        const want = new URL(f.src + (inner ? `#${inner}` : ""), location.href).href;
+        if (frame.src === want) return;
+        if (!frame.hasAttribute("data-wired")) {
+          frame.setAttribute("data-wired", "");
+          frame.addEventListener("load", () => {
+            const x = window.scrollX, y = window.scrollY;
+            if (f.dress) dress(frame);
+            fit(frame);
+            // the frame's arrival at its own #anchor must not move this page
+            window.scrollTo(x, y);
+          });
+        }
+        frame.src = want;
+      }
+
+      // THE NOTE. One notice, from its <template>, in the small window.
+      function openNote(slug: string) {
+        const t = document.querySelector<HTMLTemplateElement>(`template[data-note="${CSS.escape(slug)}"]`);
+        if (!t) return;
+        pop.querySelector("[data-np-title]")!.textContent = t.dataset.title ?? slug;
+        pop.querySelector("[data-np-kind]")!.textContent = t.dataset.kind ?? "";
+        (pop.querySelector("[data-np-pin]") as HTMLElement).hidden = !t.hasAttribute("data-pinned");
+        (pop.querySelector("[data-np-source]") as HTMLAnchorElement).href = t.dataset.source ?? "";
+        const body = pop.querySelector<HTMLElement>("[data-np-body]")!;
+        body.replaceChildren(t.content.cloneNode(true));
+        if (!pop.open) pop.showModal();
+        body.scrollTop = 0;
+        pop.querySelector<HTMLElement>(".np-close")?.focus({ preventScroll: true });
+      }
+      function shutNote() {
+        if (!pop.open) return;
+        closingPop = true;
+        pop.close();
+        closingPop = false;
+      }
+
+      // WHAT THE ADDRESS SAYS, ON SCREEN.
+      function render(instant = false, focus = false) {
+        const next = viewOf(location.hash, slugs);
+        if (next.view) {
+          for (const b of bodies) b.hidden = b.dataset.view !== next.view;
+          const p = pieces[next.view] ?? {};
+          nameEl.textContent = p.label ?? next.view;
+          pageEl.hidden = !p.page;
+          if (p.page) pageEl.href = p.page;
+          if (FRAMED[next.view as keyof typeof FRAMED]) loadFrame(next.view, next.inner);
+          if (at !== next.view || stage.dataset.at !== "view") slide(true, instant);
+          if (focus) route.focus({ preventScroll: true });
+        } else {
+          if (stage.dataset.at !== "board") slide(false, instant);
+          if (focus && lastPiece) lastPiece.focus({ preventScroll: true });
+        }
+        if (next.note) openNote(next.note);
+        else shutNote();
+        at = next.view;
+      }
+
+      // MOVING. Every move is a new history entry that remembers where it
+      // came from, so the page's own "back" controls can be the browser's Back
+      // when that is where they lead.
+      const here = () => location.hash.replace(/^#/, "");
+      function go(hash: string) {
+        const url = hash ? `#${hash}` : location.pathname + location.search;
+        history.pushState({ town: true, from: here() }, "", url);
+        render(false, true);
+      }
+      function backTo(hash: string) {
+        const s = history.state;
+        const from = s && s.town ? (s.from === "board" ? "" : s.from) : null;
+        if (from === hash) history.back();
+        else go(hash);
+      }
+
+      document.addEventListener("click", (e) => {
+        const me = e as MouseEvent;
+        if (me.metaKey || me.ctrlKey || me.shiftKey || me.altKey || me.button !== 0) return;
+        const t = e.target as Element;
+        const pieceEl = t.closest?.("a.piece[data-open]") as HTMLElement | null;
+        if (pieceEl) { e.preventDefault(); lastPiece = pieceEl; go(pieceEl.dataset.open!); return; }
+        const note = t.closest?.("a[data-note-open]") as HTMLElement | null;
+        if (note) { e.preventDefault(); go(note.dataset.noteOpen!); return; }
+        if (t.closest?.("[data-back]")) { e.preventDefault(); backTo(""); return; }
+        if (t.closest?.("[data-np-close]")) { e.preventDefault(); pop.close(); }
       });
-      document.addEventListener("keydown", function (e) {
-        if (e.key !== "Escape") return;
-        var id = decodeURIComponent((location.hash || "").slice(1));
-        var el = id && document.getElementById(id);
-        if (el && el.closest && el.closest(".bp")) location.hash = "board";
+      // a click on the dim around the note closes it
+      pop.addEventListener("click", (e) => { if (e.target === pop) pop.close(); });
+      // closed by its button, the dim or Escape: back to the notices
+      pop.addEventListener("close", () => { if (!closingPop) backTo("notices"); });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !pop.open && at) backTo("");
       });
-      window.addEventListener("hashchange", openPanel);
-      openPanel();
-    })();
+      window.addEventListener("popstate", () => render());
+      window.addEventListener("hashchange", () => render());
+      render(true);
+    }
   </script>
 
   <script>
@@ -455,7 +587,6 @@ const frameData = JSON.stringify(Object.fromEntries(
       } catch {}
     }
   </script>
-
   <style>
     .board-page { max-width: 1120px; margin: 0 auto; padding: 0 0.4em; }
 
@@ -473,8 +604,8 @@ const frameData = JSON.stringify(Object.fromEntries(
     .board {
       position: relative;
       display: grid;
-      grid-template-columns: 1.05fr 1.5fr 1fr;
-      grid-template-areas: "cal news notes" "card card meeps" "card card stick";
+      grid-template-columns: 1fr 1.35fr 1fr;
+      grid-template-areas: "cal news notes" "card meeps meeps" "card stick stick";
       gap: 2.2em 2em;
       align-items: start;
       padding: 2.6em 2em 2.8em;
@@ -491,7 +622,6 @@ const frameData = JSON.stringify(Object.fromEntries(
         inset 0 0 0 2px rgba(232, 196, 139, 0.3),
         inset 0 0 60px rgba(0, 0, 0, 0.5),
         0 24px 60px rgba(0, 0, 0, 0.5);
-      scroll-margin-top: 1em;
     }
     .sill {
       height: 18px; margin: 0 0 0.6em; border-radius: 0 0 10px 10px;
@@ -513,7 +643,6 @@ const frameData = JSON.stringify(Object.fromEntries(
       color: var(--pm-ink); text-decoration: none; font-family: var(--pm-serif);
       transform: rotate(var(--tilt, 0deg));
       transition: transform 0.16s ease;
-      scroll-margin-top: 1.2em;
     }
     .piece:hover, .piece:focus-visible { transform: rotate(var(--tilt, 0deg)) translateY(-3px); }
     .piece:focus-visible { outline: 2px solid var(--pm-gold); outline-offset: 4px; }
@@ -522,6 +651,10 @@ const frameData = JSON.stringify(Object.fromEntries(
       width: 14px; height: 14px; border-radius: 50%;
       background: radial-gradient(circle at 35% 30%, #f6dcae, #b08d4d 55%, #6d5c44);
       box-shadow: 0 2px 3px rgba(0, 0, 0, 0.6);
+    }
+    .tack.red, .pin.red {
+      background: radial-gradient(circle at 35% 30%, #ffb3a1, #d8452c 45%, #7a1d10);
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.18), 0 3px 5px rgba(0, 0, 0, 0.65);
     }
     .kick {
       font-family: var(--pm-mono); font-size: 0.6rem; letter-spacing: 0.2em;
@@ -561,11 +694,18 @@ const frameData = JSON.stringify(Object.fromEntries(
     .news {
       grid-area: news; --tilt: 0.7deg;
       padding: 1.4em 1.4em 6em;
-      background: linear-gradient(180deg, rgba(109, 92, 68, 0.06), transparent 30%), var(--pm-paper-deep);
       filter: drop-shadow(0 10px 12px rgba(0, 0, 0, 0.5));
+    }
+    /* the newsprint itself, torn at the foot; on its own layer so the clip
+       leaves Ferry's sticker whole over the corner */
+    .news::before {
+      content: ""; position: absolute; inset: 0; z-index: -1;
+      background: linear-gradient(180deg, rgba(109, 92, 68, 0.06), transparent 30%), var(--pm-paper-deep);
       clip-path: polygon(0 0, 100% 0, 100% 97%, 96% 100%, 88% 98%, 76% 100%, 62% 98.5%, 48% 100%, 33% 98%, 18% 100%, 6% 98%, 0 100%);
     }
+    .news { isolation: isolate; }
     .masthead {
+      padding-right: 1.4em;
       text-align: center; font-weight: 700; font-size: clamp(1.7rem, 3vw, 2.3rem); line-height: 1.05;
       padding-bottom: 0.15em; border-bottom: 3px double var(--pm-ink);
     }
@@ -579,6 +719,17 @@ const frameData = JSON.stringify(Object.fromEntries(
     .figures {
       font-family: var(--pm-mono); font-size: 0.64rem; letter-spacing: 0.06em; line-height: 1.6;
       color: var(--pm-ink-soft); border-top: 1px solid rgba(46, 36, 23, 0.25); padding-top: 0.5em;
+    }
+    .ferry {
+      position: absolute; top: -1.1em; right: -1em; z-index: 4;
+      display: grid; place-items: center; width: 74px; height: 74px; padding: 5px;
+      border-radius: 18px; background: #fbf6ea;
+      box-shadow: 0 0 0 1px rgba(46, 36, 23, 0.18), 0 5px 9px rgba(0, 0, 0, 0.45);
+      transform: rotate(9deg);
+    }
+    .ferry .px {
+      width: 100%; height: 100%; display: block; image-rendering: pixelated; border-radius: 13px;
+      background: linear-gradient(180deg, var(--pm-harbor), var(--pm-harbor-2));
     }
     .news .franked { right: 1.8em; bottom: 1.1em; width: 190px; height: 82px; }
     .news .franked .cancel { right: 0; top: 0; width: 78px; height: 78px; transform: rotate(-14deg); opacity: 0.78; }
@@ -620,21 +771,21 @@ const frameData = JSON.stringify(Object.fromEntries(
       box-shadow: 0 10px 22px rgba(0, 0, 0, 0.55);
     }
     .meeps .kick { color: var(--pm-ink-soft); }
-    .roster-title { text-align: center; font-weight: 700; font-size: 1.1rem; }
+    .roster-title { text-align: center; font-weight: 700; font-size: 1.35rem; }
     .roster {
-      display: flex; justify-content: space-between; gap: 0.2em;
-      padding: 0.5em 0.3em 0; border-radius: 4px;
+      display: flex; justify-content: space-between; gap: 0.4em;
+      padding: 0.8em 0.5em 0; border-radius: 4px;
       background: linear-gradient(180deg, var(--pm-harbor), var(--pm-harbor-2));
     }
     .hand { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
-    .hand .px { width: 44px; height: 44px; display: block; image-rendering: pixelated; }
+    .hand .px { width: min(88px, 100%); height: auto; aspect-ratio: 1; display: block; image-rendering: pixelated; }
     .mono {
-      display: grid; place-items: center; width: 30px; height: 30px; margin: 7px 0;
+      display: grid; place-items: center; width: 52px; height: 52px; margin: 14px 0;
       border-radius: 50%; border: 1px solid var(--pm-gold); color: var(--pm-gold); font-weight: 700; font-size: 0.9rem;
     }
     .hand-name {
       display: block; width: 100%; padding: 0.25em 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-      text-align: center; font-family: var(--pm-mono); font-size: 0.5rem; letter-spacing: 0.06em;
+      text-align: center; font-family: var(--pm-mono); font-size: 0.62rem; letter-spacing: 0.06em;
       color: var(--pm-gold-bright); background: #2f3a56;
     }
     .roster-sig { text-align: right; font-style: italic; font-size: 0.78rem; color: var(--pm-ink-soft); }
@@ -648,7 +799,7 @@ const frameData = JSON.stringify(Object.fromEntries(
     }
     .pic {
       position: relative; display: block; overflow: hidden; border-radius: 3px;
-      padding: 2.6em 0.8em 0;
+      padding: 3em 0.8em 0;
       background: linear-gradient(180deg, var(--pm-night) 0%, var(--pm-harbor-2) 70%, #2f3a56 100%);
     }
     .pic::before {
@@ -669,8 +820,18 @@ const frameData = JSON.stringify(Object.fromEntries(
       display: block; font-family: var(--pm-mono); font-style: normal; font-weight: 400;
       font-size: 0.55rem; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(232, 196, 139, 0.75);
     }
-    .lots { position: relative; display: flex; justify-content: center; align-items: flex-end; gap: 0.3em; }
-    .lots .px { flex: 1; max-width: 120px; height: auto; display: block; image-rendering: pixelated; }
+    .lots {
+      position: relative; display: grid; grid-template-columns: repeat(6, 1fr);
+      padding: 0.4em 0.2em 0; max-width: 320px; margin: 0 auto;
+    }
+    .lots .px { width: 100%; height: auto; display: block; image-rendering: pixelated; }
+    .lots .b-back { grid-row: 1; }
+    .lots .b-back:nth-child(1) { grid-column: 1 / 3; }
+    .lots .b-back:nth-child(2) { grid-column: 3 / 5; transform: translateY(-10%); }
+    .lots .b-back:nth-child(3) { grid-column: 5 / 7; }
+    .lots .b-front { grid-row: 2; margin-top: -16%; position: relative; z-index: 1; }
+    .lots .b-front:nth-child(4) { grid-column: 2 / 4; }
+    .lots .b-front:nth-child(5) { grid-column: 4 / 6; }
     .quay { display: block; height: 10px; background: repeating-linear-gradient(90deg, #2f3a56 0 18px, #465577 18px 20px); }
     .cap { padding-top: 0.6em; font-size: 0.86rem; line-height: 1.4; }
     .cap b {
@@ -742,6 +903,8 @@ const frameData = JSON.stringify(Object.fromEntries(
       }
       .piece, .piece:hover, .piece:focus-visible { transform: none; }
       .notes { height: 15em; }
+      .hand-name { font-size: 0.5rem; }
+      .mono { width: 36px; height: 36px; margin: 8px 0; }
       .news { padding-bottom: 5em; }
       .news .franked { bottom: 0.9em; width: 150px; height: 64px; }
       .news .franked .cancel { width: 60px; height: 60px; }
@@ -761,100 +924,165 @@ const frameData = JSON.stringify(Object.fromEntries(
     }
     .colophon a { color: var(--pm-gold); }
 
-    /* ── a panel, open: while it, or anything in it, is the :target ────── */
-    .bp { display: none; }
-    .bp:target, .bp:has(:target) {
-      position: fixed; inset: 0; z-index: 60;
-      display: grid; place-items: center; padding: 1.2em;
+    /* ── THE STAGE: the board and the view side by side on one track; the
+       track slides one pane to the left. Clipped across, never down, so the
+       plaque and the shadows keep their room. ─────────────────────────── */
+    .stage { overflow-x: clip; padding-top: 1.2em; margin-top: -1.2em; }
+    .track {
+      display: flex; align-items: flex-start;
+      transition: transform 0.42s cubic-bezier(0.22, 0.7, 0.2, 1);
     }
-    :global(html:has(.bp:target)), :global(html:has(.bp :target)) { overflow: hidden; }
-    .bp-scrim { position: absolute; inset: 0; background: rgba(4, 7, 14, 0.72); backdrop-filter: blur(2px); }
-    .bp-sheet {
-      position: relative; display: flex; flex-direction: column;
-      width: min(1120px, 100%); height: min(92vh, 1100px);
-      border-radius: 10px; overflow: hidden;
-      background: linear-gradient(180deg, rgba(28, 44, 79, 0.98), rgba(13, 20, 38, 0.99));
-      border: 1px solid rgba(232, 196, 139, 0.4);
-      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7);
+    .stage[data-at="view"] .track { transform: translateX(-100%); }
+    .stage.is-instant .track { transition: none; }
+    .pane { flex: 0 0 100%; min-width: 0; }
+    .pane.is-away { visibility: hidden; height: 0; overflow: hidden; }
+    @media (prefers-reduced-motion: reduce) { .track { transition: none; } }
+
+    /* the bar over a view: the way back first, and always in reach */
+    .view-bar {
+      position: sticky; top: 0; z-index: 5;
+      display: flex; align-items: center; gap: 1em; flex-wrap: wrap;
+      padding: 0.65em 0.2em; margin: 0 0 1em;
+      background: linear-gradient(180deg, var(--pm-night) 70%, transparent);
     }
-    .bp-head {
-      flex: 0 0 auto; display: flex; align-items: center; gap: 1em;
-      padding: 0.7em 1.4em; border-bottom: 1px dashed rgba(232, 196, 139, 0.35);
+    .back {
+      display: inline-flex; align-items: center; gap: 0.4em;
+      padding: 0.5em 1.05em; border-radius: 999px; text-decoration: none;
+      font-family: var(--pm-mono); font-size: 0.74rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      color: #241505; background: linear-gradient(180deg, #e8c48b, #b08d4d);
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
     }
-    .bp-route {
+    .back:hover, .back:focus-visible { filter: brightness(1.08); outline: 2px solid var(--pm-gold-bright); outline-offset: 2px; }
+    .view-route {
       margin: 0; font-family: var(--pm-mono); font-size: 0.66rem; font-weight: 400;
       letter-spacing: 0.16em; text-transform: uppercase; color: rgba(232, 196, 139, 0.8);
     }
-    .bp-route b { color: var(--pm-gold-bright); }
-    .bp-page {
-      font-family: var(--pm-mono); font-size: 0.62rem; letter-spacing: 0.14em;
+    .view-route:focus { outline: none; }
+    .view-route b { color: var(--pm-gold-bright); }
+    .view-page {
+      margin-left: auto; font-family: var(--pm-mono); font-size: 0.62rem; letter-spacing: 0.14em;
       text-transform: uppercase; color: var(--pm-gold);
     }
-    /* the close mark: a wax seal */
-    .bp-close {
-      margin-left: auto; flex: 0 0 auto;
-      display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%;
-      background: radial-gradient(circle at 35% 30%, #c4553f, var(--pm-wax) 60%, #6a2a1f);
-      color: var(--pm-paper); text-decoration: none; font-size: 1.3rem; line-height: 1;
-      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
-    }
-    .bp-close:hover, .bp-close:focus-visible { filter: brightness(1.12); outline: 2px solid var(--pm-gold); outline-offset: 2px; }
-    .bp-body { flex: 1 1 auto; overflow: auto; overscroll-behavior: contain; padding: 1.4em 1.6em 1.8em; }
-    .bp-deep { display: none; }
-    .bp-frame { flex: 1 1 auto; display: flex; min-height: 0; }
-    .bp-frame iframe { flex: 1 1 auto; width: 100%; border: 0; background: var(--pm-night); }
-    /* a framed page shows once the board has dressed it (see dress()) */
-    .bp-frame iframe[data-dressing]:not([data-dressed]) { visibility: hidden; }
-    .bp-foot { margin: 1.4em 0 0; text-align: center; font-size: 0.8rem; font-style: italic; color: #b9ae98; }
+    .view-body[data-view="calendar"] { padding: 0 0.4em 1em; }
+    .view-framed iframe { display: block; width: 100%; min-height: 70vh; border: 0; background: transparent; }
+    .view-framed iframe[data-ready] { min-height: 0; }
+    .view-framed iframe.is-unmeasured { min-height: 85vh; }
 
-    /* the notices: their index on the papers, then every notice on paper */
-    .bp-index {
-      list-style: none; margin: 0 0 1.6em; padding: 0;
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(15em, 1fr)); gap: 0.9em;
+    /* ── THE NOTICES' SUB-BOARD: the same cork, sticky notes on it ──────── */
+    .subboard {
+      position: relative; padding: 2.6em 2em 2.4em;
+      border: 14px solid #3a2a1a; border-bottom-width: 0; border-radius: 10px 10px 0 0;
+      background:
+        radial-gradient(ellipse at 18% 6%, rgba(232, 196, 139, 0.16), transparent 55%),
+        repeating-radial-gradient(circle at 37% 61%, rgba(0, 0, 0, 0.1) 0 1px, transparent 1px 4px),
+        linear-gradient(180deg, #655741, #443c30);
+      box-shadow: inset 0 0 0 2px rgba(232, 196, 139, 0.3), inset 0 0 60px rgba(0, 0, 0, 0.5);
     }
-    .bp-index a {
-      display: flex; flex-direction: column; gap: 0.3em; height: 100%;
-      padding: 0.8em 0.9em; text-decoration: none; color: var(--pm-ink);
-      background: linear-gradient(180deg, rgba(0, 0, 0, 0.05), transparent 14%), var(--paper);
-      box-shadow: 0 5px 12px rgba(0, 0, 0, 0.45);
+    .sticks {
+      list-style: none; margin: 0; padding: 0;
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(12.5em, 1fr)); gap: 1.8em 1.4em;
     }
-    .bp-index a:hover, .bp-index a:focus-visible { outline: 2px solid var(--pm-gold); outline-offset: 2px; }
-    .bc-kind {
-      font-family: var(--pm-mono); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.14em;
+    .stick { transform: rotate(var(--tilt, 0deg)); }
+    .stick a {
+      position: relative; display: flex; flex-direction: column; gap: 0.35em;
+      height: 100%; min-height: 11em; padding: 1.2em 0.95em 0.9em;
+      text-decoration: none; color: var(--pm-ink); font-family: var(--pm-serif);
+      background: linear-gradient(180deg, rgba(0, 0, 0, 0.06), transparent 16%), var(--paper);
+      box-shadow: 0 7px 14px rgba(0, 0, 0, 0.45);
+      transition: transform 0.16s ease;
+    }
+    .stick a:hover, .stick a:focus-visible { transform: translateY(-3px); }
+    .stick a:focus-visible { outline: 2px solid var(--pm-gold); outline-offset: 3px; }
+    .stick.is-pinned a { box-shadow: 0 0 0 2px rgba(216, 69, 44, 0.55), 0 9px 18px rgba(0, 0, 0, 0.5); }
+    .pin {
+      position: absolute; top: -8px; left: 50%; margin-left: -8px;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #f6dcae, #b08d4d 55%, #6d5c44);
+      box-shadow: 0 2px 3px rgba(0, 0, 0, 0.6);
+    }
+    .st-kind {
+      font-family: var(--pm-mono); font-size: 0.58rem; font-weight: 700; letter-spacing: 0.14em;
       text-transform: uppercase; color: var(--pm-ink-soft);
     }
-    .bc-title { font-size: 1rem; font-weight: 700; line-height: 1.25; }
-    .bc-teaser { font-size: 0.82rem; line-height: 1.45; color: #3d3021; overflow-wrap: anywhere; }
-    .bc-teaser :global(strong) { color: var(--pm-ink); }
-    .notice { margin: 0 auto 1.4em; max-width: 760px; padding: 1.5em 1.8em 1.2em; scroll-margin-top: 1em; }
-    .notice:target { box-shadow: 0 0 0 2px var(--pm-gold), 0 22px 70px rgba(0, 0, 0, 0.55); }
-    .notice-title { margin: 0 0 0.8em; font-size: 1.35rem; color: var(--pm-ink); }
-    .notice-kind { font-family: var(--pm-mono); font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--pm-ink-soft); }
-    .notice-body { font-size: 0.95rem; line-height: 1.65; color: var(--pm-ink); }
-    .notice-body :global(> :first-child) { margin-top: 0; }
-    .notice-body :global(h1:first-child) { display: none; }  /* the notice's title already says it */
-    .notice-body :global(img) { max-width: 100%; border-radius: 8px; }
-    .notice-body :global(a) { color: var(--pm-accent); }
-    .notice-body :global(h1), .notice-body :global(h2), .notice-body :global(h3) { color: var(--pm-ink); }
-    .notice-body :global(em) { color: var(--pm-accent); }
-    .notice-body :global(code) { background: rgba(164, 99, 42, 0.14); padding: 1px 5px; border-radius: 5px; }
-    .notice-up {
-      display: inline-block; margin-top: 0.6em; font-family: var(--pm-mono); font-size: 0.62rem;
-      letter-spacing: 0.12em; text-transform: uppercase; color: var(--pm-accent);
+    .stick.is-pinned .st-kind { color: #b23a24; }
+    .st-title { font-size: 1.02rem; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; hyphens: auto; }
+    .st-teaser {
+      font-size: 0.8rem; line-height: 1.45; color: #3d3021; overflow-wrap: anywhere;
+      display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 6; line-clamp: 6; overflow: hidden;
     }
-    .human-gated-stamp {
+    .st-teaser :global(strong) { color: var(--pm-ink); }
+
+    /* ── ONE NOTICE, in its own small window ─────────────────────────── */
+    .note-pop {
+      width: min(40em, calc(100vw - 2em)); max-height: min(80vh, 46em);
+      padding: 0; border: 0; border-radius: 4px; overflow: hidden;
+      color: var(--pm-ink); background: var(--pm-paper);
+      box-shadow: 0 0 0 1px rgba(46, 36, 23, 0.25), 0 30px 80px rgba(0, 0, 0, 0.7);
+    }
+    .note-pop[open] { display: flex; flex-direction: column; }
+    .note-pop::backdrop { background: rgba(4, 7, 14, 0.62); backdrop-filter: blur(2px); }
+    .np-head {
+      position: relative; flex: 0 0 auto; display: grid; grid-template-columns: 1fr auto; gap: 0.2em 1em;
+      padding: 1.2em 1.4em 0.8em; border-bottom: 1px dashed rgba(46, 36, 23, 0.35);
+    }
+    .np-head .pin { top: -2px; }
+    .np-kind {
+      grid-column: 1; font-family: var(--pm-mono); font-size: 0.6rem; font-weight: 700;
+      letter-spacing: 0.14em; text-transform: uppercase; color: var(--pm-ink-soft);
+    }
+    .np-title { grid-column: 1; margin: 0; font-size: 1.3rem; line-height: 1.2; color: var(--pm-ink); }
+    .np-close {
+      grid-column: 2; grid-row: 1 / span 2; align-self: start;
+      display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 50%; cursor: pointer;
+      background: radial-gradient(circle at 35% 30%, #c4553f, var(--pm-wax) 60%, #6a2a1f);
+      color: var(--pm-paper); font-size: 1.2rem; line-height: 1;
+    }
+    .np-close:hover, .np-close:focus-visible { filter: brightness(1.12); outline: 2px solid var(--pm-gold); outline-offset: 2px; }
+    .np-body { flex: 1 1 auto; overflow: auto; overscroll-behavior: contain; padding: 1.1em 1.4em 1.2em; }
+    .np-foot {
+      flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 1em;
+      padding: 0.6em 1.4em; border-top: 1px dashed rgba(46, 36, 23, 0.35);
+      font-family: var(--pm-mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase;
+    }
+    .np-foot a { color: var(--pm-accent); }
+    .np-back {
+      border: 0; background: none; padding: 0; cursor: pointer; color: var(--pm-accent);
+      font: inherit; letter-spacing: inherit; text-transform: inherit;
+    }
+    .np-body :global(.notice-body) { font-size: 0.95rem; line-height: 1.65; color: var(--pm-ink); }
+    .np-body :global(.notice-body > :first-child) { margin-top: 0; }
+    .np-body :global(.notice-body h1:first-child) { display: none; }  /* the window's title already says it */
+    .np-body :global(img) { max-width: 100%; border-radius: 8px; }
+    .np-body :global(a) { color: var(--pm-accent); }
+    .np-body :global(h1), .np-body :global(h2), .np-body :global(h3) { color: var(--pm-ink); }
+    .np-body :global(em) { color: var(--pm-accent); }
+    /* the notice is ink on paper: the site's dark-page golds stay off it */
+    .note-pop :global(p), .note-pop :global(li) { color: var(--pm-ink); }
+    .note-pop :global(strong), .note-pop :global(b) { color: var(--pm-wax); }
+    .note-pop .np-body :global(h1), .note-pop .np-body :global(h2), .note-pop .np-body :global(h3), .note-pop .np-body :global(h4) { color: var(--pm-ink); }
+    .np-body :global(code) { background: rgba(164, 99, 42, 0.14); padding: 1px 5px; border-radius: 5px; }
+    .np-body :global(pre) { overflow: auto; }
+    .np-body :global(.human-gated-stamp) {
       border: 1px solid rgba(156, 63, 46, 0.4); border-radius: 6px;
       padding: 0.7em 0.9em; margin: 0 0 1.1em; font-size: 0.9rem; line-height: 1.55;
       background: rgba(156, 63, 46, 0.06);
     }
-    .human-gated-stamp em { display: block; opacity: 0.75; font-size: 0.8rem; margin-top: 0.3em; }
+
+    /* without JavaScript: the notices, listed */
+    .nojs-notices { max-width: 62ch; margin: 1.6em auto 0; color: #cdc2ab; }
+    .nojs-notices h2 { font-size: 1.1rem; color: var(--pm-gold-bright); }
+    .nojs-notices a { color: var(--pm-gold); }
 
     @media (max-width: 760px) {
-      .bp:target, .bp:has(:target) { padding: 0; }
-      .bp-sheet { width: 100%; height: 100%; border-radius: 0; border: 0; }
-      .bp-head { padding: 0.6em 0.9em; }
-      .bp-body { padding: 1em 0.9em 1.4em; }
-      .notice { padding: 1.2em 1.1em 1em; }
+      .subboard { padding: 2.2em 0.9em 2em; border-width: 8px; border-bottom-width: 0; }
+      .sticks { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.4em 0.9em; }
+      .stick a { min-height: 9em; padding: 1.1em 0.75em 0.8em; }
+      .st-teaser { display: none; }
+      .st-title { font-size: 0.92rem; }
+      .view-page { margin-left: 0; }
+      /* a framed page at phone width is as wide as the phone, the way it is at home */
+      .view-framed { width: 100vw; margin-left: calc(50% - 50vw); }
+      .np-head, .np-body, .np-foot { padding-left: 1em; padding-right: 1em; }
     }
   </style>
 </PostmarkLayout>
