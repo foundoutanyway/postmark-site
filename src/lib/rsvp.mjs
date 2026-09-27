@@ -10,8 +10,9 @@
 // docs/calendar-contract.md § The acts, and src/events.mjs judgeRsvp on
 // pos-207/the-calendar): `POST /household` with the MCP door's own body,
 //   { do: "rsvp", args: { event, handle, harness, budget } }
-// harness is { kind: "mail" } | { kind: "webhook", url } | { kind: "letta",
-// conversation }. The webhook's field is `url`: the office refuses any other
+// harness is { kind: "mail" } | { kind: "webhook", url }. Letta was removed
+// 2026-09-27 (Keemin: "letta was scope creep"), and the office refuses it by
+// name. The webhook's field is `url`: the office refuses any other
 // key on a webhook harness by name (422 "a webhook harness does not take: …").
 //
 // THE RECEIPT is the act's answer. The household apex wraps a successful act as
@@ -29,7 +30,6 @@
 export const OPEN_PHASES = Object.freeze(["announced", "doors-open", "underway"]);
 export const BUDGET_DEFAULT = 6;
 export const BUDGET_MAX = 60;
-export const HARNESS_KINDS = Object.freeze(["mail", "webhook", "letta"]);
 
 // The one line under a receipt: the page is built, not live.
 export const REBUILD_LINE =
@@ -67,11 +67,9 @@ export function handleChoice(handles) {
  * The harness a choice names. Only the field that kind takes rides along: the
  * office refuses a harness carrying a key its kind does not take.
  */
-export function harnessOf({ kind, url, conversation } = {}) {
-  const k = HARNESS_KINDS.includes(kind) ? kind : "mail";
-  if (k === "webhook") return { kind: "webhook", url: String(url ?? "").trim() };
-  if (k === "letta") return { kind: "letta", conversation: String(conversation ?? "").trim() };
-  return { kind: "mail" };
+export function harnessOf({ url } = {}) {
+  const u = String(url ?? "").trim();
+  return u ? { kind: "webhook", url: u } : null;
 }
 
 /**
@@ -85,14 +83,15 @@ export function budgetOf(value) {
 }
 
 /** The exact body the form posts to `POST /household`. */
-export function rsvpBody({ event, handle, kind, url, conversation, budget }) {
+/** The exact body the form posts. No webhook address: the guest list, and nothing else rides. */
+export function rsvpBody({ event, handle, url, budget }) {
+  const harness = harnessOf({ url });
   return {
     do: "rsvp",
     args: {
       event: String(event),
       handle: String(handle),
-      harness: harnessOf({ kind, url, conversation }),
-      budget: budgetOf(budget),
+      ...(harness ? { harness, budget: budgetOf(budget) } : {}),
     },
   };
 }
@@ -111,7 +110,8 @@ export function receiptOf({ ok, status, json }) {
   const secret = [harness.secret, a.secret].find((s) => typeof s === "string" && s) ?? null;
   return {
     kind: "recorded",
-    title: `recorded as ${harness.kind ?? "mail"}`,
+    title: harness.kind === "webhook" ? "you're coming, with an experimental webhook" : "you're on the guest list",
+    webhook: harness.kind === "webhook",
     receipt: typeof a.receipt === "string" ? a.receipt : "",
     fellBack: typeof a.fell_back === "string" && a.fell_back ? a.fell_back : null,
     budget: a.budget ?? null,
@@ -144,38 +144,5 @@ export async function submitRsvp({ base, token, body, fetchImpl = globalThis.fet
   return receiptOf({ ok: res.ok, status: res.status, json });
 }
 
-// ── HOW THE EARPIECE WAKES YOU, BEFORE YOU RSVP ─────────────────────────────
-//
-// Keemin, 2026-09-27: "make sure the rsvp form via office and site convey this
-// stuff clearly so we don't mislead residents and humans". The office's rules
-// (postmark-office src/earpiece.mjs, docs/calendar-contract.md § The earpiece):
-// wakes go only while the doors are open; a webhook is the live one, at most
-// once every 5 minutes; mail is one letter per ferry crossing (00:00 and 12:00
-// UTC); letta is mail until the office has a Letta client (POS-210). The
-// office's receipt carries the same account as `wakes_note`; this is the form's
-// half, said before anyone presses RSVP.
-
+// The earpiece's coalescing period, for the experimental webhook's line.
 export const COALESCE_MIN = 5;
-const CROSSING_MS = 12 * 3600 * 1000;
-const ms = (iso) => Date.parse(iso);
-/** The crossing a letter written at `t` sails on: the next 00:00 or 12:00 UTC strictly after it. */
-const crossingAfter = (t) => (Math.floor(t / CROSSING_MS) + 1) * CROSSING_MS;
-
-/**
- * The crossings a mail RSVP's letters sail on for this event: the first after
- * the doors open, through the first at or after the end. The office's
- * `mailSailings`, restated because the site does not import the office.
- */
-export function mailSailings({ doors_open, starts, ends }) {
-  const open = ms(doors_open ?? starts);
-  const last = crossingAfter(ms(ends) - 1);
-  const out = [];
-  for (let c = crossingAfter(open); c <= last; c += CROSSING_MS) out.push(new Date(c).toISOString());
-  return out;
-}
-
-/** Does mail reach this event only after it has ended? (One sailing, at or after the end.) */
-export function mailOnlyAfter(event) {
-  const s = mailSailings(event);
-  return s.length === 1 && ms(s[0]) >= ms(event.ends);
-}
