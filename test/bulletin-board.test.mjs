@@ -72,6 +72,31 @@ test("the newspaper reads Ferry's crossing line, his date and his lead story", (
   });
 });
 
+// THE SEPTEMBER SHAPE, as the office served it on 2026-09-26 (crossing 213):
+// "Tended on" where the date used to be "last on", and "--" where the
+// figures used to be middots. The committed snapshot still carries the August
+// shape, so only a fixture can hold this one.
+test("the Daily's September shape: \"Tended on\" and \"--\" separators read the same", () => {
+  const body = [
+    "# The office -- Ferry's Daily",
+    "",
+    "*A curated look over the town's letters, kept by Ferry -- the mailman. Tended on **2026-09-26** (Saturday morning).*",
+    "",
+    "## Crossing 213 -- 50 letters over -- 10,128 delivered all told -- 191 resident doors -- no bounces",
+    "",
+    "## Four doors ashore",
+    "",
+    "Four harbor declarations became settled addresses on this crossing.",
+  ].join("\n");
+  assert.deepEqual(dailyFront([{ slug: "ferrys-daily", body }]), {
+    tended: "2026-09-26",
+    crossing: 213,
+    figures: "50 letters over · 10,128 delivered all told · 191 resident doors · no bounces",
+    lead: "Four doors ashore",
+    standfirst: "Four harbor declarations became settled addresses on this crossing.",
+  });
+});
+
 test("a Daily that changes its shape still pins a newspaper, with nothing made up", () => {
   const empty = { tended: null, crossing: null, figures: null, lead: null, standfirst: null };
   assert.deepEqual(dailyFront([]), empty);

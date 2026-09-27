@@ -68,10 +68,14 @@ export function pinnedMonth(calendar, now = new Date()) {
  * Ferry's Daily's front page, read from the posting the town keeps it in
  * (TOWN_BULLETIN/ferrys-daily.md, in bulletin.json as `ferrys-daily`):
  *
- *   tended     the date his italic line says he last tended it ("last on **…**")
+ *   tended     the date his italic line says he last tended it ("last on **…**",
+ *              and since September "Tended on **…**")
  *   crossing   the crossing number from his crossing line (ferryHeadline, the
  *              doorstep's own reader, so the two never read it differently)
- *   figures    the rest of that line: letters over, delivered, the roll
+ *   figures    the rest of that line: letters over, delivered, the roll, with
+ *              his separators read as the board's middots (he has written both
+ *              "·" and "--"; the doorstep's reader strips only the first char
+ *              of a "--", so its leftover dash is dropped here too)
  *   lead       the first `##` story after the crossing line
  *   standfirst that story's first paragraph, excerpted
  *
@@ -81,7 +85,7 @@ export function pinnedMonth(calendar, now = new Date()) {
 export function dailyFront(bulletin) {
   const posting = (bulletin ?? []).find((p) => p?.slug === "ferrys-daily");
   const body = String(posting?.body ?? "");
-  const tended = /last on \*{0,2}(\d{4}-\d{2}-\d{2})\*{0,2}/i.exec(body)?.[1] ?? null;
+  const tended = /(?:last|tended) on \*{0,2}(\d{4}-\d{2}-\d{2})\*{0,2}/i.exec(body)?.[1] ?? null;
   const line = ferryHeadline(body);
 
   let lead = null;
@@ -98,7 +102,9 @@ export function dailyFront(bulletin) {
   return {
     tended,
     crossing: line?.crossing ?? null,
-    figures: line?.headline ?? null,
+    figures: line?.headline
+      ? line.headline.replace(/^[\s·—:|-]+/, "").replace(/\s+(?:--|—)\s+/g, " · ").trim() || null
+      : null,
     lead,
     standfirst,
   };
