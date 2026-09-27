@@ -703,7 +703,9 @@ test("the page marks the door's required fields and shares ONE error slot", () =
   // wiring that was never connected.
   assert.match(PAGE, /markRequired\(form, requiredNames\(declared\)\)/,
     "the page builds the form and never marks the door's required fields on it");
-  assert.match(PAGE, /declared = picked\.fields/,
+  // the door's fields as THIS reader is asked them (a keeper's house group is
+  // dropped on add-resident, 2026-09-27): still the door's block, nothing typed here
+  assert.match(PAGE, /const asked = fieldsForReader\(picked\.fields, act\);[\s\S]*declared = asked;/,
     "the page does not keep the door's own fields, so it has nothing to check requiredness against");
   assert.match(PAGE, /submitAct\(\{[^}]*fields: declared[^}]*\}\)/,
     "the page's submit does not hand submitAct the door's fields, so nothing is ever required");

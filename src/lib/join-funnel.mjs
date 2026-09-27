@@ -150,6 +150,24 @@ export function enterContinues(e) {
   return true;
 }
 
+/**
+ * A key pressed inside a review row that is being edited IN PLACE (Keemin,
+ * 2026-09-27: "the look it over should just let you edit in-pane instead of
+ * sending you back"). Escape cancels. Enter saves a one-line box or a select;
+ * in a paragraph box Enter is a new line and Ctrl/⌘+Enter saves, the same
+ * rule the field screens keep. Anything else is the box's own: null.
+ * @returns {"save"|"cancel"|null}
+ */
+export function editKey(e) {
+  if (!e || e.isComposing) return null;
+  if (e.key === "Escape") return "cancel";
+  if (e.key !== "Enter" || e.shiftKey || e.altKey) return null;
+  const tag = String(e.target?.tagName ?? "").toUpperCase();
+  if (tag === "BUTTON" || tag === "A") return null;
+  if (tag === "TEXTAREA") return e.ctrlKey || e.metaKey ? "save" : null;
+  return "save";
+}
+
 /** The words beside the forward button for the box on screen. */
 export function enterHint(form, name) {
   const f = form && form.fields ? form.fields[name] : null;

@@ -35,6 +35,11 @@ import "@/styles/join-move-in-form.css";
 import "@/styles/join-funnel.css";
 // the join's little pictures (Keemin, 2026-09-27), drawn in pixel-icons.mjs
 import { artSvg } from "@/lib/pixel-icons.mjs";
+// the site's nameplate for every declared house, so a keeper's review says
+// "Adding to Starforge" in the word the house wears everywhere else. Which
+// house is theirs is /me's answer at run time; this only spells it.
+import { declaredHouses, nameplate } from "@/lib/household.mjs";
+const houseNames = Object.fromEntries(declaredHouses().map((h) => [h.slug, nameplate(h)]));
 ---
 <PostmarkLayout
   door={null}
@@ -82,7 +87,7 @@ import { artSvg } from "@/lib/pixel-icons.mjs";
          a time (the order is the form's, the label is the node's). This page
          still names no field. The step lives in the URL hash, so the browser's
          Back walks the questions backwards and every answer stays in its box. -->
-    <section class="act jf-act" data-gate-act tabindex="-1" hidden>
+    <section class="act jf-act" data-gate-act data-house-names={JSON.stringify(houseNames)} tabindex="-1" hidden>
       <button type="button" class="jf-back" data-jf-back hidden>← Back</button>
       <div class="jf-dots" data-jf-dots aria-hidden="true"></div>
       <!-- the step's little picture: a pencil for the questions, a glass for
@@ -114,11 +119,19 @@ import { artSvg } from "@/lib/pixel-icons.mjs";
       <!-- the generated form mounts here, and nothing else ever does -->
       <div class="jf-fields" data-form-host></div>
 
-      <!-- review: what the reader wrote, under the labels the generator drew -->
+      <!-- review: what the reader wrote, under the labels the generator drew.
+           Each row edits IN PLACE (Keemin, 2026-09-27): its edit moves the
+           generator's own node into the row, so the box being edited is the one
+           the send reads, and Save / Cancel put it back. A keeper's house
+           stands at the top, named and fixed: they are adding to it, not
+           choosing it. -->
       <div class="jf-step" data-jf-review hidden>
         <h2 class="jf-q">Look it over.</h2>
         <p class="jf-sub">This goes to the office as it stands. A box left blank is not sent.</p>
-        <div class="jf-review pm-paper"><dl data-jf-review-list></dl></div>
+        <div class="jf-review pm-paper">
+          <p class="jf-house" data-jf-house hidden>Adding to <b data-jf-house-name></b></p>
+          <dl data-jf-review-list></dl>
+        </div>
       </div>
 
       <!-- ONE ERROR SLOT, TWO SPEAKERS (POS-188). What the form refuses before
@@ -208,11 +221,12 @@ import { artSvg } from "@/lib/pixel-icons.mjs";
       actForTier, doorPayload, fieldsFor, actSentence, doorNext,
       standingLine, submitAct, replyShape,
       requiredNames, markRequired, controlOf,
+      keepsHouse, fieldsForReader, houseOfMe,
     } from "@/lib/join-move-in.mjs";
     import {
-      fieldSteps, fieldOfStep, hashForStep, stepFromHash, stepOfField,
+      fieldSteps, fieldOfStep, hashForStep, stepFromHash,
       continueLabel, isRequired, isPresent, missingHere,
-      enterContinues, enterHint, reviewRows, dots,
+      enterContinues, enterHint, reviewRows, dots, editKey, stepOfField,
     } from "@/lib/join-funnel.mjs";
 
     const $ = (sel) => document.querySelector(sel);
@@ -339,9 +353,15 @@ import { artSvg } from "@/lib/pixel-icons.mjs";
       put("[data-standing]", standing);
       if (picked.source === "index") $("[data-field-source]").hidden = false;
 
-      const schema = window.MCPProto._internals.fieldsSchema(picked.fields);
+      // A KEEPER IS NOT ASKED FOR A HOUSE (Keemin, 2026-09-27). On add-resident
+      // the door's household group is dropped before the generator sees it, so
+      // it has no screen, no review row and no place in the send; the office
+      // answers with the key's own house. The founding acts keep every box.
+      const asked = fieldsForReader(picked.fields, act);
+      const schema = window.MCPProto._internals.fieldsSchema(asked);
       form = window.MCPProto._internals.buildForm(schema);
       $("[data-form-host]").appendChild(form.node);
+      if (keepsHouse(act)) nameHouse(tok);
 
       // POS-188 — the boxes the DOOR declares required carry `required` and
       // `aria-required`, so an assistive reader is told before the press and a
@@ -350,7 +370,7 @@ import { artSvg } from "@/lib/pixel-icons.mjs";
       // is household, handle and card; on add-resident the door itself says
       // household is not needed, and this page must not pretend otherwise.
       // The generator is untouched — these go on the nodes it built.
-      declared = picked.fields;
+      declared = asked;
       markRequired(form, requiredNames(declared));
 
       const next = doorNext(bare);
@@ -366,10 +386,31 @@ import { artSvg } from "@/lib/pixel-icons.mjs";
       show(0);
     }
 
+    /**
+     * The house a keeper is adding to, named from GET /me (its per-handle
+     * `households` block) and spelled the way the site spells it. Filled in
+     * when /me answers; until then, and if it never does, it says "your house".
+     */
+    async function nameHouse(tok) {
+      put("[data-jf-house-name]", "your house");
+      $("[data-jf-house]").hidden = false;
+      let names = {};
+      try { names = JSON.parse(gateAct.dataset.houseNames || "{}"); } catch { /* the slug still prints */ }
+      try {
+        const r = await fetch(officeBase() + "/me", {
+          headers: { accept: "application/json", authorization: "Bearer " + tok.access_token },
+        });
+        if (!r.ok) return;
+        const house = houseOfMe(await r.json(), names);
+        if (house) put("[data-jf-house-name]", house.name);
+      } catch { /* "your house" stands */ }
+    }
+
     // ── one question at a time (POS-275) ──────────────────────────────────────
 
     let steps = null;      // ["intro", "field:<the door's name>", …, "review"], from the form
     let at = 0;
+    let editing = null;    // the review row being edited in place, and where its node lives
     const nextBtn = $("[data-jf-next]");
     const backBtn = $("[data-jf-back]");
     const intro = $("[data-jf-intro]");
@@ -377,6 +418,7 @@ import { artSvg } from "@/lib/pixel-icons.mjs";
 
     function show(i) {
       if (!steps || !form) return;
+      if (editing) closeEdit(false);
       at = Math.max(0, Math.min(i, steps.length - 1));
       const step = steps[at];
       const name = fieldOfStep(step);
@@ -441,10 +483,70 @@ import { artSvg } from "@/lib/pixel-icons.mjs";
         if (row.empty) dd.className = "is-empty";
         const edit = document.createElement("button");
         edit.type = "button"; edit.className = "jf-edit"; edit.textContent = "edit";
-        edit.addEventListener("click", () => { const i = stepOfField(row.name, steps); if (i != null) go(i); });
+        edit.dataset.jfEdit = row.name;
+        edit.addEventListener("click", () => openEdit(row.name, wrap));
         wrap.appendChild(dt); wrap.appendChild(dd); wrap.appendChild(edit);
         list.appendChild(wrap);
       }
+    }
+
+    /**
+     * EDIT IN PLACE (Keemin, 2026-09-27: "the look it over should just let you
+     * edit in-pane instead of sending you back"). The row's value gives way to
+     * the GENERATOR'S OWN NODE, moved in from its screen: one box, one value,
+     * the one the send reads. Save puts it back and repaints the row; Cancel
+     * restores what the box held and puts it back. The reader never leaves the
+     * review.
+     */
+    function openEdit(name, wrap) {
+      if (editing && !closeEdit(false)) return;
+      const node = form.fields[name].node;
+      const c = controlOf(node);
+      editing = { name, node, home: node.parentNode, next: node.nextSibling, before: c ? c.value : "" };
+      wrap.classList.add("is-editing");
+      const slot = document.createElement("div");
+      slot.className = "jf-row-edit";
+      slot.appendChild(node);
+      const bar = document.createElement("div");
+      bar.className = "jf-row-bar";
+      const save = document.createElement("button");
+      save.type = "button"; save.className = "pm-btn"; save.textContent = "Save";
+      save.addEventListener("click", () => closeEdit(true));
+      const cancel = document.createElement("button");
+      cancel.type = "button"; cancel.className = "jf-edit"; cancel.textContent = "cancel";
+      cancel.addEventListener("click", () => closeEdit(false));
+      bar.appendChild(save); bar.appendChild(cancel);
+      slot.appendChild(bar);
+      wrap.appendChild(slot);
+      wrap.addEventListener("keydown", (e) => {
+        const k = editKey(e);
+        if (!k || !editing) return;
+        e.preventDefault(); e.stopPropagation();
+        closeEdit(k === "save");
+      });
+      if (c && typeof c.focus === "function") c.focus();
+    }
+
+    /** Put the edited node back on its own screen. A save is refused, in the office's words, on an emptied required box. */
+    function closeEdit(saving) {
+      if (!editing) return true;
+      const { name, node, home, next, before } = editing;
+      if (saving) {
+        const missing = missingHere(form, declared, name);
+        if (missing.length) { showError(missing[0].defect, missing[0].hint); return false; }
+      } else {
+        const c = controlOf(node);
+        if (c) c.value = before;
+      }
+      home.insertBefore(node, next);
+      editing = null;
+      formError.hidden = true;
+      paintNext();
+      if (steps && steps[at] === "review") {
+        paintReview();
+        $(`[data-jf-edit="${CSS.escape(name)}"]`)?.focus();
+      }
+      return true;
     }
 
     nextBtn?.addEventListener("click", () => {
@@ -463,7 +565,7 @@ import { artSvg } from "@/lib/pixel-icons.mjs";
     });
     // Enter continues (Ctrl/⌘+Enter in a paragraph box); on review it sends.
     gateAct?.addEventListener("keydown", (e) => {
-      if (!steps || !enterContinues(e)) return;
+      if (!steps || editing || !enterContinues(e)) return;
       e.preventDefault();
       (steps[at] === "review" ? submitBtn : nextBtn).click();
     });

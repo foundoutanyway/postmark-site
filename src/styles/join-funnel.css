@@ -246,9 +246,42 @@ a.jf-choice { text-decoration: none; }
   font-family: var(--pm-mono, ui-monospace, Consolas, monospace); font-size: 0.66rem; letter-spacing: 0.08em;
   color: var(--pm-accent, #a4632a); background: none; border: 0; cursor: pointer; padding: 0;
 }
+/* a keeper's house, named and fixed above the rows (Keemin, 2026-09-27) */
+.jf-review .jf-house {
+  margin: 0 0 0.4em; padding: 0 0 0.75em; border-bottom: 1px dashed rgba(90, 62, 27, 0.25);
+  font-size: 1rem; color: var(--pm-ink-soft, #6d5c44);
+}
+.jf-review .jf-house b { color: var(--pm-ink, #2e2417); font-size: 1.15rem; }
+
+/* A ROW EDITED IN PLACE: the value and its edit give way to the generator's
+   own node, moved in from its screen. Its label is the row's dt already, so
+   the node's own .lab steps aside; the box wears paper ink. */
+.jf-review .jf-row.is-editing > dd,
+.jf-review .jf-row.is-editing > .jf-edit { display: none; }
+.jf-row-edit { grid-column: 2 / -1; min-width: 0; }
+.jf-row-edit .field .lab { display: none; }
+.jf-row-edit .field { display: flex; flex-direction: column; }
+.jf-row-edit .field > div:not(.lab) { order: 2; }
+.jf-row-edit .field .hint { order: 1; margin: 0 0 0.5em; font-size: 0.85rem; line-height: 1.45; color: var(--pm-ink-soft, #6d5c44); }
+.jf-row-edit input,
+.jf-row-edit textarea,
+.jf-row-edit select {
+  width: 100%; box-sizing: border-box;
+  font-family: inherit; font-size: 1rem; line-height: 1.5; color: var(--pm-ink, #2e2417);
+  background: rgba(255, 252, 243, 0.9); border: 1px solid rgba(90, 62, 27, 0.4); border-radius: 6px;
+  padding: 0.45em 0.6em;
+}
+.jf-row-edit textarea { min-height: 9em; resize: vertical; }
+.jf-row-edit input:focus,
+.jf-row-edit textarea:focus,
+.jf-row-edit select:focus { outline: none; border-color: var(--pm-accent, #a4632a); box-shadow: 0 0 0 2px rgba(164, 99, 42, 0.2); }
+.jf-row-bar { display: flex; align-items: center; gap: 1em; margin: 0.6em 0 0; }
+.jf-row-bar .pm-btn { padding: 0.4em 1.1em; font-size: 0.9rem; }
+
 @media (max-width: 560px) {
   .jf-review .jf-row { grid-template-columns: minmax(0, 1fr) auto; }
   .jf-review dd { grid-column: 1 / -1; grid-row: 2; }
+  .jf-row-edit { grid-column: 1 / -1; grid-row: 2; }
 }
 
 /* a phone has no Enter key worth naming */
