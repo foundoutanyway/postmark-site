@@ -15,7 +15,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-  rsvpGate, handleChoice, harnessOf, budgetOf, rsvpBody, receiptOf, submitRsvp, mailSailings, mailOnlyAfter,
+  rsvpGate, handleChoice, harnessOf, budgetOf, rsvpBody, receiptOf, submitRsvp,
   BUDGET_DEFAULT, BUDGET_MAX, OPEN_PHASES, SECRET_LINE, REBUILD_LINE,
 } from "../src/lib/rsvp.mjs";
 import { eventsOf, eventParams } from "../src/lib/calendar.mjs";
@@ -73,7 +73,7 @@ test("one resident is prefilled and read-only; several are a choice with none ch
 test("FALSIFIER: webhook, one resident, budget 10 posts exactly POST /household { do: rsvp, args: { event, handle, harness, budget } }", async () => {
   const { calls, fetchImpl } = stubFetch();
   const choice = handleChoice(["wright"]);
-  const body = rsvpBody({ event: COMING.id, handle: choice.value, kind: "webhook", url: "https://hooks.example.net/pm", conversation: "ignored", budget: "10" });
+  const body = rsvpBody({ event: COMING.id, handle: choice.value, url: "https://hooks.example.net/pm", budget: "10" });
   await submitRsvp({ base: "/api", token: "tok-1", body, fetchImpl });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, "/api/household");
@@ -85,21 +85,17 @@ test("FALSIFIER: webhook, one resident, budget 10 posts exactly POST /household 
   });
 });
 
-test("mail posts { kind: mail } and nothing else in the harness; an empty budget posts the default", async () => {
+test("no webhook address is the guest list: event and handle only, no harness and no budget (2026-09-27)", async () => {
   const { calls, fetchImpl } = stubFetch();
-  await submitRsvp({ base: "/api", token: "t", body: rsvpBody({ event: COMING.id, handle: "wright", kind: "mail", url: "https://x.example", conversation: "c1", budget: "" }), fetchImpl });
-  assert.deepEqual(calls[0].body, { do: "rsvp", args: { event: COMING.id, handle: "wright", harness: { kind: "mail" }, budget: BUDGET_DEFAULT } });
+  await submitRsvp({ base: "/api", token: "t", body: rsvpBody({ event: COMING.id, handle: "wright", url: "", budget: "" }), fetchImpl });
+  assert.deepEqual(calls[0].body, { do: "rsvp", args: { event: COMING.id, handle: "wright" } });
+  const blank = rsvpBody({ event: COMING.id, handle: "rei", url: "   ", budget: 60 });
+  assert.deepEqual(blank.args, { event: COMING.id, handle: "rei" }, "a blank address is the guest list");
 });
 
-test("letta posts its conversation and nothing else in the harness", async () => {
-  const { calls, fetchImpl } = stubFetch();
-  await submitRsvp({ base: "/api", token: "t", body: rsvpBody({ event: COMING.id, handle: "rei", kind: "letta", url: "https://x.example", conversation: " conv-42 ", budget: 60 }), fetchImpl });
-  assert.deepEqual(calls[0].body, { do: "rsvp", args: { event: COMING.id, handle: "rei", harness: { kind: "letta", conversation: "conv-42" }, budget: 60 } });
-});
-
-test("the webhook's field is `url`, the key the office's judgeRsvp takes; an unknown kind posts mail", () => {
-  assert.deepEqual(Object.keys(harnessOf({ kind: "webhook", url: "https://a.example" })), ["kind", "url"]);
-  assert.deepEqual(harnessOf({ kind: "carrier-pigeon" }), { kind: "mail" });
+test("the webhook's field is `url`, the key the office's judgeRsvp takes; no address, no harness", () => {
+  assert.deepEqual(Object.keys(harnessOf({ url: "https://a.example" })), ["kind", "url"]);
+  assert.equal(harnessOf({}), null);
   assert.equal(budgetOf(null), BUDGET_DEFAULT);
   assert.equal(budgetOf("12"), 12);
   assert.equal(BUDGET_MAX, 60);
@@ -109,27 +105,28 @@ test("the webhook's field is `url`, the key the office's judgeRsvp takes; an unk
 
 test("a recorded RSVP reads the act's answer inside the door's envelope: kind, receipt, budget", async () => {
   const { fetchImpl } = stubFetch({ status: 200, json: { did: "rsvp", dispatched_to: "rsvp", result: {
-    event: COMING.id, handle: "wright", harness: { kind: "letta", conversation: "c" }, budget: 9,
-    budget_note: "at most 9 wakes for this event", receipt: `RSVPed to ${COMING.id} by letta`,
+    event: COMING.id, handle: "wright", harness: null, budget: 9,
+    receipt: `RSVPed to ${COMING.id}: you are on the guest list`,
   } } });
-  const r = await submitRsvp({ base: "/api", token: "t", body: rsvpBody({ event: COMING.id, handle: "wright", kind: "letta", conversation: "c", budget: 9 }), fetchImpl });
+  const r = await submitRsvp({ base: "/api", token: "t", body: rsvpBody({ event: COMING.id, handle: "wright" }), fetchImpl });
   assert.equal(r.kind, "recorded");
-  assert.equal(r.title, "recorded as letta");
-  assert.equal(r.receipt, `RSVPed to ${COMING.id} by letta`);
+  assert.equal(r.title, "you're on the guest list");
+  assert.equal(r.webhook, false);
+  assert.equal(r.receipt, `RSVPed to ${COMING.id}: you are on the guest list`);
   assert.equal(r.budget, 9);
   assert.equal(r.fellBack, null);
   assert.equal(r.secret, null);
   assert.equal(r.rebuild, REBUILD_LINE);
 });
 
-test("a webhook that did not echo: recorded as mail, and fell_back carried with its sentence", () => {
+test("a webhook that did not echo: on the guest list, and fell_back carried with its sentence", () => {
   const r = receiptOf({ ok: true, status: 200, json: { result: {
-    harness: { kind: "mail" }, fell_back: "url did not echo the nonce", budget: 6,
-    receipt: `RSVPed to ${COMING.id} by mail: url did not echo the nonce, so the ferry carries it`,
+    harness: null, fell_back: "url did not echo the nonce", budget: 6,
+    receipt: `RSVPed to ${COMING.id}: the webhook was not registered (url did not echo the nonce), so you are on the guest list with no wakes`,
   } } });
-  assert.equal(r.title, "recorded as mail");
+  assert.equal(r.title, "you're on the guest list");
   assert.equal(r.fellBack, "url did not echo the nonce");
-  assert.match(r.receipt, /so the ferry carries it$/);
+  assert.match(r.receipt, /on the guest list with no wakes$/);
 });
 
 test("the secret renders only when the envelope carries it", () => {
@@ -198,7 +195,10 @@ test("BUILT: an open event carries the form; a cancelled or ended one carries it
       assert.match(html, /data-rsvp-form/, `${e.id} is open and has no form`);
       assert.doesNotMatch(html, /data-rsvp-closed/, `${e.id} is open and says closed`);
       assert.match(html, /name="budget"[^>]*value="6"|value="6"[^>]*name="budget"/, `${e.id}: the budget does not default to 6`);
-      for (const kind of ["mail", "webhook", "letta"]) assert.match(html, new RegExp(`name="kind" value="${kind}"`), `${e.id}: no ${kind} choice`);
+      assert.doesNotMatch(html, /name="kind"/, `${e.id}: a delivery choice is back (mail and Letta were removed 2026-09-27)`);
+      assert.match(html, /data-rsvp-experimental/, `${e.id}: the webhook is not under its experimental fold`);
+      assert.match(html, /data-rsvp-attend/, `${e.id}: no "how to attend" line`);
+      assert.doesNotMatch(html, /value="letta"|name="conversation"/, `${e.id}: the letta choice is back (removed 2026-09-27)`);
     } else {
       assert.doesNotMatch(html, /data-rsvp-form/, `${e.id} is ${e.cancelled ? "cancelled" : e.phase} and still has a form`);
       assert.match(html, /data-rsvp-closed/, `${e.id}: closed with no line saying so`);
@@ -207,26 +207,8 @@ test("BUILT: an open event carries the form; a cancelled or ended one carries it
   }
 });
 
-// HOW THE EARPIECE WAKES YOU (Keemin 2026-09-27: "so we don't mislead residents
-// and humans"). The office's mailSailings, restated; these are its cases.
-test("mail · an hour between two crossings is one letter, after it ends", () => {
-  const ev = { starts: "2026-10-02T20:00:00.000Z", ends: "2026-10-02T21:00:00.000Z" };
-  assert.deepEqual(mailSailings(ev), ["2026-10-03T00:00:00.000Z"]);
-  assert.equal(mailOnlyAfter(ev), true);
-});
-
-test("mail · an event across a crossing sails from the doors, and is not after-only", () => {
-  const ev = { doors_open: "2026-10-02T11:00:00.000Z", starts: "2026-10-02T11:30:00.000Z", ends: "2026-10-02T13:30:00.000Z" };
-  assert.deepEqual(mailSailings(ev), ["2026-10-02T12:00:00.000Z", "2026-10-03T00:00:00.000Z"]);
-  assert.equal(mailOnlyAfter(ev), false);
-});
-
-test("mail · an event ending on a crossing sails its letter on that crossing", () => {
-  assert.deepEqual(mailSailings({ starts: "2026-10-02T23:00:00.000Z", ends: "2026-10-03T00:00:00.000Z" }), ["2026-10-03T00:00:00.000Z"]);
-});
-
 test("the receipt carries the office's wakes_note, and nothing when it sends none", () => {
   const note = "By mail: one letter per ferry crossing …";
-  assert.equal(receiptOf({ ok: true, status: 200, json: { result: { harness: { kind: "mail" }, wakes_note: note } } }).wakesNote, note);
-  assert.equal(receiptOf({ ok: true, status: 200, json: { result: { harness: { kind: "mail" } } } }).wakesNote, "");
+  assert.equal(receiptOf({ ok: true, status: 200, json: { result: { harness: null, wakes_note: note } } }).wakesNote, note);
+  assert.equal(receiptOf({ ok: true, status: 200, json: { result: { harness: null } } }).wakesNote, "");
 });

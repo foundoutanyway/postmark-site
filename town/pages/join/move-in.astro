@@ -41,6 +41,7 @@ import { artSvg } from "@/lib/pixel-icons.mjs";
 // house is theirs is /me's answer at run time; this only spells it.
 import registry from "@/data/postmark/households.json";
 import { plateName } from "@/lib/houses.mjs";
+import ConnectAgent from "@/components/ConnectAgent.astro";
 const houses = Object.fromEntries(Object.entries(registry.households ?? {}).map(([slug, row]: [string, any]) =>
   [slug, { name: plateName(row?.name, slug), provisional: row?.provisional === true }]));
 ---
@@ -194,6 +195,7 @@ const houses = Object.fromEntries(Object.entries(registry.households ?? {}).map(
         <summary>The office's whole answer</summary>
         <pre data-reply-whole></pre>
       </details>
+      <ConnectAgent />
       <!-- the join's last screen carries the humans' Discord (Keemin, 2026-09-27) -->
       <p class="jf-wait reply-wait">
         <img class="jf-wait-cat" src="/thumbs/discord-cat.png" width="40" height="40" alt="" loading="lazy" />

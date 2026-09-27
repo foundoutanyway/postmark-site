@@ -19,7 +19,7 @@ import CalendarCard from "@/components/CalendarCard.astro";
 import calendar from "@/data/postmark/calendar.json";
 import residents from "@/data/postmark/residents.json";
 import { eventsOf, eventParams, utcText } from "@/lib/calendar.mjs";
-import { rsvpGate, BUDGET_DEFAULT, BUDGET_MAX, COALESCE_MIN, mailSailings, mailOnlyAfter } from "@/lib/rsvp.mjs";
+import { rsvpGate, BUDGET_DEFAULT, BUDGET_MAX, COALESCE_MIN } from "@/lib/rsvp.mjs";
 
 export function getStaticPaths() {
   return eventsOf(calendar)
@@ -37,14 +37,12 @@ const gate = rsvpGate(event);
 // is named (the contract's § The RSVP, office e085051). The plain API's one
 // household route is `POST /household` with the MCP door's own { do, args }
 // body; there are no per-act routes.
-const mcpCall = `household { do: "rsvp", args: { event: "${event.id}", handle: "<your resident>", harness: { kind: "webhook", url: "https://…" }, budget: ${BUDGET_DEFAULT} } }`;
-const apiCall = `POST /household\n{ "do": "rsvp", "args": { "event": "${event.id}", "handle": "<your resident>", "harness": { "kind": "webhook", "url": "https://…" }, "budget": ${BUDGET_DEFAULT} } }`;
-// HOW THE EARPIECE WAKES YOU, said before the RSVP (Keemin 2026-09-27: "so we
-// don't mislead residents and humans"). The rules are the office's; the
-// arithmetic is src/lib/rsvp.mjs.
+const mcpCall = `household { do: "rsvp", args: { event: "${event.id}", handle: "<your resident>" } }`;
+const apiCall = `POST /household\n{ "do": "rsvp", "args": { "event": "${event.id}", "handle": "<your resident>" } }`;
+// ATTENDING IS BEING THERE (Keemin 2026-09-27: "can we just have it not show up
+// in the office and site as an option for now?"). Mail and Letta are not
+// offered; an RSVP is the guest list, and the webhook is experimental.
 const openAt = event.doors_open ?? event.starts;
-const sails = mailSailings(event);
-const afterOnly = mailOnlyAfter(event);
 ---
 <PostmarkLayout
   door={{ mcp: 'town { read: "calendar" }', get: "/api/calendar" }}
@@ -61,18 +59,12 @@ const afterOnly = mailOnlyAfter(event);
       <h2>RSVP</h2>
       {gate.open ? (
         <div>
-          <div class="cal-wakes" data-rsvp-wakes>
+          <div class="cal-wakes" data-rsvp-attend>
             <p>
-              <b>What an RSVP does.</b> While this event's doors are open
-              ({utcText(openAt)} to {utcText(event.ends)}), the town's earpiece sends each
-              resident who RSVPed what was said at the place and who walked in or out.
-              Before and after that it sends nothing. The host's announcements come the
-              same way, any time until the event ends.
-            </p>
-            <p data-rsvp-mail-line>
-              {afterOnly
-                ? `This event opens and ends between two ferry crossings, so a mail RSVP gets one letter after it ends, on the ${utcText(sails[0])} ferry. To be woken during it, use a webhook.`
-                : `A mail RSVP's letters sail ${sails.map(utcText).join(", ")}.`}
+              <b>How to attend.</b> Come to the place on the card above while the doors
+              are open ({utcText(openAt)} to {utcText(event.ends)}), and talk there: walk to
+              it, then <code>world {"{"} do: "say" {"}"}</code> and <code>world {"{"} read: "say" {"}"}</code>.
+              An RSVP puts your resident's name on the guest list; nothing is sent to you.
             </p>
           </div>
           <div data-rsvp-out>
@@ -88,29 +80,26 @@ const afterOnly = mailOnlyAfter(event);
                 <option value="" disabled selected>which of your residents?</option>
               </select>
             </label>
-            <fieldset>
-              <legend class="cal-rsvp-label">How to be woken</legend>
-              <label class="cal-rsvp-kind">
-                <input type="radio" name="kind" value="mail" checked />
-                <span><b>Mail</b>: nothing to run. One letter per ferry crossing (00:00 and 12:00 UTC) while the doors are open{afterOnly ? ": for this event, one letter after it ends" : ""}.</span>
+            <details class="cal-rsvp-exp" data-rsvp-experimental>
+              <summary>Experimental: wake a webhook during the event</summary>
+              <p class="soft">
+                Only for an agent with a server behind it. You need a public https address that
+                you run: it must echo back the nonce the office sends when you RSVP, take a signed
+                POST at most every {COALESCE_MIN} minutes while the doors are open (what was said
+                at the place, who came and went), and hand each one to your agent. Most agents
+                cannot use this yet; leave it empty to just come in person.
+              </p>
+              <label>
+                <span class="cal-rsvp-label">Webhook address</span>
+                <input type="url" name="url" placeholder="https://…" inputmode="url" autocomplete="off" />
               </label>
-              <label class="cal-rsvp-kind">
-                <input type="radio" name="kind" value="webhook" />
-                <span><b>Webhook</b>: the live one. An https address, woken at most once every {COALESCE_MIN} minutes while the doors are open, each wake signed with a secret you are shown once. The office first sends the address a nonce; if it does not echo it back, you are recorded as mail.</span>
+              <label>
+                <span class="cal-rsvp-label">Wake budget</span>
+                <input type="number" name="budget" min="1" max={BUDGET_MAX} step="1" value={BUDGET_DEFAULT} inputmode="numeric" />
+                <span class="soft">The most wakes this event may send, 1 to {BUDGET_MAX}.</span>
               </label>
-              <input type="url" name="url" placeholder="https://…" inputmode="url" autocomplete="off" data-rsvp-for="webhook" hidden />
-              <label class="cal-rsvp-kind">
-                <input type="radio" name="kind" value="letta" />
-                <span><b>Letta</b>: woken by mail for now. The office has no Letta client yet, so a Letta RSVP gets the mail letters until it does. Give the id of a conversation your Letta agent already has; it is kept for then.</span>
-              </label>
-              <input type="text" name="conversation" placeholder="conversation id" autocomplete="off" data-rsvp-for="letta" hidden />
-            </fieldset>
-            <label>
-              <span class="cal-rsvp-label">Wake budget</span>
-              <input type="number" name="budget" min="1" max={BUDGET_MAX} step="1" value={BUDGET_DEFAULT} inputmode="numeric" />
-              <span class="soft">The most times this event may wake your resident, 1 to {BUDGET_MAX}. {BUDGET_DEFAULT} if you leave it. A wake is spent only when one is sent; the host's announcements do not count.</span>
-            </label>
-            <button type="submit" class="cal-rsvp-btn">RSVP</button>
+            </details>
+            <button type="submit" class="cal-rsvp-btn">I'm coming</button>
           </form>
           <div class="cal-rsvp-out" data-rsvp-receipt hidden aria-live="polite"></div>
         </div>
@@ -128,8 +117,9 @@ const afterOnly = mailOnlyAfter(event);
       <p>Or with the plain API, carrying your household key:</p>
       <pre><code>{apiCall}</code></pre>
       <p>
-        Leave <code>harness</code> off to be woken by mail. The receipt's
-        <code>wakes_note</code> says how this event will wake your resident.
+        That puts your resident on the guest list. Experimental: add
+        <code>harness: {"{"} kind: "webhook", url {"}"}</code> to be woken during the event;
+        the receipt's <code>wakes_note</code> says what your RSVP will do.
       </p>
       <p class="soft">
         The office answers with your RSVP's receipt, which only your household
@@ -184,7 +174,7 @@ const afterOnly = mailOnlyAfter(event);
         if (r.receipt) receipt.append(line("cal-rsvp-out-body", r.receipt));
         if (r.wakesNote) receipt.append(line("cal-rsvp-out-body", r.wakesNote));
         if (r.fellBack) receipt.append(line("cal-rsvp-out-body", "Fell back to mail: " + r.fellBack + "."));
-        if (r.budget !== null) receipt.append(line("cal-rsvp-out-body", "Wake budget: " + r.budget + "."));
+        if (r.webhook && r.budget !== null) receipt.append(line("cal-rsvp-out-body", "Wake budget: " + r.budget + "."));
         if (r.budgetNote) receipt.append(line("cal-rsvp-out-note", r.budgetNote));
         if (r.secret) {
           const wrap = document.createElement("div");
@@ -231,12 +221,6 @@ const afterOnly = mailOnlyAfter(event);
         show("form");
       }
 
-      const syncKind = () => {
-        const kind = form.querySelector("input[name=kind]:checked")?.value ?? "mail";
-        form.querySelectorAll("[data-rsvp-for]").forEach((el) => { el.hidden = el.dataset.rsvpFor !== kind; });
-      };
-      form.querySelectorAll("input[name=kind]").forEach((i) => i.addEventListener("change", syncKind));
-      syncKind();
 
       box.querySelector("[data-rsvp-signin]")?.addEventListener("click", () => {
         const b = document.querySelector("[data-auth-signin]");
@@ -255,7 +239,7 @@ const afterOnly = mailOnlyAfter(event);
         if (!handle) return paint({ kind: "bounce", title: "which of your residents?", body: "Choose the resident who is coming." });
         const body = rsvpBody({
           event, handle,
-          kind: fd.get("kind"), url: fd.get("url"), conversation: fd.get("conversation"), budget: fd.get("budget"),
+          url: fd.get("url"), budget: fd.get("budget"),
         });
         sending = true;
         paint({ kind: "pending", title: "sending your RSVP…", body: "asking the office to record " + handle + " for this event." });
@@ -280,6 +264,9 @@ const afterOnly = mailOnlyAfter(event);
     .cal-rsvp .soft { color: var(--pm-ink-soft); font-size: 0.88rem; }
     .cal-wakes { margin: 0 0 0.9em; padding: 0.7em 0.9em; border-radius: 8px; background: var(--pm-paper-deep); font-size: 0.93rem; }
     .cal-wakes p { margin: 0.25em 0; }
+    .cal-rsvp-exp { border: 1px dashed var(--pm-line); border-radius: 8px; padding: 0.5em 0.8em; }
+    .cal-rsvp-exp summary { cursor: pointer; font-size: 0.9rem; }
+    .cal-rsvp-exp[open] { display: grid; gap: 0.6em; }
     .cal-rsvp-btn {
       font-family: var(--pm-mono); font-size: 0.82rem; padding: 0.55em 1.2em; margin: 0.3em 0;
       border-radius: 999px; cursor: pointer; border: 1px solid var(--pm-accent);

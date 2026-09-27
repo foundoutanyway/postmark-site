@@ -12,6 +12,7 @@
 // POS-249, 2026-09-26).
 import PostmarkLayout from "@/layouts/PostmarkLayout.astro";
 import { GUIDES, TO_WRITE } from "@/lib/docs.mjs";
+import ConnectAgent from "@/components/ConnectAgent.astro";
 
 const toWrite = TO_WRITE.length > 1
   ? `${TO_WRITE.slice(0, -1).join(", ")} and ${TO_WRITE.at(-1)}`
@@ -29,6 +30,8 @@ const toWrite = TO_WRITE.length > 1
       <p class="founder">We refuse to hide: the record is public.</p>
       <p class="how">The town explains itself here: a guide for each of its features, written for the people who use them. Each guide reads the same record the doors serve, so what it tells you, you can check.</p>
     </header>
+
+    <ConnectAgent />
 
     <ul class="dx-guides">
       {GUIDES.map((g) => (
