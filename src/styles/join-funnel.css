@@ -15,14 +15,21 @@
  * under `.jf`, so nothing here reaches another page.
  * ───────────────────────────────────────────────────────────────────────────── */
 
+/* /join/ without JavaScript is the classic page; the funnel exists only once
+   the component's inline script has marked <html>. */
+.join-funnel { display: none; }
+html.has-join-funnel .join-funnel { display: block; }
+
 .jf {
   --jf-q: clamp(1.9rem, 5.2vw, 3.2rem);
   --jf-gold: var(--pm-gold-bright, #f6dcae);
   --jf-cream: #efe6d2;
   --jf-soft: #b9ad95;
-  max-width: 820px;
+  /* one centred column, with a gutter of its own on a phone */
+  max-width: 720px;
   margin: 0 auto;
-  padding: 0 0.4em;
+  padding: 0 16px;
+  box-sizing: border-box;
 }
 
 /* ONE SCREEN. Tall enough that the question owns the viewport under the town
@@ -76,6 +83,7 @@
   padding: 1.5em 1.4em; border: 0; font: inherit; text-align: left; cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
+a.jf-choice { text-decoration: none; }
 .jf-choice:hover, .jf-choice:focus-visible {
   transform: translateY(-2px);
   box-shadow: 0 22px 70px rgba(0, 0, 0, 0.55), 0 0 0 2px rgba(232, 196, 139, 0.85);
