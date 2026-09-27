@@ -68,6 +68,16 @@ export const ACCENTS = {
   votes: { a: "#a4632a", A: "#c9823d", m: "#6d4220" },
 };
 
+// THE MEEPS WEAR THE LANES' TRIPLES, by reference — the same objects, so a
+// lane's colour moving moves the meep that borrowed it, and no hex is typed twice.
+Object.assign(ACCENTS, {
+  postmaster: ACCENTS.listings,
+  illuminator: ACCENTS.quests,
+  registrar: ACCENTS.votes,
+  worldkeeper: ACCENTS.ideas,
+  architect: ACCENTS.bounties,
+});
+
 // A hex from the table above, as the three channels a CSS rgba() needs. Kept
 // here rather than in the page because it is the only place a palette entry is
 // allowed to change shape, and because a falsifier can then check that what a
@@ -268,12 +278,111 @@ const BALLOT_HOUSE = [
   "........................",
 ];
 
+
+// ── THE MEEPS ────────────────────────────────────────────────────────────────
+// The meeps' quarter drew five buildings here (the site, reprojected, part 3).
+// POS-252 retired them on Keemin's word, 2026-09-26: "I'd like the sprites
+// represent the actual meeps and not their buildings." A meep's sprite is a
+// drawing of the meep, keyed by its handle in SPRITES below; a meep with no
+// entry has no sprite yet, and /meeps/ says so and shows its portrait.
+// The meeps keep the lanes' accent triples (ACCENTS above) for their tints.
+
+// A MEEP'S OWN INKS. A figure needs colours a building never did (skin, a
+// coat), so a meep's sprite may add inks of its own here, merged over INK and
+// its accent triple at paint time. The rule stays the table's: every hex below
+// is one the site already wears, named where it is worn.
+export const FIGURE_INK = {
+  postmaster: {
+    e: "#97a266", // skin, lit — global.css --moss, the banner green
+    E: "#4d7d54", // skin, shade — the mail pair page's check green
+    c: "#4a5c8a", // coat — the Think Tank's accent
+    C: "#2f3c5c", // coat, shade — the Think Tank's mid tone
+    n: "#a4632a", // fins — the Ballot House's copper
+    N: "#6d4220", // fins, shade — the Ballot House's mid tone
+  },
+  meeplings: {
+    y: "#edba68", // chick — global.css, the lamp gold
+    Y: "#c9823d", // chick, shade — the Ballot House's lit copper
+    b: "#a4632a", // beak — the Ballot House's copper
+    q: "#cdbda4", // eggshell, shade — global.css, the parchment
+  },
+};
+
+// FERRY, THE POSTMASTER — from the portrait `seven` drew and gave the office
+// (WHITE_PAGES/postmaster/avatar.jpg, credited in his PROFILE.md): an
+// amphibian postmaster, fins for ears, wet dark hair, amber eyes, a stamp stuck
+// to one cheek, a blue coat with a satchel strap across it, and a lantern lit
+// beside him. Keemin's ruling via Wright, 2026-09-26: the other four meeps get
+// no drawing until they give their own faces.
+const FERRY = [
+  "......ssssssss..........",
+  ".....sSSSSSSSSs......t..",
+  "....sSSssSSssSSs.....t..",
+  "....sseeeeeeeess....kttk",
+  "..nnseeeeeeeeeesnn..kGGk",
+  ".nNnsegdeeeegdesnNn.kGgk",
+  "..nnseeeeEeeeeesnn..kGGk",
+  "....seeeeeeepees....kGGk",
+  "....seeEeeeeEees....kttk",
+  ".....seeddddees.........",
+  "......sEeeeeEs..........",
+  "....CCcEEEEEEcCC........",
+  "..CccccccEEccccccC......",
+  ".CcctcccccccccccccC.....",
+  ".CcccctcccgcccccccC.....",
+  "CcccccctcccgccccccC.....",
+  "CccccccctcccccccccC.....",
+  "CcccccccctpppptcccC.....",
+  "CccccccccttttttcccC.....",
+  "CcccccccgttttttcccC.....",
+  "CCCCCCCCCCCCCCCCCCC.....",
+  "..sSssssSsssssSssssSss..",
+  "........................",
+  "........................",
+];
+
+// THE MEEPLINGS — not a meep, and not a face: the box's machinery, drawn as
+// Keemin asked on 2026-09-27, "an adorable little gathering of baby chicks
+// wearing eggshells". Three chicks, each still in the bottom half of its shell,
+// the middle one wearing the top half as a hat, the right one with a tuft. The eggshell is the paper ink
+// (`p`); the chicks and the shell's shade are their own inks (FIGURE_INK).
+const MEEPLINGS = [
+  "........................",
+  "...........pp...........",
+  "..........pppq..........",
+  ".........ppppqq.........",
+  ".........pypypq.........",
+  ".........yyyyyy.........",
+  "........yyyyyyyY........",
+  "........ykyyykyY........",
+  "..yyy...yyybbyyY........",
+  ".yyyyY..yyyyyyyY....Y...",
+  ".yykyY.YyyyyyyyyY..yyy..",
+  ".yyyybbYyyyyyyyYY.Yyyyy.",
+  ".yyyyY..yyyyyyyY..ykyyyY",
+  "yyyyyYYpypypypypqbbyyyyY",
+  "pypypyqppppppppqq.yyyyyY",
+  "ppppppqppppppppqqpypypyq",
+  "ppppppqppppppppqqppppppq",
+  "ppppppqppppppppqqppppppq",
+  ".ppppq..pppppppq..ppppq.",
+  ".ppppq..pppppppq..ppppq.",
+  "..pqq....ppppqq....pqq..",
+  "..sSssssSsssssSssssSss..",
+  "........................",
+  "........................",
+];
+
 export const SPRITES = {
   quests: QUEST_GUILD,
   ideas: THINK_TANK,
   bounties: BOUNTY_BOARD,
   listings: MARKETPLACE,
   votes: BALLOT_HOUSE,
+  // the meeps, each drawn as itself (a meep with no entry has no sprite yet)
+  postmaster: FERRY,
+  // the meeplings, as a gathering (they are not a meep; /meeps/ shows them apart)
+  meeplings: MEEPLINGS,
 };
 
 export const SPRITE_W = 24;
@@ -312,7 +421,7 @@ export function paint(name) {
   if (!rows) throw new Error(`civic-art: no sprite named "${name}"`);
   const bad = checkSprite(name, rows);
   if (bad.length) throw new Error(`civic-art: sprite "${name}" is malformed — ${bad.join("; ")}`);
-  const ink = { ...INK, ...(ACCENTS[name] ?? {}) };
+  const ink = { ...INK, ...(ACCENTS[name] ?? {}), ...(FIGURE_INK[name] ?? {}) };
 
   const rects = [];
   rows.forEach((row, y) => {

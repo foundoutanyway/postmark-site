@@ -1,0 +1,98 @@
+// conciseness.test.mjs — the site, reprojected, part 8: less visible text,
+// hover and expand for the curious.
+//
+//   node --test test/conciseness.test.mjs
+//
+// THE IDIOM: visible = the least a reader needs; the rest rides a `title` (a
+// hover) or sits behind a `<details>` (an expand); a moved sentence stays in
+// the DOM, whole, for a screen reader (`.pm-sr` or the `<details>` body).
+// Information is MOVED, never deleted — so this suite reads each built page
+// and asserts that every sentence the pass took out of view is still on the
+// page, inside a title, a `<details>` body or a `.pm-sr` span. Drop one moved
+// sentence entirely and its test reds.
+//
+// Built-page tests are skipped until the page is built, as POS-177 rules.
+
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync, existsSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const DATA = (f) => JSON.parse(readFileSync(join(ROOT, "src", "data", "postmark", f), "utf8"));
+const DIST = join(ROOT, "dist-town");
+const built = (...segs) => existsSync(join(DIST, ...segs, "index.html"));
+const html = (...segs) => readFileSync(join(DIST, ...segs, "index.html"), "utf8");
+
+const decode = (s) => String(s)
+  .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&#x27;/g, "'")
+  .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+// inline tags vanish ("the <a>town repo</a>;" reads "the town repo;"); block
+// tags part words ("<dt>held</dt><dd>0</dd>" reads "held 0")
+const plain = (s) => decode(String(s)
+  .replace(/<\/?(?:a|b|i|em|strong|code|span)\b[^>]*>/g, "")
+  .replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim();
+
+/**
+ * Everything on a page that is OUT OF VIEW BY DESIGN: every `title`'s value,
+ * every `<details>` body, every `.pm-sr` span — as plain text, one string.
+ */
+function tucked(page) {
+  const out = [];
+  for (const m of page.matchAll(/\btitle="([^"]*)"/g)) out.push(plain(m[1]));
+  for (const m of page.matchAll(/<details\b[^>]*>([\s\S]*?)<\/details>/g)) out.push(plain(m[1]));
+  for (const m of page.matchAll(/<span\b[^>]*class="[^"]*\bpm-sr\b[^"]*"[^>]*>([\s\S]*?)<\/span>/g)) out.push(plain(m[1]));
+  return out.join(" ¶ ");
+}
+
+const reachable = (page, sentences) => {
+  const t = tucked(page);
+  for (const s of sentences) assert.ok(t.includes(plain(s)), `moved out of view and not reachable by hover or expand: "${s}"`);
+};
+
+// The Meeps left this suite with POS-252: the Site Lift retires the expands
+// and hovers there, and test/meeps-quarter.test.mjs asserts the text is in view.
+
+// RE-AIMED 2026-09-26 (the Site Lift, POS-253, under POS-250's rule: no
+// "more", nothing only in a hover): the Households' intro is visible whole, and
+// no hover carries a house. Its reachability check became a visibility check;
+// the page's own suite (households-directory.test.mjs) holds the rest.
+test("the Households: the intro is visible, nothing tucked", { skip: !built("households") }, () => {
+  const page = html("households");
+  assert.equal(/<details\b/.test(page), false, "the Households has an expand again");
+  const head = plain(page.slice(page.indexOf('class="dir-head'), page.indexOf("data-houses")));
+  assert.ok(head.includes("a named house opens its own page"), "the intro's second sentence is not in view");
+});
+
+// THE RECORD'S LANDING AND ITS CROSSINGS PAGE RETIRED with the Record (the Site
+// Lift, POS-249, 2026-09-26): /records/ and /records/crossings/ forward to the
+// replay, which carries the settlements (POS-255). Their reachability checks
+// went with the pages. The repos page moved to the Docs, and under POS-250's
+// rule its cards carry what each repo holds in view, not on a hover (POS-257):
+// its check became a visibility check in docs.test.mjs.
+
+// The bulletin's "more" came out with the board (POS-251, under POS-250's
+// rule: no "more" buttons). Its two sentences are in view now, in the colophon.
+test("the bulletin: the intro's rest is in view, not behind an expand", { skip: !built("bulletin") }, () => {
+  const page = html("bulletin");
+  const visible = plain(page.replace(/<details[\s\S]*?<\/details>/g, "").replace(/title="[^"]*"/g, ""));
+  for (const s of [
+    "The notices live in the town repo; posts get pinned and retired by the town itself.",
+    "What the mailman noticed today is Ferry's Daily.",
+  ]) assert.ok(visible.includes(plain(s)), `not in view on the bulletin: "${s}"`);
+});
+
+// RE-AIMED 2026-09-26 (the Site Lift, POS-250: nothing lives only in a
+// hover): the plain GET came off the read's hover and back onto the line. The
+// age clause is an island that fills after load, so the built page carries it
+// hidden and empty; its words are asserted in view, not its phrase.
+test("the door line reads the read, then the plain GET, in view; nothing on a hover", { skip: !built("bulletin") }, () => {
+  const page = html("bulletin");
+  const foot = page.slice(page.indexOf("data-door-foot"));
+  const line = foot.slice(0, foot.indexOf("</p>"));
+  assert.equal(/\btitle=/.test(line), false, "the door line carries a hover again");
+  assert.equal(/\bpm-sr\b/.test(line), false, "the door line tucks a clause out of view again");
+  assert.match(plain(line), /this page is town \{ read: "bulletin" \} · GET \/api\/bulletin · as the office read it$/);
+});

@@ -335,28 +335,37 @@
 }
 @media (max-width: 640px) { .pm .pm-letter .pm-attachments { grid-template-columns: 1fr; } }
 
-/* ── thread cards (the mail index) ── */
+/* ── thread cards (the mail index) ──
+   On the letter paper every letter on the site wears (.pm-paper / .pm-letter):
+   cream, ink, the dashed rule (Keemin, 2026-09-27: "The Mail's letter cards
+   should be restyled to fit the cream light-mode of letters shown everywhere
+   else on the site"). */
 .pm .pm-thread-card {
   display: block;
   padding: 0.95em 1.2em;
-  background: rgba(13, 20, 38, 0.72);
-  border: 1px solid rgba(232, 196, 139, 0.18);
+  background:
+    linear-gradient(180deg, rgba(255, 252, 244, 0.5), rgba(255, 252, 244, 0) 60px),
+    var(--pm-paper);
+  color: var(--pm-ink);
+  border: 1px solid rgba(232, 196, 139, 0.24);
   border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
   text-decoration: none;
   transition: border-color 0.15s ease, transform 0.15s ease;
 }
-.pm .pm-thread-card:hover { border-color: rgba(232, 196, 139, 0.55); transform: translateY(-1px); }
+.pm .pm-thread-card:hover { border-color: var(--pm-gold); transform: translateY(-1px); }
 .pm .pm-thread-card .t-title {
-  color: var(--pm-gold-bright); font-weight: 700; font-size: 1.02rem;
+  color: var(--pm-ink); font-weight: 700; font-size: 1.02rem;
 }
 .pm .pm-thread-card .t-meta {
-  margin-top: 0.25em;
+  margin-top: 0.25em; padding-bottom: 0.45em;
+  border-bottom: 1px dashed var(--pm-line);
   font-family: var(--pm-mono); font-size: 0.66rem; letter-spacing: 0.08em;
-  color: rgba(232, 196, 139, 0.65);
+  color: var(--pm-ink-soft);
 }
 .pm .pm-thread-card .t-excerpt {
   margin-top: 0.45em;
-  color: #cdc2ab; font-size: 0.88rem; font-style: italic;
+  color: var(--pm-ink); font-size: 0.88rem; font-style: italic;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
 
@@ -444,12 +453,15 @@
    reaching for it, which is the whole reason the gutter rail read better than
    the page did. */
 .pm-chiprow--nav { justify-content: center; gap: 0.4em 0.5em; }
+/* BIGGER BUTTONS (Keemin, 2026-09-26: the chips are "hard to spot and will be
+   missed"). A row you can find: a label a size up from the old 0.66rem, a
+   button with room around it, and a border that shows before you hover. */
 .pm-chiprow--nav .pm-chip {
-  padding: 0.34em 0.85em;
-  font-family: var(--pm-mono); font-size: 0.66rem; letter-spacing: 0.08em;
-  color: rgba(232, 196, 139, 0.55);
-  background: rgba(13, 20, 38, 0.45);
-  border-color: rgba(232, 196, 139, 0.14);
+  padding: 0.5em 1.05em 0.5em 0.8em;
+  font-family: var(--pm-mono); font-size: 0.78rem; letter-spacing: 0.06em;
+  color: rgba(232, 196, 139, 0.72);
+  background: rgba(13, 20, 38, 0.6);
+  border-color: rgba(232, 196, 139, 0.26);
 }
 .pm-chiprow--nav .pm-chip:hover { color: var(--pm-gold); }
 .pm-chiprow--nav .pm-chip.is-on,
@@ -466,22 +478,20 @@
 .pm-chiprow--nav .pm-chip.is-first[aria-current="page"] {
   color: var(--pm-gold-bright); border-color: var(--pm-gold);
 }
-/* LITTLE ICONS — founder, 2026-08-25: "I'd like little icons for the town's
-   chips." Text-presentation glyphs, in the town's existing monochrome
-   vocabulary (✉ in the townmark, ✦ on the Join door, ✉/❖ on the Meeps' cards),
-   so they inherit the chip's own colour and mute and brighten with it. That is
-   the whole reason not to use colour emoji here: a chip's state is carried in
-   its colour, and a glyph that keeps its own palette would sit at full
-   brightness on a row of quiet chips and read as five things demanding
-   attention.
-   Set slightly larger than the 0.66rem mono label, because a glyph at label
-   size reads as punctuation rather than as a mark. Held a shade under the
-   label's own opacity so the word stays first. */
-.pm-chiprow--nav .pm-chip { gap: 0.42em; }
+/* PIXEL-ART ICONS — founder, 2026-08-25: "I'd like little icons for the
+   town's chips"; 2026-09-26: "little pixel-art icons for each chip". Drawn by
+   hand on a 16×16 grid (src/lib/pixel-icons.mjs) in currentColor, so each
+   mutes and brightens with its chip: a chip's state is carried in its colour,
+   the reason colour emoji were never used here.
+   EXACTLY 16px: one grid pixel per CSS pixel, two device pixels on a 2×
+   screen. Any size that is not a multiple of 16 lands grid pixels between
+   device pixels and smears the art, so the size is not a rem. */
+.pm-chiprow--nav .pm-chip { gap: 0.5em; }
 .pm-chiprow--nav .pm-chip-icon {
-  font-size: 0.88rem; line-height: 1; opacity: 0.66;
-  transition: opacity 0.12s ease;
+  display: inline-flex; flex: 0 0 auto; width: 16px; height: 16px;
+  opacity: 0.8; transition: opacity 0.12s ease;
 }
+.pm-chiprow--nav .pm-chip-icon svg { display: block; width: 16px; height: 16px; }
 .pm-chiprow--nav .pm-chip:hover .pm-chip-icon,
 .pm-chiprow--nav .pm-chip.is-on .pm-chip-icon,
 .pm-chiprow--nav .pm-chip[aria-current="page"] .pm-chip-icon { opacity: 1; }
@@ -550,3 +560,25 @@
 .pm .pm-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.1em; }
 @media (max-width: 860px) { .pm .pm-grid3 { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 560px) { .pm .pm-grid2, .pm .pm-grid3 { grid-template-columns: 1fr; } }
+
+/* ── the conciseness idiom (the site, reprojected, part 8) ──
+   Visible = the least a reader needs; the rest on hover (`title`) and, where a
+   hover is not enough (a link, a paragraph, a touch screen), behind a small
+   expand. Nothing is deleted: `.pm-sr` keeps a moved sentence whole for a
+   screen reader, and a `.pm-more` body stays in the DOM. The Clocks strip
+   (part 7) scopes its own copy of `.pm-sr`; this is the site-wide one. */
+.pm-sr {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+[title].pm-hint { cursor: help; text-decoration: underline dotted rgba(232, 196, 139, 0.35); text-underline-offset: 3px; }
+details.pm-more { margin: 0.35em auto 0; }
+details.pm-more > summary {
+  display: inline-block; cursor: pointer; list-style: none;
+  font-family: var(--pm-mono); font-size: 0.66rem; letter-spacing: 0.1em;
+  color: rgba(232, 196, 139, 0.62);
+}
+details.pm-more > summary::-webkit-details-marker { display: none; }
+details.pm-more > summary:hover, details.pm-more > summary:focus-visible { color: var(--pm-gold-bright); }
+details.pm-more[open] > summary { margin-bottom: 0.45em; }
+details.pm-more > :not(summary) { margin-top: 0; }

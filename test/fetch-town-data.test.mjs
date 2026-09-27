@@ -438,6 +438,27 @@ test("buildOfficeData preserves committed profiles when no checkout is supplied"
   assert.match(result.endpointGaps.join("\n"), /profiles preserved from committed snapshot/);
 });
 
+test("the office's own profile on the card wins over a snapshot's, normalized, and an empty one never erases (POS-252)", async () => {
+  const { data } = fixtureSnapshot();
+  const base = fixtureFetch();
+  const withProfile = (profile) => async (url) => {
+    const res = await base(url);
+    if (new URL(url).pathname !== "/residents/wright") return res;
+    const body = await res.json();
+    return { ...res, json: async () => ({ ...body, profile }) };
+  };
+  const office = { bio: " the office's bio ", avatar: "avatar.jpg", avatar_url: "https://evil.example/face.jpg" };
+  const result = await buildOfficeData({ apiBase: "https://example.test", dataDir: data, fetchImpl: withProfile(office) });
+  // trimmed and held to the media door, exactly as a checkout's PROFILE.md is
+  assert.deepEqual(result.files["residents.json"].find((r) => r.handle === "wright").profile, { bio: "the office's bio", avatar: "avatar.jpg" });
+  assert.match(result.problems.join("\n"), /avatar_url \(not the town media door\): office card \/residents\/wright/);
+  for (const empty of [{}, null]) {
+    const kept = await buildOfficeData({ apiBase: "https://example.test", dataDir: data, fetchImpl: withProfile(empty) });
+    assert.deepEqual(kept.files["residents.json"].find((r) => r.handle === "wright").profile, { bio: "snapshot profile" },
+      `an office profile of ${JSON.stringify(empty)} erased the snapshot's`);
+  }
+});
+
 test("buildOfficeData output is byte-stable for the same API state", async () => {
   const a = fixtureSnapshot();
   const b = fixtureSnapshot();

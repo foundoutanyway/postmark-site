@@ -247,7 +247,11 @@ export function ferryHeadline(markdown) {
     const crossing = /\bCrossing\s+(\d+)\b/i.exec(readable);
     if (!crossing) continue;
     const headline = readable.slice(crossing.index + crossing[0].length)
-      .replace(/^\s*[·—:|-]\s*/, "").replace(/\*+/g, "").trim();
+      // Since September Ferry separates with "--" ("Crossing 213 -- 50 letters over
+      // -- …"): a one-character strip left "- 50 letters over -- …" on every
+      // doorstep. The leading separator goes whole, and his "--" between figures
+      // reads as the middot he used before.
+      .replace(/^\s*(?:--|[·—:|-])\s*/, "").replace(/\*+/g, "").replace(/\s+--\s+/g, " · ").trim();
     return { crossing: Number(crossing[1]), headline: headline || null };
   }
   return null;

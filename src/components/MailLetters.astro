@@ -1,0 +1,39 @@
+---
+// MailLetters — the letters of a pair page or a thread page, and of their
+// older parts (POS-274). The letters arrive as HTML from mail-letter.mjs, the
+// same markup the older parts' JSON chunks carry, so the styles for them are
+// :global here: Astro's scoping never lands on inserted HTML. `olderIds`
+// (part 2 onward) puts the older-letters control above them.
+import MailOlder from "@/components/MailOlder.astro";
+
+interface Props { html: string; base?: string; olderIds?: string[][] }
+const { html, base = "", olderIds = [] } = Astro.props;
+---
+<div class="mail-letters">
+  <MailOlder base={base} olderIds={olderIds} />
+  <Fragment set:html={html} />
+</div>
+
+<style>
+  .mail-letters :global(.fr-letter) { border-left: 4px solid hsl(var(--h), 62%, 46%); scroll-margin-top: 5.5em; }
+  .mail-letters :global(.pm-letter) { scroll-margin-top: 5.5em; }
+  .mail-letters :global(.fr-threadline) {
+    font-family: var(--pm-mono); font-size: 0.74rem; letter-spacing: 0.06em;
+    /* inside the paper, aligned with the letterhead below it: with no inset it sat
+       on the card's top-left edge (visible at 390 wide, and on prod before this) */
+    margin: 0; padding: 0.9em 1.4em 0;
+  }
+  /* the unified stream reads as curated, not collapsed — a quiet rule where
+     the thread changes (git-event legibility, 2026-07-19) */
+  .mail-letters :global(.fr-newthread) {
+    text-align: center; margin: 1.6em 0 0.2em;
+    font-family: var(--pm-mono); font-size: 0.68rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: hsl(var(--h), 45%, 62%);
+  }
+  /* the happy path in human words: the ledger receipt on the letterhead */
+  .mail-letters :global(.fr-sailed) {
+    display: block; margin-top: 0.2em; text-align: right;
+    font-family: var(--pm-mono); font-size: 0.66rem; letter-spacing: 0.06em;
+    color: #4d7d54;
+  }
+</style>

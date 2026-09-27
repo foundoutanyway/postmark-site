@@ -64,25 +64,12 @@
 //      the permitted thing; what is forbidden is writing one down in prose.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
 import { FOUNDER_ACCOUNT } from "../src/lib/funding.mjs";
-import { allEntries } from "../src/lib/nav.mjs";
+import { allEntries, MOVED } from "../src/lib/nav.mjs";
 import { DEFAULT_LANE, STAGES } from "../src/lib/civic.mjs";
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
-
-// every .astro under town/pages — for laws about the pages tree rather than
-// about one named file in it
-function everyPageFile(dir = new URL("../town/pages/", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1")) {
-  const out = [];
-  for (const name of readdirSync(dir)) {
-    const full = join(dir, name);
-    if (statSync(full).isDirectory()) out.push(...everyPageFile(full));
-    else if (name.endsWith(".astro")) out.push(full);
-  }
-  return out;
-}
 
 // ── TWO SURFACES, AND WHICH LAW LIVES ON WHICH ───────────────────────────────
 // The founder split them on 2026-08-30 evening: the LANES are the civic
@@ -96,7 +83,7 @@ function everyPageFile(dir = new URL("../town/pages/", import.meta.url).pathname
 // content law in here went red at once while every sentence it asserts was
 // present and correct one file over.
 const HUB_PATH = "../town/pages/town/index.astro";
-const TEACHING_PATH = "../town/pages/stamps/index.astro";
+const TEACHING_PATH = "../town/pages/docs/stamps/index.astro";
 
 // Markup wraps quoted sentences across lines and threads <b> through them, so
 // every assertion below reads a whitespace-flattened, tag-stripped view. A
@@ -195,7 +182,7 @@ test("no dial value is written into the portal's rendered words", () => {
 });
 
 test("the portal points at the dials rather than owning them", () => {
-  assert.ok(teachRaw.includes('href="/numbers/"'), "the teaching must link The Town's Numbers");
+  assert.ok(teachRaw.includes('href="/docs/numbers/"'), "the teaching must link The Town's Numbers");
   assert.ok(/readEconomy\(loadEconomy\(\)\)/.test(teachSrc),
     "and read its tile values from the emission, never from a literal");
 });
@@ -245,7 +232,7 @@ test("every holo mention carries the ruling's line", () => {
   // as a link whose text is a question" — so the assertion asks for the link
   // and for the word inside its text, and the sibling law below asks that the
   // text is a question and that nothing else is left.
-  assert.ok(/href="\/stamps\/#\w+"[^>]*>[^<]*holo[^<]*</i.test(raw),
+  assert.ok(/href="\/docs\/stamps\/#\w+"[^>]*>[^<]*holo[^<]*</i.test(raw),
     "but the hub must still point a reader at where holo is explained");
   // AND NO TYPED COPY OF IT ANYWHERE. Counting occurrences was the wrong
   // instrument — with three mentions on the page, replacing one with prose
@@ -282,25 +269,31 @@ test("the nav carries one Stamps entry, flagged beta", () => {
   // FOUR MOVES, ONE UNCHANGED LAW: one door, wearing the beta chip. Each move
   // cost a one-line red rather than a silent green, which is the whole reason
   // this reads the structure and not a regex over the layout's text.
+  // (5) 2026-09-25, the site reprojected, part 5: Stamps moved into The Record
+  // as a chip — what lasts, in one place. The law did not move: ONE door,
+  // wearing the beta chip, opening /stamps/. Its label is a chip's now
+  // ("stamps", the row's own casing); its section is The Record.
   const stamps = allEntries().filter((e) => e.key === "stamps");
   assert.equal(stamps.length, 1, "ONE Stamps door in the rail — a second rebuilds the split the portal removed");
-  assert.equal(stamps[0].label, "Stamps");
+  assert.equal(stamps[0].label, "stamps");
   assert.equal(stamps[0].beta, true, "the Stamps entry must wear the beta chip");
-  // its own seat: a top-level entry is its own section, so `section` is its key
-  assert.equal(stamps[0].section, "stamps", "Stamps is not a top-rail seat");
-  assert.equal(stamps[0].depth, 0, "Stamps is a chip of some section again");
+  // (6) 2026-09-26, the Site Lift (POS-249): The Record dissolved and Stamps
+  // is a chip of the Docs, at /docs/stamps/; the old path forwards, fragment
+  // and all. The law did not move: ONE door, wearing the beta chip.
+  assert.equal(stamps[0].section, "docs", "Stamps is not a chip of the Docs");
+  assert.equal(stamps[0].depth, 1, "Stamps is not a chip");
 
   // AND IT OPENS THE PAGE DIRECTLY. It wore a `noActive` escape for one
   // afternoon, while its destination was a fold of somebody else's page and it
   // could therefore never light. That is gone with the reason for it: the seat
   // has its own room again and lights normally, which is what a top-rail seat
   // is supposed to do.
-  assert.equal(stamps[0].href, "/stamps/", "the Stamps seat must open the teaching");
+  assert.equal(stamps[0].href, "/docs/stamps/", "the Stamps seat must open the teaching");
   assert.equal(stamps[0].noActive, undefined,
     "the Stamps seat has its own page again — it must be able to light up");
   // and nothing in the rail deep-links PAST the door into the teaching's
   // sections, which would be a second Stamps door wearing a fragment
-  assert.deepEqual(allEntries().filter((e) => /^\/stamps\/.+/.test(e.href)), [],
+  assert.deepEqual(allEntries().filter((e) => /^\/docs\/stamps\/.+/.test(e.href)), [],
     "no second Stamps door in the rail");
 });
 
@@ -350,7 +343,7 @@ test("the civic quarter is the first screen, before any panel", () => {
   assert.ok(quarter < panel, "the panel opens above the civic quarter");
 });
 
-test("THE LAW: exactly one panel shows on arrival, and it is the Think Tank", () => {
+test("THE LAW: exactly one panel shows on arrival, and it is the Quest Guild", () => {
   // RETIRED AND REPLACED, 2026-09-01: this was "every lane ships shut but the
   // board", which asserted the fold default — the Bounty Board open, the rest
   // shut. The founder's one-panel ruling makes that shape nonexistent, so the
@@ -374,7 +367,7 @@ test("THE LAW: exactly one panel shows on arrival, and it is the Think Tank", ()
     "the panels must be hidden by default inside the @supports block");
   assert.ok(css.includes("${DEFAULT_LANE}"),
     "the default panel must be read from civic.mjs's DEFAULT_LANE, not typed here");
-  assert.equal(/data-panel="(quests|bounties|listings|votes)"\]\{display:block\}/.test(css), false,
+  assert.equal(/data-panel="(ideas|bounties|listings|votes)"\]\{display:block\}/.test(css), false,
     "a second lane is shown by default");
 
   // AND WHICH LANE THAT RESOLVES TO. The first version of this stopped at "the
@@ -382,10 +375,12 @@ test("THE LAW: exactly one panel shows on arrival, and it is the Think Tank", ()
   // DEFAULT_LANE to "quests" left this test green while the page opened on a
   // lane the founder did not name. A law titled "and it is the Think Tank" that
   // cannot see which lane it is, is a title doing the work of an assertion.
-  assert.equal(DEFAULT_LANE, "ideas",
-    "the panel must open on the Think Tank — the lane the head's own sentence is about");
-  const ideas = LANE_KEYS.indexOf(DEFAULT_LANE);
-  assert.ok(ideas >= 0, `DEFAULT_LANE "${DEFAULT_LANE}" is not one of the five lanes`);
+  // RE-RULED 2026-09-27 (Keemin): "make the Quest Guild the default instead of
+  // Think Tank".
+  assert.equal(DEFAULT_LANE, "quests",
+    "the panel must open on the Quest Guild");
+  const quests = LANE_KEYS.indexOf(DEFAULT_LANE);
+  assert.ok(quests >= 0, `DEFAULT_LANE "${DEFAULT_LANE}" is not one of the five lanes`);
 
   // and no panel carries an `open`-shaped default of its own
   assert.equal(/<section class="c-lane"[^>]*\bopen\b/.test(raw), false,
@@ -467,22 +462,62 @@ function lane(id) {
   return next < 0 ? rest : rest.slice(0, next);
 }
 
-test("THE LAW: the Guild reads cards, then the pots, then the standings", () => {
-  // THE FOUNDER'S WORDS, 2026-08-31: "'What the Town Needs Money For' (the pots)
-  // goes directly under the quest cards at the top; the standings go below
-  // everything else."
+test("THE LAW: the Guild reads the pots, then the quest cards, then the standings", () => {
+  // KEEMIN, 2026-09-26 (POS-258): "the funding pots should sit at the top of
+  // the quest guild, for visibility." The founder's 2026-08-31 words still
+  // hold for the foot: "the standings go below everything else." (From
+  // 08-31 to 09-26 the pots sat directly under the quest cards.)
   //
   // Asked as ORDER because order is the whole ruling — every one of these three
   // blocks was already on the page, and a test that only asked whether they are
   // present would have passed before the change and after it.
   const guild = lane("quests");
+  const head = guild.indexOf("<LaneHead");
   const cards = guild.indexOf("questRows.map");
   const pots = guild.indexOf('<div id="pots"');
   const standings = guild.indexOf('<ol class="q-stand">');
-  assert.ok(cards > 0 && pots > 0 && standings > 0,
-    `the Guild lost a block — cards:${cards} pots:${pots} standings:${standings}`);
-  assert.ok(cards < pots, "the pots must sit directly under the quest cards, not below the standings");
-  assert.ok(pots < standings, "and the standings go below everything else");
+  assert.ok(head > 0 && cards > 0 && pots > 0 && standings > 0,
+    `the Guild lost a block — head:${head} cards:${cards} pots:${pots} standings:${standings}`);
+  assert.ok(head < pots, "the lane's head still opens it");
+  assert.ok(pots < cards, "the pots sit at the top of the Guild, above the quest cards");
+  assert.ok(cards < standings, "and the standings go below everything else");
+  // ⚑ THE FLIP: move the pots block back under the quest grid and "above the quest cards" reads red.
+});
+
+test("A POT CARD READS IN A FIRST-TIME READER'S ORDER: what it is for, how full, how to put stamps behind it", () => {
+  // KEEMIN, 2026-09-26 (POS-258), the issue's second part: "each pot shows what
+  // it is for, how full it is, and how to put stamps behind it, in the order a
+  // first-time reader needs." Read in the component, which is the one copy of
+  // the card (postmark#2810), so /town/ and /docs/stamps/ both carry it.
+  const card = cardsSrc.slice(cardsSrc.indexOf('class:list={["m-card", "is-pot"'));
+  const at = (needle) => {
+    const i = card.indexOf(needle);
+    assert.ok(i > 0, `the card lost ${needle}`);
+    return i;
+  };
+  const order = [
+    ['<h3 class="m-title">', "the title"],
+    ['<p class="m-what">', "the pot's own first sentence"],
+    ['<p class="m-for', "who it is for"],
+    ['p.close === "elastic"', "the money line"],
+    ['<p class="m-staked">', "the stamps staked"],
+    ['<p class="m-roll">', "the patron roll"],
+    ['<p class="m-foot">', "the way in"],
+  ].map(([needle, name]) => [at(needle), name]);
+  for (let k = 1; k < order.length; k++) {
+    assert.ok(order[k - 1][0] < order[k][0], `${order[k - 1][1]} must come before ${order[k][1]}`);
+  }
+  // the way in says, in words, how stamps go behind the pot, and goes to the
+  // stake form on the pot's own page (id="stake", inside its open gate)
+  const foot = card.slice(at('<p class="m-foot">'), card.indexOf("</p>", at('<p class="m-foot">')));
+  assert.match(foot, /href=\{`\/fund\/\$\{p\.pot\}\/#stake`\}>Stake stamps on it →<\/a>/,
+    "the card says how to put stamps behind the pot, and links the stake form");
+  assert.ok(foot.includes('href={`/fund/${p.pot}/`}>Fund →</a>'), "the money route stays beside it");
+  assert.ok(card.includes('{p.status === "open" && (\n') || card.includes('{p.status === "open" && (\r\n'),
+    "only an open pot offers a way in");
+  const fundPage = read("../town/pages/fund/[pot].astro");
+  assert.match(fundPage, /<section class="f-stake" id="stake"/, "the fragment the card links is a place on the pot's page");
+  // ⚑ THE FLIPS: move the staked chip back into the foot, or drop "#stake", and this reads red.
 });
 
 test("THE LAW: every panel's title is READ, and the page holds no copy of a plaque", () => {
@@ -1133,14 +1168,17 @@ test("no pot page promises a close it does not run", () => {
 // ── the routes ───────────────────────────────────────────────────────────────
 
 test("both retired routes redirect somewhere that exists", () => {
-  const config = read("../astro.config.town.mjs");
-  assert.match(config, /'\/board\/':\s*'\/town\/#board'/,
+  // RE-AIMED 2026-09-26 (the Site Lift, POS-249): the redirects left the Astro
+  // config for ONE table, MOVED in src/lib/nav.mjs, whose forwarding page
+  // carries the #fragment a meta refresh drops. Same two rows, same targets,
+  // except the guide's, which follows the teaching to /docs/stamps/.
+  assert.equal(MOVED["/board/"], "/town/#board",
     "the board's old path must land on the block that absorbed it");
   // RE-AIMED TWICE IN ONE DAY: the guide pointed at /town/#rules while The
   // Town held the teaching, and comes back to /stamps/ now that the teaching
   // does. The guide's content and this route's target have been the same thing
   // throughout; only the address of that thing moved, and back.
-  assert.match(config, /'\/stamps\/guide\/':\s*'\/stamps\/'/,
+  assert.equal(MOVED["/stamps/guide/"], "/docs/stamps/",
     "and the guide's, on the page that carries the teaching");
   // a redirect at a fragment the target does not carry lands nowhere at all
   assert.ok(raw.includes('<div id="board"'), "#board must still be on the hub");
@@ -1153,15 +1191,16 @@ test("both retired routes redirect somewhere that exists", () => {
   // /bulletin/ and took its plank painting with it, so a probe keyed on WHICH
   // page paints went red on a move that changed nothing about the law. The law
   // is that the asset prefix is live, so it asks the pages tree, not one file.
-  assert.ok(existsSync(new URL("../public/atelier/postmark/board/quest-board-wood.jpg", import.meta.url)),
+  assert.ok(existsSync(new URL("../public/atelier/postmark/board/quest-board.jpg", import.meta.url)),
     "the redirect must be exact-path: the board's images still live under /board/");
-  const painters = everyPageFile()
-    .filter((f) => readFileSync(f, "utf8").includes("/board/quest-board-wood.jpg"));
-  assert.ok(painters.length, "no page paints with /board/ any more — the exact-path reason is gone, and so is this test's premise");
+  // RETIRED 2026-09-26 (POS-251, the Site Lift): the painters check. The bulletin
+  // board paints in CSS now (a cork in the wall browns), so no page paints with
+  // the plank photo. The plank photo itself (quest-board-wood.jpg) retired the
+  // same day (POS-250); the check above asks for the image still under /board/.
 });
 
 test("nothing in the repo still points at a retired route", () => {
-  for (const page of ["index.astro", "numbers/index.astro", "fund/[pot].astro", "town/index.astro"]) {
+  for (const page of ["index.astro", "docs/numbers/index.astro", "fund/[pot].astro", "town/index.astro"]) {
     const s = read(`../town/pages/${page}`);
     assert.equal(/href="\/board\/"/.test(s), false,
       `${page} still links /board/ — the redirect is for links the repo cannot reach`);
@@ -1187,7 +1226,7 @@ test("nothing in the repo still points at a retired route", () => {
   // file already reads — so a pointer at a section that was renamed or removed
   // still costs a red, which is the failure the original two names were a proxy
   // for.
-  const teachLinks = [...raw.matchAll(/href="\/stamps\/#([\w-]+)"/g)].map((m) => m[1]);
+  const teachLinks = [...raw.matchAll(/href="\/docs\/stamps\/#([\w-]+)"/g)].map((m) => m[1]);
   assert.ok(teachLinks.length > 0, "the hub points at no part of the teaching at all");
   for (const id of teachLinks) {
     assert.ok(RULE_IDS.includes(id),
@@ -1389,7 +1428,7 @@ test("RULE 2: explain by link, never inline — and what survives is a question"
   // shortened the same day, and named on 09-01 as not-a-removal. So the law is
   // not "the paragraph is shorter"; it is that what stands in its place is a
   // LINK and its TEXT IS A QUESTION.
-  const seam = /<a href="\/stamps\/#seam">([^<]+)<\/a>/.exec(raw);
+  const seam = /<a href="\/docs\/stamps\/#seam">([^<]+)<\/a>/.exec(raw);
   assert.ok(seam, "the holo pointer is gone entirely — a lane owes a word it uses and does not define");
   assert.match(seam[1], /^What's holo\?$/,
     `the holo pointer's text must be the question itself, not a sentence: got "${seam[1]}"`);
@@ -1427,7 +1466,7 @@ test("RULE 2: explain by link, never inline — and what survives is a question"
   // mechanism. It is declared in that file's KNOWN_OPEN with the reason:
   // where the price rows should land is a content call, not a typo.
   for (const [what, href] of [
-    ["where holo is explained", "/stamps/#seam"],
+    ["where holo is explained", "/docs/stamps/#seam"],
     ["the full quest board", "/town/#quests"],
     ["the price board", "/bulletin/#marketplace"],
     ["the postmaster, who hand-sets a listing", "/mail/compose/?to=postmaster"],

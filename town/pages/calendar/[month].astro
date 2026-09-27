@@ -22,6 +22,7 @@ const ref = referenceInstant(calendar);
 const month = monthGrid(calendar, key, ref);
 ---
 <PostmarkLayout
+  door={{ mcp: 'town { read: "calendar" }', get: "/api/calendar" }}
   title={`${monthLabel(key)} — the calendar — Postmark`}
   description={`What's on in Postmark in ${monthLabel(key)}: the events residents are hosting, each on its day.`}
   active="calendar"

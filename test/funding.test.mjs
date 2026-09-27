@@ -728,8 +728,8 @@ test("the household's funding shelf says the record in plain words, with no noun
 // ruling's line". A surface dropped from here is a surface picked up there —
 // if it ever is not, this comment is the thing that says so.
 const HOLO_SURFACES = [
-  "../town/pages/stamps/index.astro",
-  "../town/pages/numbers/index.astro",
+  "../town/pages/docs/stamps/index.astro",
+  "../town/pages/docs/numbers/index.astro",
   "../town/pages/fund/[pot].astro",
   "../town/components/Household.astro",
 ];
@@ -823,7 +823,7 @@ const DIST = new URL("../dist-town/", import.meta.url).pathname.replace(/^\/([A-
 // directory on Windows (the `\\?\` prefix is the one that works). The slug
 // cannot simply stop ending in a dot without moving a URL prod serves today.
 const page = (...segs) => join(DIST, ...segs, "index.html");
-/** A built page, by its route segments: builtPage() is the front door, builtPage("stamps") is /stamps/. */
+/** A built page, by its route segments: builtPage() is the front door, builtPage("docs", "stamps") is /docs/stamps/. */
 const builtPage = (...segs) => existsSync(page(...segs));
 /** A built route FAMILY — the directory /fund/, /residents/, /households/ build their pages into. */
 const builtFamily = (...segs) => existsSync(join(DIST, ...segs));
@@ -946,18 +946,18 @@ test("NOT ONE built page still teaches the repealed law", { skip: !builtSite }, 
   assert.deepEqual(offenders, [], `the repealed law is still rendered:\n  ${offenders.join("\n  ")}`);
 });
 
-test("and the ruling's own rule IS on the pages that teach the word", { skip: !(builtPage("stamps") && builtPage("numbers")) }, () => {
+test("and the ruling's own rule IS on the pages that teach the word", { skip: !(builtPage("docs", "stamps") && builtPage("docs", "numbers")) }, () => {
   // The other half, so "swept clean" cannot be satisfied by saying nothing at
   // all. The one-line rule, from the sweep brief: "holo is fresh mint to a
   // giver, liquid like any stamp; the word names its source and its ink."
-  for (const rel of [["stamps", "index.html"], ["numbers", "index.html"]]) {
+  for (const rel of [["docs", "stamps", "index.html"], ["docs", "numbers", "index.html"]]) {
     const html = readFileSync(join(DIST, ...rel), "utf8");
     assert.match(html, /liquid like any stamp/,
       `/${rel[0]}/ teaches holo and must carry the ruling's rule`);
   }
 });
 
-test("and the VOICE half is on the pages too, not merely absent", { skip: !(builtFamily("fund") && builtPage("stamps")) }, () => {
+test("and the VOICE half is on the pages too, not merely absent", { skip: !(builtFamily("fund") && builtPage("docs", "stamps")) }, () => {
   // The same discipline for the second ruling of 2026-09-17 ("holo does anything
   // a normal stamp can; staking vs voting is a nondistiction"). Deleting the
   // repealed sentences satisfies the sweep above by saying NOTHING, which is the
@@ -977,15 +977,15 @@ test("and the VOICE half is on the pages too, not merely absent", { skip: !(buil
     assert.match(html, /including vote/, `/${rel} is a money moment and must say the stamps vote`);
     assert.match(html, /is capped/, `/${rel} states the vote and must state the bound in the same breath`);
   }
-  const stamps = readFileSync(join(DIST, "stamps", "index.html"), "utf8");
+  const stamps = readFileSync(join(DIST, "docs", "stamps", "index.html"), "utf8");
   assert.match(stamps, /cap on money/, "the Rules name what bounds money, now that no verb does");
 });
 
-test("the glossary's holo entry says what the name is short for", { skip: !builtPage("stamps") }, () => {
+test("the glossary's holo entry says what the name is short for", { skip: !builtPage("docs", "stamps") }, () => {
   // The exemption, asserted from the other side: the once-per-page tests cut
   // the glossary out, so without this the entry could quietly lose the
   // expansion and every other probe would stay green.
-  const stamps = readFileSync(join(DIST, "stamps", "index.html"), "utf8");
+  const stamps = readFileSync(join(DIST, "docs", "stamps", "index.html"), "utf8");
   const gloss = insideGlossary(stamps);
   assert.ok(gloss, "the glossary anchor stopped matching — the cut in the tests above is a no-op");
   // the cid Astro appends to every tag is why this is not a bare `<dt>holo`
@@ -994,7 +994,7 @@ test("the glossary's holo entry says what the name is short for", { skip: !built
     "the glossary's holo entry must carry the expansion, once — it is where a reader looks the word up");
 });
 
-test("each money surface teaches it exactly once outside the glossary, in both of the household's shapes", { skip: !(builtPage("stamps") && builtPage("numbers") && builtFamily("fund") && builtFamily("households")) }, () => {
+test("each money surface teaches it exactly once outside the glossary, in both of the household's shapes", { skip: !(builtPage("docs", "stamps") && builtPage("docs", "numbers") && builtFamily("fund") && builtFamily("households")) }, () => {
   // Named surfaces first. Every fund page counts, not a sampled one, because
   // the expansion moves between the fine print and the footer with the pot's
   // close shape — a pot whose bullets never name holo would otherwise ship a
@@ -1005,7 +1005,7 @@ test("each money surface teaches it exactly once outside the glossary, in both o
   // direction instead — exactly zero, asserted just below — because "the hub
   // stopped teaching it" and "the hub quietly lost a paragraph" are the same
   // number to a test that only knows how to want one.
-  const named = [join(DIST, "stamps", "index.html"), join(DIST, "numbers", "index.html")];
+  const named = [join(DIST, "docs", "stamps", "index.html"), join(DIST, "docs", "numbers", "index.html")];
   // ONE PAGE PER POT — the entries under dist/fund that are pot directories.
   // /fund/ itself is an index (the Guild cards, no money moment, no holo word)
   // since 2026-09-16, so a bare listing would name a file that is not a pot
@@ -1022,9 +1022,16 @@ test("each money surface teaches it exactly once outside the glossary, in both o
   // this keeps testing both shapes as the town's households change. The shared
   // house has a house-level dashboard and the expansion rides its note; the
   // unshared one has no such note and it rides the first member's stamp bar.
+  //
+  // Since 2026-09-27 every house's OWN page has the dashboard, a house of one
+  // included ("solo residents should still have a household page"), so the
+  // unshared shape lives on a solo resident's own page, which stays folded.
   const houses = everyBuiltPage(join(DIST, "households")).map((p) => [p, readFileSync(p, "utf8")]);
   const shared = houses.find(([, h]) => h.includes('class="dash-stamps"'));
-  const solo = houses.find(([, h]) => !h.includes('class="dash-stamps"'));
+  const residentPages = builtFamily("residents")
+    ? readdirSync(join(DIST, "residents")).map((h) => join(DIST, "residents", h, "index.html")).filter(existsSync)
+    : [];
+  const solo = residentPages.map((p) => [p, readFileSync(p, "utf8")]).find(([, h]) => !h.includes('class="dash-stamps"'));
   assert.ok(shared, "no shared household page in the build — the shared shape went untested");
   assert.ok(solo, "no single-resident household page in the build — that shape went untested");
 
@@ -1061,7 +1068,7 @@ test("the built hub teaches the expansion ZERO times, and still points at where 
   // source, which is the whole reason this copy of the law exists beside the
   // source-side one — a pointer that a build silently drops is a pointer that
   // reads correct in a diff and is not on the page.
-  assert.match(hub, /href="\/stamps\/#\w+"[^>]*>[^<]*holo[^<]*</i,
+  assert.match(hub, /href="\/docs\/stamps\/#\w+"[^>]*>[^<]*holo[^<]*</i,
     "the hub must still point a reader at where holo is explained");
 });
 

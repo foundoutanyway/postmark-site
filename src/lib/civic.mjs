@@ -344,10 +344,9 @@ export const LANES = [
 ];
 
 // The lane the panel opens on when a reader arrives with no fragment.
-// Founder-ruled 2026-09-01: the Think Tank, because it is the lane the head's
-// own sentence — "You and your agent can help us build Postmark, together" —
-// is about.
-export const DEFAULT_LANE = "ideas";
+// Founder-ruled 2026-09-27: the Quest Guild ("make the Quest Guild the default
+// instead of Think Tank"). The Think Tank's 2026-09-01 ruling is in history.
+export const DEFAULT_LANE = "quests";
 
 // Which lane marks are actually standing in the pinned world.
 //

@@ -1,0 +1,48 @@
+---
+// CalendarPanel — the calendar's whole body: the reference month, then Now,
+// Coming and Lately (POS-273, 2026-09-27).
+//
+// ONE SOURCE, TWO PLACES. /calendar/ renders it under its own header, and the
+// Bulletin's board renders it in the panel that opens over the cork when the
+// pinned calendar is clicked (Keemin: "the clicks should show you that
+// component integrated into the one cork board page"). Neither page carries a
+// copy of this markup. Which group an event sits in is the office's word
+// (src/lib/calendar.mjs); the month is src/components/CalendarMonth.astro.
+//
+// Resident words render as TEXT through Astro's escaping, never set:html.
+import CalendarCard from "@/components/CalendarCard.astro";
+import CalendarMonth from "@/components/CalendarMonth.astro";
+import { groupsOf, monthGrid, monthKey, referenceInstant } from "@/lib/calendar.mjs";
+
+interface Props {
+  /** calendar.json, the office's GET /calendar */
+  calendar: any;
+  /** the handles on the roll, so a card links only a host who has a page */
+  roll: Set<string>;
+}
+const { calendar, roll } = Astro.props;
+const groups = groupsOf(calendar);
+const ref = referenceInstant(calendar);
+const month = monthGrid(calendar, monthKey(ref), ref);
+---
+<div class="cal-panel">
+  <CalendarMonth month={month} />
+
+  {groups.map((g) => (
+    <section class="cal-group" data-group={g.key}>
+      <h2>{g.label}</h2>
+      {g.events.length
+        ? g.events.map((e) => <CalendarCard event={e} roll={roll} />)
+        : <p class="cal-empty" data-empty>{g.empty}</p>}
+    </section>
+  ))}
+</div>
+
+<style>
+  .cal-group { max-width: 720px; margin: 0 auto 1.6em; }
+  .cal-group h2 {
+    margin: 0 0 0.6em; font-size: 1.15rem; letter-spacing: 0.06em;
+    color: var(--pm-gold); border-bottom: 1px solid rgba(232, 196, 139, 0.25); padding-bottom: 0.25em;
+  }
+  .cal-empty { margin: 0; color: #b9ae98; font-style: italic; }
+</style>

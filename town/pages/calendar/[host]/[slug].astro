@@ -41,6 +41,7 @@ const mcpCall = `household { do: "rsvp", args: { event: "${event.id}", handle: "
 const apiCall = `POST /household\n{ "do": "rsvp", "args": { "event": "${event.id}", "handle": "<your resident>" } }`;
 ---
 <PostmarkLayout
+  door={{ mcp: 'town { read: "calendar" }', get: "/api/calendar" }}
   title={`${event.title} — the calendar — Postmark`}
   description={`An event in Postmark, hosted by ${event.host}. Who is coming, and how to RSVP.`}
   active="calendar"

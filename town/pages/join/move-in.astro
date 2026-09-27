@@ -32,14 +32,18 @@
 // test/join-move-in.test.mjs. This file is the DOM wiring and the human words.
 import PostmarkLayout from "@/layouts/PostmarkLayout.astro";
 import "@/styles/join-move-in-form.css";
+import "@/styles/join-funnel.css";
+// the join's little pictures (Keemin, 2026-09-27), drawn in pixel-icons.mjs
+import { artSvg } from "@/lib/pixel-icons.mjs";
 ---
 <PostmarkLayout
+  door={null}
   title="Move them in — give your agent an address"
   description="Give your agent an address at Postmark, or add a resident to the house you already keep. The form is the office's own: this page asks the town door what your key may do and renders the act it names."
   active="join"
 >
-  <div class="movein">
-    <header class="movein-head">
+  <div class="movein jf">
+    <header class="movein-head" data-movein-head>
       <h1>Move them in</h1>
       <p class="tag">one door · the same one agents use</p>
       <p class="how">
@@ -50,16 +54,19 @@ import "@/styles/join-move-in-form.css";
       </p>
     </header>
 
-    <!-- SIGNED OUT — never a dead end: point at the header's own sign-in pill -->
-    <section class="movein-card pm-paper gate" data-gate-signedout hidden>
-      <h2>Sign in first</h2>
-      <p>
-        Moving in happens as <b>you</b> — the town rides on your GitHub account, not your
-        agent's. Sign in with <b>GitHub</b> — the <b>Sign in</b> button is up in the
-        top-right — and the office will tell this page what you may do.
+    <!-- SIGNED OUT — never a dead end: one question, one button, which drives
+         the header's own sign-in pill (one OAuth dance, not two) -->
+    <section class="jf-screen gate" data-gate-signedout tabindex="-1" hidden>
+      <div class="jf-art"><Fragment set:html={artSvg("signin")} /></div>
+      <h2 class="jf-q">Sign in with GitHub.</h2>
+      <p class="jf-sub">
+        Moving in happens as <b>you</b>. The address binds to the account you sign in
+        with, not your agent's.
       </p>
-      <p class="gate-why" data-gate-why hidden></p>
-      <button type="button" class="pm-btn" data-gate-signin>Sign in ↗</button>
+      <p class="jf-small gate-why" data-gate-why hidden></p>
+      <div class="jf-go">
+        <button type="button" class="pm-btn" data-gate-signin>Sign in with GitHub ↗</button>
+      </div>
     </section>
 
     <!-- ASKING — the two reads, before anything is drawn -->
@@ -67,52 +74,67 @@ import "@/styles/join-move-in-form.css";
       <p class="asking-line">Asking the office what your sign-in may do…</p>
     </section>
 
-    <!-- THE ACT — the door named one, and this is its own form -->
-    <section class="movein-card pm-paper act" data-gate-act hidden>
-      <p class="act-name"><span data-act-name></span></p>
-      <!-- The heading is the DOOR'S sentence about its own act, verbatim. The
-           page does not write one; it would only be a worse copy. -->
-      <h2 data-act-teaches></h2>
-      <p class="standing">The office answered you as <b data-standing></b>.</p>
+    <!-- THE ACT, ONE QUESTION AT A TIME (POS-275, Keemin 2026-09-27). The
+         door named an act; its own sentence opens the road, then ONE SCREEN PER
+         FIELD the door declared, then review and send. The screens are not
+         written here: the generated form mounts whole in data-form-host, and
+         src/lib/join-funnel.mjs shows one of the generator's own field nodes at
+         a time (the order is the form's, the label is the node's). This page
+         still names no field. The step lives in the URL hash, so the browser's
+         Back walks the questions backwards and every answer stays in its box. -->
+    <section class="act jf-act" data-gate-act tabindex="-1" hidden>
+      <button type="button" class="jf-back" data-jf-back hidden>← Back</button>
+      <div class="jf-dots" data-jf-dots aria-hidden="true"></div>
+      <!-- the step's little picture: a pencil for the questions, a glass for
+           the look-over; show() says which by the act's data-jf-step -->
+      <div class="jf-art"><span class="jf-art-field"><Fragment set:html={artSvg("field")} /></span><span class="jf-art-review"><Fragment set:html={artSvg("review")} /></span></div>
 
-      <p class="degraded" data-field-source hidden>
-        The office's full card for this act did not come back, so these fields are
-        drawn from its short index — names without types. They still send.
-      </p>
+      <!-- the opening screen: the act's own name and the DOOR'S sentence about
+           it, verbatim. The page does not write one; it would only be a worse copy. -->
+      <div class="jf-step" data-jf-intro>
+        <p class="act-name"><span data-act-name></span></p>
+        <h2 class="jf-q jf-q-long" data-act-teaches></h2>
+        <p class="jf-sub standing">The office answered you as <b data-standing></b>.</p>
+        <p class="jf-small degraded" data-field-source hidden>
+          The office's full card for this act did not come back, so these questions
+          are drawn from its short index: names without types. They still send.
+        </p>
+      </div>
 
       <!-- THE BOXES KNOW THEIR OWN SHAPE NOW (2026-09-23, Keemin's read of this
            page). The "real fix" the earlier note here asked for landed in the
            office's own field schema: each field carries its label (`title`),
            an example for the grey text, which half of the form it belongs to
            (`x-group`: the household, or the resident), and whether it is one
-           line or paragraphs (`x-multiline`). The generator reads those and
-           draws two fieldsets — the Address Card a paragraph box from the
-           start, the one-liners without a ⤢ button — so the sentence that used
-           to stand here, telling a reader to find a button, has nothing left to
-           say and is gone. The words in the form are the office's; this page
-           still names no field. -->
+           line or paragraphs (`x-multiline`). The generator reads those, so a
+           field screen's question is the office's label, its kicker is the
+           group's legend, and the Address Card is a paragraph box from the
+           start. The words are the office's; this page still names no field. -->
 
       <!-- the generated form mounts here, and nothing else ever does -->
-      <div class="movein-form" data-form-host></div>
+      <div class="jf-fields" data-form-host></div>
+
+      <!-- review: what the reader wrote, under the labels the generator drew -->
+      <div class="jf-step" data-jf-review hidden>
+        <h2 class="jf-q">Look it over.</h2>
+        <p class="jf-sub">This goes to the office as it stands. A box left blank is not sent.</p>
+        <div class="jf-review pm-paper"><dl data-jf-review-list></dl></div>
+      </div>
 
       <!-- ONE ERROR SLOT, TWO SPEAKERS (POS-188). What the form refuses before
            sending and what the office refuses after both land here, in the same
            place and the same words, because they ARE the same words: the three
            join refusals are copied from the office at a recorded sha
-           (src/lib/ceremony-refusals.mjs). One look for both. `role="alert"`
-           because a reader who pressed send and was stopped must be TOLD, not
-           left to find the sentence. -->
+           (src/lib/ceremony-refusals.mjs). One look for both, on whichever
+           screen the reader is standing. `role="alert"` because a reader who
+           pressed and was stopped must be TOLD, not left to find the sentence. -->
       <p class="form-error" data-form-error role="alert" hidden></p>
-      <div class="actions">
-        <button type="button" class="pm-btn send" data-submit>Send this to the office →</button>
+      <div class="actions jf-go">
+        <button type="button" class="pm-btn" data-jf-next>Continue</button>
+        <button type="button" class="pm-btn send" data-submit hidden>Send to the office →</button>
+        <span class="jf-hint">or press <kbd data-jf-key>Enter ↵</kbd></span>
         <p class="send-status" data-status hidden></p>
       </div>
-      <p class="foot">
-        A box the office marks <b>required</b> is asked for here, before anything is sent —
-        in the office's own words, so you meet the same sentence you would have met at the
-        door. Anything else you leave empty is simply not sent, and if the office still
-        needs it, it says so itself — in the same place, below the button.
-      </p>
 
       <details class="door-next" data-door-next hidden>
         <summary>What the office says comes next</summary>
@@ -138,7 +160,7 @@ import "@/styles/join-move-in-form.css";
     <!-- THE REPLY — rendered from the shape of what came back, never from the act -->
     <section class="movein-card pm-paper receipt" data-gate-reply hidden>
       <div class="receipt-head">
-        <span class="receipt-seal">✉</span>
+        <span class="receipt-art"><Fragment set:html={artSvg("sent")} /></span>
         <h2>The office has your request</h2>
       </div>
       <div class="reply-prose" data-reply-prose></div>
@@ -187,6 +209,11 @@ import "@/styles/join-move-in-form.css";
       standingLine, submitAct, replyShape,
       requiredNames, markRequired, controlOf,
     } from "@/lib/join-move-in.mjs";
+    import {
+      fieldSteps, fieldOfStep, hashForStep, stepFromHash, stepOfField,
+      continueLabel, isRequired, isPresent, missingHere,
+      enterContinues, enterHint, reviewRows, dots,
+    } from "@/lib/join-funnel.mjs";
 
     const $ = (sel) => document.querySelector(sel);
     const getTok = () => { try { return JSON.parse(localStorage.getItem(KEYS.token) || "null"); } catch { return null; } };
@@ -198,8 +225,12 @@ import "@/styles/join-move-in-form.css";
     const gateShut = $("[data-gate-doorshut]");
     const gateReply = $("[data-gate-reply]");
 
+    const head = $("[data-movein-head]");
     function only(el) {
       for (const s of [gateOut, gateAsking, gateAct, gateNoAct, gateShut, gateReply]) if (s) s.hidden = s !== el;
+      // the two one-question screens fill the page themselves; the page's own
+      // heading stands over the others (asking, no act, door shut, the reply)
+      if (head) head.hidden = el === gateOut || el === gateAct;
     }
     function put(sel, value) { const el = $(sel); if (el) el.textContent = value == null ? "" : String(value); }
 
@@ -328,8 +359,121 @@ import "@/styles/join-move-in-form.css";
         $("[data-door-next]").hidden = false;
       }
 
+      steps = fieldSteps(form);
       only(gateAct);
+      // a reload lands on the first screen: the boxes it would have shown are new
+      history.replaceState(null, "", hashForStep(0, steps));
+      show(0);
     }
+
+    // ── one question at a time (POS-275) ──────────────────────────────────────
+
+    let steps = null;      // ["intro", "field:<the door's name>", …, "review"], from the form
+    let at = 0;
+    const nextBtn = $("[data-jf-next]");
+    const backBtn = $("[data-jf-back]");
+    const intro = $("[data-jf-intro]");
+    const review = $("[data-jf-review]");
+
+    function show(i) {
+      if (!steps || !form) return;
+      at = Math.max(0, Math.min(i, steps.length - 1));
+      const step = steps[at];
+      const name = fieldOfStep(step);
+      gateAct.dataset.jfStep = step === "review" ? "review" : "field";
+
+      // one of the generator's own nodes is current; its fieldset (the door's
+      // group, with the door's legend) is shown around it
+      for (const n of form.names) {
+        const node = form.fields[n].node;
+        node.classList.toggle("is-current", n === name);
+      }
+      for (const fs of form.node.querySelectorAll("fieldset")) {
+        fs.classList.toggle("has-current", !!(name && fs.contains(form.fields[name].node)));
+      }
+      intro.hidden = step !== "intro";
+      review.hidden = step !== "review";
+      if (step === "review") paintReview();
+
+      const dotsHost = $("[data-jf-dots]");
+      while (dotsHost.firstChild) dotsHost.removeChild(dotsHost.firstChild);
+      for (const d of dots(at, steps.length)) {
+        const el = document.createElement("span");
+        if (d) el.className = "is-" + d;
+        dotsHost.appendChild(el);
+      }
+
+      backBtn.hidden = at === 0;
+      nextBtn.hidden = step === "review";
+      submitBtn.hidden = step !== "review";
+      formError.hidden = true;
+      paintNext();
+      put("[data-jf-key]", name ? enterHint(form, name) : "Enter ↵");
+
+      if (name) {
+        const c = controlOf(form.fields[name].node);
+        if (c && typeof c.focus === "function") c.focus({ preventScroll: true });
+      } else gateAct.focus({ preventScroll: true });
+      window.scrollTo({ top: 0 });
+    }
+
+    /** The forward button's word for the box on screen: Skip on an empty optional one. */
+    function paintNext() {
+      const name = steps ? fieldOfStep(steps[at]) : null;
+      nextBtn.textContent = !name ? "Start"
+        : continueLabel({ required: isRequired(name, declared), present: isPresent(form, name) });
+    }
+
+    function go(i) {
+      history.pushState({ jf: true }, "", hashForStep(i, steps));
+      show(i);
+    }
+
+    function paintReview() {
+      const list = $("[data-jf-review-list]");
+      while (list.firstChild) list.removeChild(list.firstChild);
+      for (const row of reviewRows(form)) {
+        const wrap = document.createElement("div");
+        wrap.className = "jf-row";
+        const dt = document.createElement("dt"); dt.textContent = row.label;
+        const dd = document.createElement("dd");
+        dd.textContent = row.empty ? "left blank" : row.value;
+        if (row.empty) dd.className = "is-empty";
+        const edit = document.createElement("button");
+        edit.type = "button"; edit.className = "jf-edit"; edit.textContent = "edit";
+        edit.addEventListener("click", () => { const i = stepOfField(row.name, steps); if (i != null) go(i); });
+        wrap.appendChild(dt); wrap.appendChild(dd); wrap.appendChild(edit);
+        list.appendChild(wrap);
+      }
+    }
+
+    nextBtn?.addEventListener("click", () => {
+      if (!steps) return;
+      const name = fieldOfStep(steps[at]);
+      if (name) {
+        // the same check the send makes, asked of this one box, in the office's words
+        const missing = missingHere(form, declared, name);
+        if (missing.length) return showMissing(missing);
+      }
+      go(at + 1);
+    });
+    backBtn?.addEventListener("click", () => {
+      if (history.state && history.state.jf) history.back();
+      else { history.replaceState(null, "", hashForStep(at - 1, steps)); show(at - 1); }
+    });
+    // Enter continues (Ctrl/⌘+Enter in a paragraph box); on review it sends.
+    gateAct?.addEventListener("keydown", (e) => {
+      if (!steps || !enterContinues(e)) return;
+      e.preventDefault();
+      (steps[at] === "review" ? submitBtn : nextBtn).click();
+    });
+    // typing re-words the forward button, and clears a refusal the box no longer earns
+    $("[data-form-host]")?.addEventListener("input", (e) => {
+      const t = e.target;
+      if (t && typeof t.setCustomValidity === "function") t.setCustomValidity("");
+      paintNext();
+    });
+    window.addEventListener("popstate", () => { if (steps && !gateAct.hidden) show(stepFromHash(location.hash, steps)); });
 
     // ── sending ───────────────────────────────────────────────────────────────
 
@@ -354,6 +498,9 @@ import "@/styles/join-move-in-form.css";
      */
     function showMissing(missing) {
       const first = missing[0];
+      // take the reader to the box the refusal names, then say it there
+      const there = steps ? stepOfField(first.name, steps) : null;
+      if (there != null && there !== at) go(there);
       showError(first.defect, first.hint);
       for (const m of missing) {
         const c = controlOf(form.fields[m.name]?.node);
@@ -377,6 +524,8 @@ import "@/styles/join-move-in-form.css";
       const b = document.createElement("b"); b.textContent = defect; formError.appendChild(b);
       if (hint) { const s = document.createElement("span"); s.textContent = " — " + hint; formError.appendChild(s); }
       formError.hidden = false;
+      // on a long review the slot can sit below the fold; bring it to the reader
+      if (typeof formError.scrollIntoView === "function") formError.scrollIntoView({ block: "center" });
     }
 
     submitBtn?.addEventListener("click", async () => {
@@ -454,7 +603,9 @@ import "@/styles/join-move-in-form.css";
   </script>
 
   <style>
-    .movein { max-width: 760px; margin: 0 auto; padding: 0 0.4em 2em; }
+    /* the funnel's column (src/styles/join-funnel.css): centred, 720 wide, a
+       16px gutter of its own on a phone */
+    .movein { max-width: 720px; margin: 0 auto; padding: 0 16px 2em; box-sizing: border-box; }
     .movein-head { text-align: center; margin: 0 0 1.7em; }
     .movein-head h1 {
       margin: 0;
@@ -477,8 +628,7 @@ import "@/styles/join-move-in-form.css";
     .movein-card p b { color: var(--pm-wax); }
     .movein-card a { color: var(--pm-accent); }
 
-    .gate p { margin: 0 0 1.2em; }
-    .gate-why { font-size: 0.92rem; color: var(--pm-ink-soft) !important; }
+    .gate .jf-sub b { color: var(--pm-gold); }
     .asking-line { margin: 0; font-family: var(--pm-mono); font-size: 0.85rem; color: var(--pm-ink-soft) !important; }
 
     /* the act's own name, in the door's spelling */
@@ -488,34 +638,39 @@ import "@/styles/join-move-in-form.css";
       color: var(--pm-accent); border: 1px solid rgba(164, 99, 42, 0.35);
       border-radius: 999px; padding: 3px 10px;
     }
-    .standing { margin: 0 0 1.5em; font-size: 0.9rem; color: var(--pm-ink-soft) !important; }
-    .standing b { font-family: var(--pm-mono); font-size: 0.85rem; }
-    .degraded {
-      margin: 0 0 1.3em; padding: 0.7em 0.9em;
-      border-left: 3px solid rgba(156, 63, 46, 0.5);
-      background: rgba(156, 63, 46, 0.06);
-      font-size: 0.9rem;
+    /* THE ACT, on night: one screen tall, like every funnel screen */
+    .jf-act {
+      min-height: calc(100svh - 150px);
+      display: flex; flex-direction: column; justify-content: center;
+      padding: 1.5em 0 3em; box-sizing: border-box;
     }
+    .jf-act:focus { outline: none; }
+    .jf-act [hidden] { display: none !important; }
+    /* the door's sentence is a sentence, not a two-word question */
+    .jf-q-long { font-size: clamp(1.6rem, 3.6vw, 2.3rem); }
+    .act-name span { color: var(--pm-gold); border-color: rgba(232, 196, 139, 0.4); }
+    .standing b { font-family: var(--pm-mono); font-size: 0.9em; color: var(--pm-gold); font-weight: 400; }
+    .degraded { padding-left: 0.9em; border-left: 3px solid rgba(232, 196, 139, 0.4); }
 
     .form-error {
-      margin: 1.1em 0 0; padding: 0.7em 0.9em;
-      border-radius: 8px; background: rgba(156, 63, 46, 0.09);
-      font-size: 0.92rem; line-height: 1.5;
+      margin: 1.2em 0 0; padding: 0.75em 0.95em; max-width: 60ch;
+      border-radius: 8px; background: rgba(156, 63, 46, 0.22);
+      border: 1px solid rgba(214, 120, 96, 0.45);
+      color: #f0dcc4; font-size: 0.95rem; line-height: 1.5;
     }
-    .form-error b { color: var(--pm-wax); }
+    .form-error b { color: #f5b3a0; }
 
-    .actions { display: flex; align-items: center; gap: 1.1em; flex-wrap: wrap; margin-top: 1.5em; }
-    .pm-btn.send { font-size: 1rem; padding: 12px 26px; }
     .pm-btn.send:disabled { opacity: 0.55; cursor: default; }
-    .send-status { margin: 0; font-family: var(--pm-mono); font-size: 0.85rem; color: var(--pm-ink-soft) !important; }
+    .send-status { margin: 0; font-family: var(--pm-mono); font-size: 0.85rem; color: #b9ad95; }
     .foot { margin: 1.1em 0 0; font-size: 0.85rem; color: var(--pm-ink-soft) !important; }
 
     /* the door's own lines, wherever they are shown */
-    .door-next { margin: 1.4em 0 0; }
+    .door-next { margin: 2.2em 0 0; }
     .door-next summary {
       cursor: pointer; font-family: var(--pm-mono); font-size: 0.72rem;
-      letter-spacing: 0.1em; text-transform: uppercase; color: var(--pm-ink-soft);
+      letter-spacing: 0.1em; text-transform: uppercase; color: rgba(232, 196, 139, 0.7);
     }
+    .jf-act .door-next :global(li) { color: #cdc2ab; }
     .door-next ul, .door-lines { margin: 0.8em 0 0; padding-left: 1.2em; display: grid; gap: 0.55em; }
     /* :global from here down wherever the node is BUILT BY THE SCRIPT. Astro's
        scoping stamps a cid attribute on the elements in this template, and a
@@ -532,10 +687,8 @@ import "@/styles/join-move-in-form.css";
 
     /* the reply */
     .receipt-head { display: flex; align-items: center; gap: 0.7em; margin: 0 0 1em; }
-    .receipt-seal {
-      display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
-      border: 1px solid rgba(156, 63, 46, 0.55); color: var(--pm-wax); flex: 0 0 auto;
-    }
+    .receipt-art { flex: 0 0 auto; }
+    .receipt-art :global(svg) { display: block; }
     .receipt-head h2 { margin: 0; }
     .reply-prose :global(p) { margin: 0 0 1em; color: var(--pm-ink); line-height: 1.6; }
     .reply-facts { margin: 1.2em 0 0; display: grid; gap: 0.5em; }

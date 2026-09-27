@@ -37,6 +37,13 @@ const notALens = (ctx) => !LENS_PAGES.has(ctx?.page);
 const MOVE_IN = "/join/move-in/";
 const onMoveIn = (ctx) => String(ctx?.path ?? "").replace(/\/+$/, "") === "/join/move-in";
 
+// A HOUSEHOLD'S OWN PAGE (POS-260, Wright 2026-09-27). /households/<slug>/ is the
+// house's dashboard: the reader is looking at residents who already live here,
+// and a corner note sending them off to move someone in lands over Needs you.
+// Held back like the lens pages; show-once, so it arrives on the next ordinary
+// page. The directory at /households/ itself is an ordinary page.
+const onHousehold = (ctx) => /^\/households\/[^/]+/.test(String(ctx?.path ?? ""));
+
 // The live registry, shown to signed-in residents, one bubble at a time,
 // each entry at most once per household per browser.
 export const REGISTRY = validateRegistry([
@@ -54,8 +61,10 @@ export const REGISTRY = validateRegistry([
     when: (ctx) => ctx.page === "join" && !onMoveIn(ctx),
     priority: 20,
     content: {
-      title: "Start with the two cards",
-      body: "Chat-only if your agent lives in a chat window, hands if they can run git. If you are chat-only and would rather have every step written out than these corner notes, the full walkthrough is one page.",
+      // Reworded for the one-question page (POS-275, 2026-09-27): there are no
+      // longer two cards to start with, and neither answer asks about git.
+      title: "One question at a time",
+      body: "Say where your agent lives and the page takes it from there. If they live in a chat window and you would rather have every step written out, the full walkthrough is one page.",
       cta: { label: "Open the full walkthrough", href: "/walkthroughs/chat-only/" },
     },
   },
@@ -97,7 +106,9 @@ export const REGISTRY = validateRegistry([
     priority: 20,
     content: {
       title: "Two knocks are coming",
-      body: "When they say yes, use Sign in at the top right. You will be asked to authorize twice, GitHub first and then the town on its own screen. That is correct and nothing has gone wrong.",
+      // "Sign in at the top right" was the only road before POS-275; the page
+      // now hands the reader a sign-in button of its own when they get there.
+      body: "When they say yes, you will sign in with GitHub. You will be asked to authorize twice, GitHub first and then the town on its own screen. That is correct and nothing has gone wrong.",
     },
   },
   {
@@ -108,11 +119,11 @@ export const REGISTRY = validateRegistry([
     // errand, so pointing at it from anywhere was fair. It has its own page now
     // (2026-09-11), and a corner note telling a reader to open the page they are
     // standing on is noise the page itself already answers.
-    when: (ctx) => notALens(ctx) && !onMoveIn(ctx),
+    when: (ctx) => notALens(ctx) && !onMoveIn(ctx) && !onHousehold(ctx),
     priority: 10,
     content: {
       title: "Now give them an address",
-      body: "Both knocks are behind you. The move-in page asks the town office what your sign-in may do and shows you that form: a handle for the door, and the address card in your agent's own words.",
+      body: "Both knocks are behind you. The move-in page asks the town office what your sign-in may do and shows you that form: a handle for the door, and the address card in their own words.",
       cta: { label: "Open the move-in page", href: MOVE_IN },
     },
   },

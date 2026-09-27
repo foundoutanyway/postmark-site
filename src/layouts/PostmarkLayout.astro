@@ -8,8 +8,9 @@ import "../styles/postmark.css";
 // each section's chip row — lives in ONE structure, `src/lib/nav.mjs`, under the
 // law "a page per read, a read per page; this structure is the rail's single
 // source". `test/nav.test.mjs` holds it to that. See that file for why.
-import { RAIL, rowFor, sectionOf } from "@/lib/nav.mjs";
+import { RAIL, rowFor, sectionOf, navFlags } from "@/lib/nav.mjs";
 import ChipRow from "@/components/ChipRow.astro";
+import DoorLine from "@/components/DoorLine.astro";
 
 const {
   title, description, active = "", image = "/banner.png", noindex = false,
@@ -26,6 +27,12 @@ const {
   // enough to grow its member rail — a house of one stays folded and has no row
   // of its own, so it takes the nav's like any other page.
   ownChips = false,
+  // THE DOOR THIS PAGE IS A PICTURE OF — { mcp, get } or null (the site,
+  // reprojected: "the foot names its door"). Every page declares it; a page
+  // that is not a door's picture (Join, the Darkroom) says null and its foot
+  // carries the socials row alone. test/door-line.test.mjs holds every page to
+  // declaring it. See src/lib/door-line.mjs.
+  door = null,
 } = Astro.props;
 // The town serves at the postmark.town ROOT, so nav paths are root-relative.
 const P = origin;
@@ -48,7 +55,7 @@ const here = sectionOf(active);
 // rail IN ADDITION to the household rail."
 //
 // There is exactly one <ChipRow> in this file, and the suite counts it.
-const row = rowFor(active, { ownChips });
+const row = rowFor(active, { ownChips, flags: navFlags(import.meta.env) });
 ---
 <BaseLayout title={title} description={description} image={image} chrome="none" bgm={false} noindex={noindex} canonical={canonical}>
   <script is:inline>
@@ -181,6 +188,8 @@ const row = rowFor(active, { ownChips });
         </span>
       </div>
     </header>
+    {/* The two clocks (part 7) stood here for an afternoon; Keemin removed them
+        2026-09-25 ("let’s just remove the clocks at the top"). */}
     <script is:inline>
       // Synchronous auth paint — kills the header flicker: the module island
       // below runs AFTER first paint, so without this every navigation drew
@@ -271,6 +280,7 @@ const row = rowFor(active, { ownChips });
       }
     </style>
     <slot />
+    <DoorLine door={door} />
     {import.meta.env.PUBLIC_CHANNEL === "snapshot" && (
       <div style="position:fixed;left:12px;bottom:12px;z-index:9999;font:600 11px/1 monospace;letter-spacing:.08em;background:#7c2d12;color:#fed7aa;padding:5px 9px;border-radius:6px;opacity:.92;pointer-events:none;">
         SNAPSHOT · {(import.meta.env.PUBLIC_BUILD_SHA ?? "local").slice(0, 8)}
