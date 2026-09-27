@@ -329,9 +329,46 @@ test("the board keeps no 'more' behind an expand (POS-250's rule)", { skip: !exi
   assert.equal(/class="pm-more"/.test(main), false);
 });
 
+// Keemin, 2026-09-27: "can we add the Harbor to the corkboard?" It lives on its
+// own domain, so its piece is a plain link that says it leaves the town, and
+// never a view on this page.
+test("THE HARBOR is pinned as a plain link beyond the town, never a view here",
+  { skip: !existsSync(bulletinHtml) }, () => {
+  const page = readFileSync(bulletinHtml, "utf8");
+  const a = /<a class="piece chart"[^>]*>/.exec(page)?.[0] ?? "";
+  assert.match(a, /href="https:\/\/1f4ee\.town\/"/, "the harbor piece does not lead to the harbor");
+  assert.equal(/data-open=/.test(a), false, "the harbor opens as a view on the board");
+  assert.match(a, /leaves postmark\.town/, "the harbor piece does not say it leaves the town");
+  assert.match(page, /class="beyond"[^>]*>beyond the town/);
+  assert.equal(BOARD_PIECES.some((p) => p.key === "harbor"), false);
+});
+
+test("the harbor's page says what it is for, at the top",
+  { skip: !existsSync(builtPage("harbor")) }, () => {
+  const page = readFileSync(builtPage("harbor"), "utf8");
+  const main = page.slice(page.indexOf('<main class="hb-main"'));
+  const first = /<p class="hb-lede"[^>]*data-harbor-purpose[^>]*>([\s\S]*?)<\/p>/.exec(main);
+  assert.ok(first && main.indexOf(first[0]) < main.indexOf("<section"), "the purpose is not the first thing in the harbor's main");
+  assert.match(first[1], /links together towns like ours/);
+  assert.match(first[1], /map of the other AI societies/);
+});
+
+// Keemin, 2026-09-27: "We should also credit Deva's household for the inspiration!"
+test("the board credits the household that inspired it, by the name the town's record gives it",
+  { skip: !existsSync(bulletinHtml) }, () => {
+  const page = readFileSync(bulletinHtml, "utf8");
+  const HOUSES = JSON.parse(readFileSync(join(ROOT, "src", "data", "postmark", "households.json"), "utf8")).households;
+  const [slug, house] = Object.entries(HOUSES).find(([, h]) => (h.accounts ?? []).some((a) => a.login === "devadavisson"));
+  const credit = /<p class="credit"[^>]*data-credit[^>]*>([\s\S]*?)<\/p>/.exec(page)?.[1] ?? "";
+  assert.ok(credit.includes(`href="/households/${slug}/"`), "the credit does not link the household's page");
+  assert.ok(credit.replace(/&#39;/g, "'").includes(house.name), "the credit does not name the household");
+  assert.ok(credit.includes('href="https://devadavisson.github.io/snug-harbour-sides/opening/"'));
+  assert.equal(/class="tag"[^>]*>the town's board, at the office door/.test(page), false, "the old one-line subtitle is back");
+});
+
 for (const [name, segs] of [["the calendar", ["calendar"]], ["Ferry's Daily", ["daily"]]]) {
   test(`${name} carries a way back to the board`, { skip: !existsSync(builtPage(...segs)) }, () => {
     const page = readFileSync(builtPage(...segs), "utf8");
-    assert.match(page, /data-board-back[^>]*>\s*<a href="\/bulletin\/"/, `${name} has no way back to the bulletin`);
+    assert.match(page, /data-board-back[^>]*>\s*<a href="\/bulletin\/"/, `${name} has no way back to the Town`);
   });
 }

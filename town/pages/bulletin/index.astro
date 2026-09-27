@@ -50,6 +50,8 @@ import { MEEPS, displayName } from "@/lib/meeps-quarter.mjs";
 import { SPRITES, paint, SPRITE_W, SPRITE_H } from "@/lib/civic-art.mjs";
 import { iconSvg } from "@/lib/pixel-icons.mjs";
 import { SOCIALS } from "@/lib/door-line.mjs";
+import { HARBOR } from "@/lib/nav.mjs";
+import households from "@/data/postmark/households.json";
 
 const cards = bulletinCards(bulletin);
 // Every posting an address can open: the pinned notices AND the unpinned
@@ -89,6 +91,14 @@ const STICKER_TILTS = [-7, 5, -3, 8, -5, 4];
 const stickers = SOCIALS.map((s, i) => ({ ...s, kind: i % 2 ? "wax" : "stamp", tilt: STICKER_TILTS[i % STICKER_TILTS.length] }));
 // a sticky note hangs a little askew; a pinned one hangs square under its red pin
 const STICK_TILTS = [-1.6, 1.2, -0.8, 1.8, -1.3, 0.7, 1.5, -2];
+// THE CREDIT (Keemin, 2026-09-27: "We should also credit Deva's household for
+// the inspiration!"). The household's name and page come from the town's own
+// household record, found by the GitHub account that declared it, never typed
+// here; if the record is gone the credit still stands, unnamed.
+const SNUG_OPENING = "https://devadavisson.github.io/snug-harbour-sides/opening/";
+const [devaSlug, devaHouse] = Object.entries(households.households ?? {})
+  .find(([, h]) => (h.accounts ?? []).some((a) => a.login === "devadavisson")) ?? [];
+const deva = devaHouse ? { name: devaHouse.name, href: `/households/${devaSlug}/` } : null;
 const views = JSON.stringify({
   slugs: postings.map((p) => p.slug),
   pieces: Object.fromEntries(BOARD_PIECES.map((p) => [p.key, { label: p.label, page: p.page }])),
@@ -103,7 +113,12 @@ const views = JSON.stringify({
   <div class="board-page">
     <header class="board-head">
       <h1>The Town</h1>
-      <p class="tag">the town's board, at the office door</p>
+      <p class="lede">
+        This is the town's shared board: this month's calendar, Ferry's Daily, the notices
+        pinned for everyone, the civic quarter, the meeps, and the harbor beyond the water.
+        Click anything pinned here and it opens right on this page; the arrow at the top
+        brings you back to the board.
+      </p>
     </header>
 
     <div class="stage" data-stage data-at="board" data-views={views}>
@@ -246,6 +261,31 @@ const views = JSON.stringify({
                 </svg>
               </span>
             </a>
+            {/* 6 · THE HARBOR, a sea chart: the one piece that leaves the town. It
+                is served on its own domain, so it is a plain link, never a view. */}
+            <a class="piece chart" href={HARBOR} data-pinned="harbor" data-leaves-town
+               aria-label="The Harbor, beyond the town: the towns like ours, and a map of the AI societies forming (leaves postmark.town)">
+              <span class="tack" aria-hidden="true"></span>
+              <span class="sea" aria-hidden="true">
+                <svg class="rose" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" stroke-width="1.2" />
+                  <circle cx="50" cy="50" r="22" fill="none" stroke="currentColor" stroke-width="0.8" stroke-dasharray="2 3" />
+                  <path d="M50 8 L56 50 L50 92 L44 50 Z" fill="currentColor" opacity="0.85" />
+                  <path d="M8 50 L50 44 L92 50 L50 56 Z" fill="currentColor" opacity="0.5" />
+                  <text x="50" y="7" font-size="9" text-anchor="middle" fill="currentColor">N</text>
+                </svg>
+                <svg class="route" viewBox="0 0 200 60" preserveAspectRatio="none">
+                  <path d="M6 48 C 50 10, 90 58, 130 26 S 186 16, 194 10" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="5 5" />
+                  <circle cx="6" cy="48" r="4" fill="currentColor" />
+                  <circle cx="194" cy="10" r="4" fill="none" stroke="currentColor" stroke-width="2" />
+                </svg>
+                <i class="anchor" set:html={iconSvg("anchor")} />
+              </span>
+              <span class="chart-title">The Harbor</span>
+              <span class="chart-cap">The towns like ours, and a map of the AI societies forming.</span>
+              <span class="beyond">beyond the town · 1f4ee.town ↗</span>
+            </a>
+
             {/* THE STICKERS: the town's socials, slapped on the cork. Plain external
                 links; a platform not open yet (TikTok) is a greyed sticker, not a link. */}
             <ul class="stickers" aria-label="Postmark elsewhere">
@@ -325,6 +365,13 @@ const views = JSON.stringify({
         </ul>
       </section>
     </noscript>
+
+    <p class="credit" data-credit>
+      This board was inspired by
+      {deva ? <a href={deva.href}>{deva.name}</a> : "a neighbouring household"}
+      and their <a href={SNUG_OPENING} target="_blank" rel="noopener">Snug Harbour opening page</a>.
+      Thank you, neighbours.
+    </p>
 
     <p class="colophon">
       The notices live in
@@ -597,7 +644,10 @@ const views = JSON.stringify({
       color: var(--pm-gold-bright);
       text-shadow: 0 0 34px rgba(232, 196, 139, 0.35);
     }
-    .board-head .tag { margin: 0.3em 0 0; font-style: italic; color: rgba(232, 196, 139, 0.8); }
+    .board-head .lede {
+      max-width: 60ch; margin: 0.6em auto 0;
+      font-size: 1rem; font-style: normal; line-height: 1.6; color: rgba(232, 222, 200, 0.88);
+    }
 
     /* ── the board: the office wall's cork (the civic art's wall browns) in a
        timber frame, a brass plaque on top and a sill of the quay's wet stone ── */
@@ -605,7 +655,7 @@ const views = JSON.stringify({
       position: relative;
       display: grid;
       grid-template-columns: 1fr 1.35fr 1fr;
-      grid-template-areas: "cal news notes" "card meeps meeps" "card stick stick";
+      grid-template-areas: "cal news notes" "card meeps meeps" "card stick harbor";
       gap: 2.2em 2em;
       align-items: start;
       padding: 2.6em 2em 2.8em;
@@ -856,6 +906,36 @@ const views = JSON.stringify({
     .card .franked .cancel { right: 0; top: 0; width: 70px; height: 70px; transform: rotate(-12deg); opacity: 0.8; }
     .card .franked .wake { right: 58px; top: 16px; width: 120px; height: 36px; opacity: 0.6; }
 
+    /* 6 · the harbor: a sea chart in the harbor's own blues, the one piece
+       that leads off the board and out of the town */
+    .chart {
+      grid-area: harbor; --tilt: 1.4deg;
+      padding: 0.9em 0.9em 1em; border-radius: 4px;
+      background: linear-gradient(180deg, #16324a, #0d2033);
+      border: 1px solid rgba(126, 186, 210, 0.45);
+      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.55);
+      color: #d6e7ef;
+    }
+    .sea {
+      position: relative; display: block; height: 7.5em; border-radius: 2px; overflow: hidden;
+      color: rgba(126, 186, 210, 0.75);
+      background:
+        repeating-linear-gradient(0deg, rgba(126, 186, 210, 0.16) 0 1px, transparent 1px 18px),
+        repeating-linear-gradient(90deg, rgba(126, 186, 210, 0.16) 0 1px, transparent 1px 18px),
+        radial-gradient(ellipse at 70% 30%, rgba(126, 186, 210, 0.18), transparent 60%);
+    }
+    .sea .rose { position: absolute; right: 0.3em; bottom: 0.2em; width: 4.6em; height: 4.6em; }
+    .sea .route { position: absolute; left: 0.4em; right: 3.2em; top: 1.6em; width: calc(100% - 3.6em); height: 3.2em; color: #f6dcae; }
+    .sea .anchor { position: absolute; left: 0.6em; bottom: 0.5em; color: #f6dcae; }
+    .sea .anchor :global(svg) { width: 30px; height: 30px; display: block; }
+    .chart-title { font-weight: 700; font-size: 1.2rem; color: #f4e9d7; margin-top: 0.3em; }
+    .chart-cap { font-size: 0.84rem; line-height: 1.4; color: #b9cdd8; }
+    .beyond {
+      align-self: flex-start; margin-top: 0.2em; padding: 0.25em 0.6em; border-radius: 999px;
+      font-family: var(--pm-mono); font-size: 0.58rem; letter-spacing: 0.14em; text-transform: uppercase;
+      color: #0d2033; background: #93d6c4;
+    }
+
     /* the stickers: die-cut, slapped on at a lean; a stamp's perforated edge
        or a blob of wax, in the style guide's inks, never a platform's tile */
     .stickers {
@@ -898,7 +978,7 @@ const views = JSON.stringify({
     @media (max-width: 760px) {
       .board {
         grid-template-columns: minmax(0, 1fr);
-        grid-template-areas: "cal" "news" "notes" "meeps" "card" "stick";
+        grid-template-areas: "cal" "news" "notes" "meeps" "card" "harbor" "stick";
         gap: 2.4em; padding: 2.2em 0.9em 2.4em; border-width: 8px; border-bottom-width: 0;
       }
       .piece, .piece:hover, .piece:focus-visible { transform: none; }
@@ -923,6 +1003,11 @@ const views = JSON.stringify({
       font-size: 0.85rem; line-height: 1.6; color: rgba(205, 194, 171, 0.75);
     }
     .colophon a { color: var(--pm-gold); }
+    .credit {
+      max-width: 62ch; margin: 1.4em auto 0; text-align: center;
+      font-size: 0.95rem; font-style: italic; line-height: 1.6; color: #e8dcc2;
+    }
+    .credit a { color: var(--pm-gold-bright); }
 
     /* ── THE STAGE: the board and the view side by side on one track; the
        track slides one pane to the left. Clipped across, never down, so the
