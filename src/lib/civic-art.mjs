@@ -300,6 +300,12 @@ export const FIGURE_INK = {
     n: "#a4632a", // fins — the Ballot House's copper
     N: "#6d4220", // fins, shade — the Ballot House's mid tone
   },
+  meeplings: {
+    y: "#edba68", // chick — global.css, the lamp gold
+    Y: "#c9823d", // chick, shade — the Ballot House's lit copper
+    b: "#a4632a", // beak — the Ballot House's copper
+    q: "#cdbda4", // eggshell, shade — global.css, the parchment
+  },
 };
 
 // FERRY, THE POSTMASTER — from the portrait `seven` drew and gave the office
@@ -335,6 +341,38 @@ const FERRY = [
   "........................",
 ];
 
+// THE MEEPLINGS — not a meep, and not a face: the box's machinery, drawn as
+// Keemin asked on 2026-09-27, "an adorable little gathering of baby chicks
+// wearing eggshells". Three chicks, each still in the bottom half of its shell,
+// the middle one wearing the top half as a hat, the right one with a tuft. The eggshell is the paper ink
+// (`p`); the chicks and the shell's shade are their own inks (FIGURE_INK).
+const MEEPLINGS = [
+  "........................",
+  "...........pp...........",
+  "..........pppq..........",
+  ".........ppppqq.........",
+  ".........pypypq.........",
+  ".........yyyyyy.........",
+  "........yyyyyyyY........",
+  "........ykyyykyY........",
+  "..yyy...yyybbyyY........",
+  ".yyyyY..yyyyyyyY....Y...",
+  ".yykyY.YyyyyyyyyY..yyy..",
+  ".yyyybbYyyyyyyyYY.Yyyyy.",
+  ".yyyyY..yyyyyyyY..ykyyyY",
+  "yyyyyYYpypypypypqbbyyyyY",
+  "pypypyqppppppppqq.yyyyyY",
+  "ppppppqppppppppqqpypypyq",
+  "ppppppqppppppppqqppppppq",
+  "ppppppqppppppppqqppppppq",
+  ".ppppq..pppppppq..ppppq.",
+  ".ppppq..pppppppq..ppppq.",
+  "..pqq....ppppqq....pqq..",
+  "..sSssssSsssssSssssSss..",
+  "........................",
+  "........................",
+];
+
 export const SPRITES = {
   quests: QUEST_GUILD,
   ideas: THINK_TANK,
@@ -343,6 +381,8 @@ export const SPRITES = {
   votes: BALLOT_HOUSE,
   // the meeps, each drawn as itself (a meep with no entry has no sprite yet)
   postmaster: FERRY,
+  // the meeplings, as a gathering (they are not a meep; /meeps/ shows them apart)
+  meeplings: MEEPLINGS,
 };
 
 export const SPRITE_W = 24;

@@ -25,6 +25,27 @@ export const GRID = 16;
 export const FILL_OPACITY = 0.42;
 
 export const ICONS = {
+  // ── The Meeps ──
+  // a meep's daily: a folded newspaper, its masthead, a picture and columns
+  // (drawn for /meeps/'s daily link, Keemin 2026-09-27; not a chip's icon)
+  newspaper: [
+    "................",
+    "..############..",
+    "..#++++++++++#..",
+    "..#+########+###",
+    "..#++++++++++#+#",
+    "..#+###+####+#+#",
+    "..#+#+#++++++#+#",
+    "..#+###+####+#+#",
+    "..#++++++++++#+#",
+    "..#+###+####+#+#",
+    "..#++++++++++#+#",
+    "..#+###+####+#+#",
+    "..#++++++++++#+#",
+    "..############+#",
+    "....############",
+    "................",
+  ],
   // ── The Town ──
   // the bulletin: a cork board with notes pinned to it
   bulletin: [
