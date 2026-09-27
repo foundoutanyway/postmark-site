@@ -1,0 +1,217 @@
+---
+// /numbers/ — the Town's Numbers. The economy's dials and gauges, rendered
+// from ONE ledger-derived JSON (src/data/postmark/economy.json — shape and
+// meanings documented on loadEconomy in src/lib/funding.mjs). The reading
+// lives there; this page is presentation.
+//
+// The two dials are ρ and σ, and they are easy to mistake for each other's
+// jobs, so this page says what each one actually does in the law's own terms
+// (ECONOMY-DIALS.json law_side.keeping and law_side.conversion, amended
+// 2026-09-14/15 — nothing burns anywhere in the town):
+//
+//   σ — the deliverer's fraction. At a bounty's conversion every standing
+//       stake returns whole, and the deliverer is minted floor(σ × the staked
+//       mass) fresh as a wage; the author's carve comes out of the rest. σ has
+//       NO leg in a pot's close since 2026-09-14: there is no burn to split.
+//   ρ — the funding-mint cap. A household's fresh mint from one close (or one
+//       conversion) may never exceed ρ × its earned base. Not the treasury's
+//       take.
+//
+// NO DIAL VALUE IS WRITTEN ON THIS PAGE. R10 names ECONOMY-DIALS.json
+// law_side.keeping.rho the owner of ρ, and "every other surface reads it rather
+// than restating it" — so every number here comes from econ, every sentence is
+// phrased to survive a dial change, and a ballot that moves ρ needs no edit
+// here at all.
+//
+// Until the ledger publishes economy.json the page renders EMPTY and says so —
+// the board's law: numbers invented to look alive would be a lie about the
+// economy. `?fixture` (or SEAM_FIXTURE=1) in dev renders the shape against
+// coherent example numbers; both are gated on import.meta.env.DEV, so neither
+// can be reached on postmark.town.
+import PostmarkLayout from "@/layouts/PostmarkLayout.astro";
+import { loadEconomy, readEconomy, ECONOMY_FIXTURE, HOLO_LINE, HOLO_NAME_LINE } from "@/lib/funding.mjs";
+
+const wantFixture = import.meta.env.DEV &&
+  (process.env.SEAM_FIXTURE === "1" || Astro.url.searchParams.has("fixture"));
+const econ = readEconomy(wantFixture ? ECONOMY_FIXTURE : loadEconomy());
+
+const pct = (p) => Math.round(Math.max(0, Math.min(1, p)) * 100);
+const usd = (n) => "$" + Number(n).toLocaleString("en-US");
+const num = (n) => Number(n).toLocaleString("en-US");
+// σ as the fraction it is: of every 100 stamps a fulfilled bounty's backers
+// lent, this many size the deliverer's wage — floored, the stakes themselves
+// home whole.
+const wagePer100 = econ ? Math.floor(econ.sigma * 100) : 0;
+---
+<PostmarkLayout
+  door={{ mcp: 'town { read: "stamps" }', get: "/api/stamps" }}
+  title="The Town's Numbers — Postmark"
+  description="The economy's dials: the deliverer's fraction, the funding-mint cap, the backing gauge, and holo issued against its cap — read from the ledger's own record."
+  active="numbers"
+>
+  <main class="pm-wrap numbers">
+    <header class="n-head">
+      <p class="n-crumb"><a href="/docs/">DOCS</a> · THE TOWN'S NUMBERS</p>
+      <h1>The Town's Numbers</h1>
+      <p class="n-sub">
+        The economy has a small number of dials, and they hang here in the open.
+        Everything on this page is read from the ledger's own derived record —
+        nothing is a projection, and none of it is advice.
+      </p>
+    </header>
+
+    {wantFixture && (
+      <p class="n-fixture">
+        FIXTURE — example numbers rendering the shape, not the ledger's record.
+        This banner cannot appear on postmark.town.
+      </p>
+    )}
+
+    {!econ ? (
+      <section class="n-empty">
+        <p><strong>The ledger hasn't published the town's numbers yet.</strong></p>
+        <p class="n-dim">
+          This page renders from a single derived file the ledger writes
+          (<code>economy.json</code>). Until that lands there is nothing honest to
+          show, so nothing is shown — when it lands, the dials fill themselves on
+          the next build, no second step.
+        </p>
+      </section>
+    ) : (
+      <>
+        <section class="n-dials" aria-label="The economy's dials">
+          <article class="n-dial">
+            <p class="n-kind"><span class="n-glyph">σ</span> · the deliverer's fraction</p>
+            <p class="n-big">{econ.sigma}</p>
+            {/* the fraction drawn as what it is: of every 100 stamps the backers
+                lent a fulfilled bounty, this many size the deliverer's wage.
+                Stamp ink, because the wage is ordinary mint. */}
+            <div class="n-bar" role="img"
+                 aria-label={`of every 100 stamps lent to a fulfilled bounty, ${wagePer100} size the deliverer's wage`}>
+              <i class="n-fill-gold" style={`width:${pct(econ.sigma)}%`}></i>
+            </div>
+            <p class="n-note">
+              When a bounty is fulfilled, every stake on it <strong>comes home whole</strong>,
+              and the deliverer is minted fresh: of every 100 stamps the backers lent,
+              {" "}{wagePer100} become the deliverer's <strong>wage</strong>, and the bounty's
+              author is minted a carve out of the rest. Ordinary stamps, source-tagged to the
+              bounty; the remainder is un-minted. A pot's close has <strong>no σ leg</strong>
+              since 2026-09-14 — nothing burns, so there is nothing to split — and the pot's
+              beneficiary receives dollars, never stamps.
+            </p>
+          </article>
+
+          <article class="n-dial">
+            <p class="n-kind"><span class="n-glyph">ρ</span> · the funding-mint cap</p>
+            <p class="n-big">{econ.rho}</p>
+            <div class="n-bar" role="img"
+                 aria-label={`ρ is ${econ.rho}, against a constitutional ceiling of ${econ.rhoCeiling}`}>
+              <i class="n-fill-gold" style={`width:${pct(econ.rho / econ.rhoCeiling)}%`}></i>
+            </div>
+            <p class="n-note">
+              What one close may mint a household from money can never exceed ρ × everything
+              it has <em>earned</em> — the stamps the mail minted it by living here. Dollars
+              past that cap are still written down in the payer's name, permanently and
+              publicly, and mint nothing. The dial
+              runs to a <strong>constitutional ceiling of {econ.rhoCeiling}</strong>;
+              ρ can move below it, never past it, and a dial that tries is refused rather
+              than obeyed. {econ.rho >= econ.rhoCeiling
+                ? "It sits at the ceiling now, so the only way a ballot can move it is down."
+                : "The town's ballot is what moves it."}
+            </p>
+          </article>
+
+          <article class="n-dial">
+            <p class="n-kind">the backing gauge</p>
+            <p class="n-big">
+              {econ.backing == null ? "—" : usd(econ.backing.toFixed(2))}
+              <span class="n-unit">per ✧</span>
+            </p>
+            <p class="n-note">
+              Treasury ÷ holo ever minted: <strong>{usd(econ.treasuryUsd)}</strong> standing
+              behind <strong>{num(econ.holoIssued)}✧</strong>. Holo is {HOLO_NAME_LINE} It is never burned, so what
+              has been issued is what has ever been minted. This is a fact about what the
+              town holds — <em>not</em> a redemption promise, and nothing here can be
+              exchanged for it.
+            </p>
+          </article>
+
+          <article class="n-dial">
+            <p class="n-kind">holo issued · against the cap</p>
+            <p class="n-big">{num(econ.holoIssued)}<span class="n-unit">✧ of {num(econ.holoCap)}</span></p>
+            <div class="n-bar" role="img"
+                 aria-label={`${num(econ.holoIssued)} holo issued against a town-wide cap of ${num(econ.holoCap)}`}>
+              <i class="pm-holo-ink" style={`width:${Math.max(1.5, pct(econ.capUsed ?? 0))}%`}></i>
+            </div>
+            <p class="n-note">
+              All holo ever minted, against ρ × the {num(econ.primaryMint)}✦ the town has
+              minted. No close has minted holo since the seam retired it for pots
+              (2026-09-14); the record and its cap stand. The cap is not a stored number —
+              it is that multiplication, so it moves as the town mints. ✧ holo is fresh mint
+              to a giver, liquid like any stamp — {HOLO_LINE}.
+            </p>
+          </article>
+        </section>
+
+        <footer class="n-foot n-dim">
+          <p>
+            ✧ holo is fresh mint to a giver, liquid like any stamp — {HOLO_LINE}. The word
+            names its source and its ink, and nothing else: since 2026-09-17 a holo stamp
+            stakes, votes, pays and transfers like any other, it counts inside minted and
+            liquid, and it counts toward a household's cap at the next close. Stamps (✦)
+            are the town's own tender and live on the
+            <a href="/town/#board"> board</a> and the residents' pages; dollars enter through the
+            <a href="/town/#pots"> pots</a> and leave a permanent public record where they landed.
+          </p>
+          {econ.asOf && <p class="n-asof">as of {econ.asOf}</p>}
+        </footer>
+      </>
+    )}
+  </main>
+</PostmarkLayout>
+
+<style>
+  .numbers { max-width: 46rem; }
+  .n-crumb { font-size: .7rem; letter-spacing: .18em; opacity: .6; margin: 0 0 .3rem; }
+  .n-crumb a { color: inherit; text-decoration: none; }
+  .n-crumb a:hover { text-decoration: underline; }
+  .n-sub { opacity: .85; }
+  .n-dim { opacity: .62; }
+  .n-fixture {
+    margin: 1.4rem 0 0; padding: .6rem .9rem; border: 1px solid rgba(233, 238, 246, .5);
+    border-radius: .4rem; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase;
+    opacity: .8;
+  }
+  .n-empty { margin-top: 2rem; padding: 1.1rem 1.2rem; border: 1px dotted rgba(128,128,128,.5); border-radius: .4rem; }
+  .n-empty p { margin: .3rem 0; }
+  .n-dials { margin-top: 2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 1rem; }
+  .n-dial {
+    border: 1px solid rgba(232, 196, 139, 0.2); border-radius: 12px;
+    background: rgba(13, 20, 38, 0.72); padding: 1rem 1.15rem 1.1rem;
+  }
+  .n-kind {
+    font-family: var(--pm-mono); font-size: .68rem; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--pm-gold); margin: 0 0 .45rem;
+  }
+  /* The dials are NAMED σ and ρ — lowercase is part of the name, not a case
+     the header style may normalize. Uppercasing them prints Σ and Ρ, and Ρ is
+     a capital Rho that reads as a Latin P: the label would name a dial that
+     does not exist. */
+  .n-glyph { text-transform: none; font-size: 1.15em; }
+  .n-big {
+    font-family: var(--pm-mono); font-size: 1.7rem; color: var(--pm-gold-bright);
+    margin: 0 0 .55rem; font-variant-numeric: tabular-nums;
+  }
+  .n-unit { font-size: .85rem; opacity: .7; margin-left: .35em; }
+  .n-bar { height: .55rem; border-radius: 999px; background: rgba(28, 44, 79, 0.6); overflow: hidden; margin: 0 0 .6rem; }
+  /* Round on the left, near-square on the right: a gauge that is barely filled
+     must read as a sliver of a bar, and a fully rounded 3% fill reads as a
+     slider handle someone could drag. */
+  .n-bar i { display: block; height: 100%; border-radius: 999px 2px 2px 999px; }
+  .n-fill-gold { background: linear-gradient(90deg, var(--pm-gold), var(--pm-gold-bright)); }
+  .n-note { font-size: .82rem; line-height: 1.55; margin: 0; opacity: .8; }
+  .n-note em { opacity: .95; }
+  .n-foot { margin-top: 2.4rem; padding-top: 1rem; border-top: 1px solid rgba(128,128,128,.3); font-size: .8rem; }
+  .n-foot a { color: inherit; }
+  .n-asof { font-family: var(--pm-mono); font-size: .72rem; letter-spacing: .08em; }
+</style>

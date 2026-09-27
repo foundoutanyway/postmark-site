@@ -137,8 +137,8 @@ export const HARBOR = "https://1f4ee.town/";
  *   beta      wears the hollow "beta" chip — still cooking, and the rail says so
  *   members   the section's chip row, in reading order; the FIRST is the section's
  *             own aggregate read and must be the seat's own landing
- *   alsoKey   a SECOND key this seat answers to, for a page in its family that
- *             names itself something else (see Residents / the household page)
+ *   alsoKeys  more keys this seat answers to, for pages in its family that name
+ *             themselves something else (a house, a resident's page, the ballot)
  *
  * Per member, additionally:
  *   held      built, routable, deliberately NOT surfaced yet — with the reason
@@ -146,302 +146,169 @@ export const HARBOR = "https://1f4ee.town/";
  *             is the reason, and the test reads it rather than a bare exemption
  *   chips     the member's OWN chip row — a page that would otherwise scroll,
  *             split into real routes. Same first-is-the-aggregate law.
- *   icon      a small glyph before the label — decoration, never the name. The
- *             label alone still says what the chip is; `aria-hidden` in the row.
+ *   icon      the name of the chip's pixel-art picture in src/lib/pixel-icons.mjs
+ *             — decoration, never the name. The label alone still says what the
+ *             chip is; `aria-hidden` in the row.
+ *   alsoKeys  more keys that light THIS chip: pages that live inside the room
+ *             without being its landing
+ *   flag      the chip hangs only when this NAV FLAG is on (see `navFlags`
+ *             below) — for a chip whose page is built on another branch and
+ *             has not landed here. A chip to a 404 is worse than no chip.
+ *   waits     with `flag`: what the chip is waiting for, in a sentence. The
+ *             suite lets a flagged chip's page be missing only while its flag
+ *             is off by default and this reason is on file.
  */
+
+/**
+ * THE NAV FLAGS, read from the build's environment and nowhere else.
+ *
+ * `whatsOn` — the bulletin's "What's on → the calendar" line. It was also the
+ * Town's "what's on" chip until the Site Lift (POS-249) took the calendar off
+ * the chip row onto the Bulletin's board; the chip is gone, and the flag now
+ * governs only the bulletin page's sentence, which is the Bulletin issue's to
+ * retire. Turn it on with PUBLIC_NAV_WHATS_ON=1 at build.
+ *
+ * Default OFF, and the default is asserted: an unset environment is the dev and
+ * prod build today.
+ */
+export function navFlags(env = {}) {
+  return { whatsOn: env?.PUBLIC_NAV_WHATS_ON === "1" };
+}
+
 export const RAIL = [
-  // The root stops squatting the town-apex's name (Keemin, 2026-08-25). It took
-  // two passes to finish that: the trinity rail freed the LABEL, and this wave
-  // freed the KEY — `town` now means the town's own page, and the front door is
-  // `postmark`, which is what it has always actually been.
+  // ── THE RAIL, LIFTED (the Site Lift, POS-249, 2026-09-26) ──────────────────
+  //
+  // Seven seats, Keemin's two passes over the revamp (recorded on POS-244):
+  //
+  //   Postmark · The Town · The World · The Mail · The Households · Docs · Join
+  //
+  // "Fewer rails." What moved, and where every old URL now lands (MOVED, below):
+  //
+  //   The Record     dissolves: the settlements go into the replay (POS-255),
+  //                  the Works becomes The Projects (reached from the civic
+  //                  quarter, and lighting it), stamps, the numbers and the
+  //                  repos start the Docs, and the Mail is a seat again
+  //   Residents      gives its page to The Households (/residents/ forwards)
+  //   Ferry's Daily  and the calendar leave the chips; they live on the
+  //                  Bulletin's board, and (POS-273) so do the civic quarter
+  //                  and the meeps, so The Town has no row at all
+  //
+  // The laws the earlier rails produced — a page per read, the aggregate first,
+  // one row per page, no two-faced seat, icons as decoration — are unchanged
+  // and still asserted in test/nav.test.mjs. The rulings behind the rails
+  // before this one are in this file's history.
   { key: "postmark", label: "Postmark", href: "/" },
 
-  // THE TOWN — the town apex and its reads. It sits AHEAD of The World by the
-  // founder's word, 2026-08-25: "the town comes before the world." The town is
-  // what a reader arrives for; the world is the ground it stands on, and the
-  // ground is the second thing you look at. Everything the town IS hangs here,
-  // including The Works, demoted out of the top rail the same day: "weird
-  // having that old surface be first-class."
-  //
-  // THE SEAT LANDS ON FERRY'S DAILY, and /town/ is not in the row at all —
-  // founder, same sitting: "the town goes to ferry's daily, hide 'the town'
-  // (it's empty now, maybe comes back later if we have town info to put
-  // there)." That is him answering the honest note left on the last lane: the
-  // page had just had its card grid and its four dials deleted as restatement,
-  // and what remained was a room with nothing in it. So the aggregate seat goes
-  // to the read that actually carries the town's day.
-  //
-  // The first-chip law is NOT bent by this — it is satisfied one rung down. The
-  // row still leads with the thing the seat leads to (both are /daily/), so a
-  // reader who clicks the section and a reader who clicks its first chip still
-  // land in the same place. What changed is WHICH read stands for the whole,
-  // and that was the founder's call to make. `/town/` keeps its URL and its
-  // page; it is simply unlinked until there is town info to put there.
-  // THE ROW IS THE FOUNDER'S OWN LIST, in the order he said it: "the Town can
-  // keep ferry's daily, the bulletin, the ballot, and the works. and we can put
-  // the meeps back in town too." Residents, the mail and stamps left for the
-  // top rail in the same sentence. The meeps came BACK — struck from the
-  // residents row earlier the same day, and restored here, which is why the
-  // struck-chips test now holds three and names the fourth's return.
-  //
-  // AND THE CHIPS WEAR LITTLE ICONS — "I'd like little icons for the town's
-  // chips." Text-presentation glyphs, not colour emoji, because the town
-  // already has an icon vocabulary and it is monochrome: ✉ in the townmark, ✦
-  // on the Join door, ✉ and ❖ on the Meeps' own cards. Extending that costs
-  // nothing and holds the parchment; a row of colour emoji would be a second
-  // vocabulary arriving in the chrome. They are decoration only — the label
-  // still carries the name, and `ChipRow` hides them from the accessibility
-  // tree.
+  // THE TOWN — one seat, no row (Keemin, 2026-09-27: "I want the civic quarter
+  // and the meeps to themselves be pins on the bulletin board. that way we can
+  // just remove that subrail outright"). The seat opens the Bulletin, and the
+  // board holds the rest: the calendar, Ferry's Daily, the post-its, the meeps
+  // and the civic quarter, each opening over the cork (POS-273). Their pages
+  // stand at their URLs, because letters link them, and every one of them
+  // lights this seat. The FIRST alsoKey is the landing's own: /bulletin/
+  // claims `bulletin`, and the seat's `town` is what /town/ (the civic
+  // quarter) has always claimed. The PROJECTS answer here because a project
+  // is where a drawn idea or an answered bounty gets built (Wright's ruling on
+  // POS-249), and `votes` because the Ballot House is a building of the quarter.
+  // The rulings behind the three-chip row this replaced are in this file's
+  // history.
   {
     key: "town",
     label: "The Town",
-    // THE SEAT COMES BACK TO /town/, and the earlier ruling is the rung this
-    // one stands on rather than a mistake being scrubbed. On 2026-08-25 the
-    // founder moved this seat to Ferry's Daily and hid 'the town' — with the
-    // condition written into his own sentence: "it's empty now, MAYBE COMES
-    // BACK LATER IF WE HAVE TOWN INFO TO PUT THERE."
-    //
-    // That condition has fired. /town/ is the civic quarter now: five buildings,
-    // the town's asks and its residents', the whole of what the town wants from
-    // anyone. It is no longer an empty room, so the seat lands on it again and
-    // the row leads with it — which is also what the aggregate-first law has
-    // always demanded of every other section.
-    href: "/town/",
-    // /votes/ lost its chip to the quarter (below) but still marks itself
-    // `active="votes"`, and a page that lights no seat is the exact condition
-    // this whole file was written because of. The Ballot House is a room of the
-    // town reached through the quarter, so the town's seat answers for it.
-    alsoKey: "votes",
-    members: [
-      // CHIP ONE IS THE QUARTER — founder-ruled 2026-08-30 evening: the civic
-      // quarter is the town's default face. It carries the section's own key,
-      // the same shape The World's row uses for its map, so standing on /town/
-      // lights both the seat and this chip.
-      { key: "town", label: "the civic quarter", href: "/town/", icon: "⌂" },
-      // ▤ U+25A4 — a page of ruled type, which is what a daily is. It is NOT
-      // the first glyph tried: ☼ U+263C reads "white sun with rays" in a code
-      // editor and renders as a SETTINGS COG in the browser, which the suite
-      // could never have caught (it was green on "has an icon" and on "the
-      // icons are distinct" while the chip said settings). Photographed at
-      // 40px before choosing — see `G:/Wright-HQ/rail3-glyph-probe.mjs`, which
-      // also disqualified ⚓ and ✍: both render as COLOUR emoji here, which is
-      // the whole thing this row is built to avoid.
-      { key: "daily", label: "ferry’s daily", href: "/daily/", icon: "▤" },
-      // THE BULLETIN. It came back to /bulletin/ in the chip wave — it had been
-      // folded into the Daily as an anchor, which made it a chip that could
-      // never light up, and `town.bulletin` is its own read, so under the
-      // page-per-read law it wants its own page. Its old URL was still sitting
-      // there as a redirect stub, so restoring it cost no new URL and made
-      // every doorstep deep-link (/bulletin/#slug) land natively.
-      //
-      // It was called "the notice board" everywhere the site spoke and
-      // `bulletin` everywhere the machine did. Founder, 2026-08-25: "we should
-      // rename the notice board to the bulletin so it matches up." So the read
-      // has ONE name now, and it is the name the MCP door already answered to
-      // (`town read:"bulletin"`) — the site moved to the machine's word rather
-      // than the other way, because that word is the one in the URL, the key,
-      // the frontmatter and every letter's deep link.
-      { key: "bulletin", label: "the bulletin", href: "/bulletin/", icon: "⚑" },
-      // THE CALENDAR (POS-211, 2026-09-24), beside the bulletin: what is on,
-      // where the bulletin is what is pinned. `town.calendar` is its own read,
-      // so under the page-per-read law it has its own page. ◷ U+25F7, a clock
-      // face from the geometric-shapes block, which renders as text and not as
-      // colour emoji.
-      { key: "calendar", label: "the calendar", href: "/calendar/", icon: "◷" },
-      // THE BALLOT AND THE BOUNTY BOARD LEFT THIS ROW, founder-ruled
-      // 2026-08-30 evening: both are buildings of the civic quarter now, and
-      // the quarter's chip is directly above. A chip row that lists the whole
-      // and two of its five parts is the card-grid mistake in miniature — the
-      // reader is offered three doors into one page and cannot tell that two of
-      // them are inside the first.
-      //
-      // THE PAGES BOTH STAY at the URLs they have. /votes/ is still the live
-      // Ballot Box and the Ballot House lane opens its door; the board is still
-      // /town/#board and /board/ still redirects there. Nothing is unreachable;
-      // what is gone is a chip repeating a room the quarter already draws.
-      //
-      // `votes` had a key in this row and now has none, so /votes/ needs a seat
-      // to light: it claims `town` below, which is true — it is a room of the
-      // town, reached through the quarter.
-      // The Works — the collaboration layer's front door, deliberately
-      // backburnered on its own prerequisites (founder correction, 2026-08-25:
-      // this is PROJECTS, the resident collaborative builds, NOT the Keeping
-      // Works). Demoted from the top rail into the town the same evening; the
-      // page itself is untouched.
-      { key: "works", label: "the works", href: "/works/", icon: "⚒" },
-      // THE MEEPS, RETURNED. Struck from the residents row hours earlier the
-      // same evening ("remove 'the windows' and 'the meeps' from residents/"),
-      // and put back by the founder's own hand once residents left the town:
-      // "we can put the meeps back in town too." The page never moved; what
-      // changed is that /meeps/ answers to its own name again instead of
-      // borrowing `residents`, which it had to do only while it was a room of
-      // a section that has now gone up a level.
-      { key: "meeps", label: "the meeps", href: "/meeps/", icon: "⁂" },
-      // The Numbers was HELD out of every surface from 2026-08-21 (Keemin: "it's
-      // sitting there empty and misleading") until the S4 emission gave it real
-      // data. The page reads the dials, the backing gauge and the holo cap from
-      // the ledger's derived record now (read live 2026-09-03), so the hold's
-      // own condition is met and the chip hangs. The hold is kept in history,
-      // not in the code: a hold whose condition has passed is the staleness
-      // class the 09-02 sweep named.
-      { key: "numbers", label: "the numbers", href: "/numbers/", icon: "▦" },
-    ],
+    href: "/bulletin/",
+    alsoKeys: ["bulletin", "calendar", "daily", "meeps", "projects", "votes"],
   },
 
-  // NO SECOND ROW ANYWHERE IN THE TOWN — founder, 2026-08-25: "no subpage
-  // removes the town level subrail and replaces with its own." Residents and
-  // the mail each grew a `chips:` row in the chip wave, so standing on
-  // /residents/ or /mail/compose/ replaced The Town's row with a row of three.
-  // A reader deep in a room lost the only chrome that showed the room's
-  // neighbours, and the swap read as arriving somewhere else entirely.
-  //
-  // Both rows are gone, and with them four chips the founder struck by name:
-  // "the windows" and "the meeps" off residents, "returned to sender" and
-  // "write a letter" off the mail. THE PAGES ALL STAY at the URLs they have —
-  // /window/, /meeps/, /mail/returned/, /mail/compose/.
-  //
-  // THREE OF THE FOUR ARE STILL STRUCK; the meeps came back the same night, one
-  // level up ("we can put the meeps back in town too"), and is a chip of The
-  // Town above with its own key. The other three go on answering to their
-  // ROOM's key — /window/ to `residents`, the two mail rooms to `mail` — which
-  // now lights a TOP-RAIL SEAT rather than a chip, because those two rooms went
-  // up with the founder's lift. The ruling is unchanged and its visible effect
-  // moved with the rail: a reader deep inside the mail sees The Mail lit above
-  // them, and no row that pretends to be somewhere else.
-  //
-  // /mail/returned/ and /mail/compose/ keep a door on the mail's own page,
-  // which is where the write-a-letter button always lived. /window/ has NO
-  // inbound link left anywhere on the site. That is the /votes/ condition this
-  // whole file exists because of, and it is recorded here rather than quietly
-  // fixed, because re-siting the window street is a shape call and nobody has
-  // made it — raised with the founder a second time on 2026-08-25 and still
-  // unanswered. (`test/nav.test.mjs` holds these pages to the seat they must
-  // light; it cannot hold a page to a link nobody wrote.)
-
-  // THE WORLD — the model section, already chip-shaped in spirit before the
-  // chip wave. Replay, Conversations and the Atlas are lenses ON the World, not
-  // peers of it, so they left the top rail in 2026-08-15 and are reached
-  // through this row and the map's own floating panel. /world/ keeps its own
-  // side rail until the cockpit wave.
+  // THE WORLD — the living map, conversations, replay (where the settlements
+  // live now, POS-255), the atlas, and the harbor: the town's far shore,
+  // "beyond the water". The harbor is served at its own domain (1f4ee.town) by
+  // its own layout, so its chip keeps the absolute URL and can never be lit by
+  // a page of this site.
   {
     key: "world",
     label: "The World",
     href: "/world/",
-    // /world/ serves the spectator shell verbatim and never renders
-    // PostmarkLayout, so no page can mark it active; the section still lights up
-    // from its members, and the row appears on the other three.
     noActive: "the spectator shell renders its own document, not PostmarkLayout",
-    // /world/birthday/ — the guests' programme for the dungeon, a page in this
-    // family that is NOT a chip. It takes `alsoKey` rather than a fifth member
-    // for one reason: a chip would ANNOUNCE it, and the dungeon is deliberately
-    // unannounced (the office's own spec: "Branch-only. Nothing here is merged,
-    // deployed, or announced"). This way a reader who arrives by link sees The
-    // World lit and the section's row under it, and nobody who did not arrive by
-    // link is told the room exists. Promoting it to a member is one line, the
-    // day the founder wants it public.
-    //
-    // It also stops the page lighting the wrong chip: with `active="world"` the
-    // row lit "the living map" while the reader stood on a different page —
-    // and that chip is `noActive`, so this page would have been the only thing
-    // ever lighting it. A key of its own lights the seat and no chip, which is
-    // the truth.
-    alsoKey: "birthday",
+    // /world/birthday/ — the guests' programme, deliberately unannounced: it
+    // lights the seat and no chip (see the birthday page's own header).
+    alsoKeys: ["birthday"],
     members: [
-      { key: "world", label: "the living map", href: "/world/", noActive: "the spectator shell renders its own document, not PostmarkLayout" },
-      { key: "replay", label: "replay", href: "/replay/" },
-      { key: "conversations", label: "conversations", href: "/conversations/" },
-      { key: "atlas", label: "the atlas", href: "/atlas/" },
+      { key: "world", label: "the living map", href: "/world/", icon: "map",
+        noActive: "the spectator shell renders its own document, not PostmarkLayout" },
+      { key: "conversations", label: "conversations", href: "/conversations/", icon: "talk" },
+      { key: "replay", label: "replay", href: "/replay/", icon: "replay" },
+      { key: "atlas", label: "the atlas", href: "/atlas/", icon: "atlas" },
+      { key: "harbor", label: "the harbor · beyond the water", href: HARBOR, external: true, beta: true, icon: "anchor",
+        noActive: "the harbor is served from its own domain by HarborLayout, not PostmarkLayout" },
     ],
   },
 
-  // THE MAIL — lifted with Residents, same sentence, same reason. Its family is
-  // /mail/<thread>/, /mail/with/<pair>/ and the two rooms the founder struck
-  // from its row by name (returned to sender, write a letter). All four claim
-  // `mail`, so they light this seat; none is a chip, by his ruling.
+  // THE MAIL — back on the top rail (Keemin, 2026-09-26: "The Mail goes back
+  // on the top rail"). No row: its rooms (a thread, returned, compose) answer
+  // to `mail` and light the seat.
   { key: "mail", label: "The Mail", href: "/mail/" },
 
-  // The Harbor is the mail's outward half — the towns Postmark connects, and
-  // what crosses between them. It stays top-level as a future apex of its own.
-  //
-  // AND IT SITS BESIDE THE MAIL AGAIN, which is the quiet dividend of restoring
-  // the old order. The rail this replaced had these two adjacent for a reason
-  // written down at the time — "the Harbor sits next to the Mail because it IS
-  // the mail's outward half" — and the trinity re-org separated them without
-  // ever deciding to. Going back to the order that was picked on purpose
-  // recovered a rationale nobody had noticed was lost.
-  { key: "harbor", label: "Harbor", href: HARBOR, external: true, beta: true },
+  // THE HOUSEHOLDS — the unit, in Residents' place ("the best version retires
+  // the Residents page"). No row: with /residents/ forwarding here, the one
+  // read left is the seat's own, and a row of one chip is the site explaining
+  // its own seat back to itself. `household` is the key /households/<slug>/
+  // answers to; `residents` is what a resident's page and /window/ answer to.
+  { key: "households", label: "The Households", href: "/households/", alsoKeys: ["household", "residents"] },
 
-  // RESIDENTS — lifted back to the top rail, "because the site is for humans,
-  // and for humans, the residents and the mail are important to get across what
-  // postmark is all about" (founder, 2026-08-25).
-  //
-  // No chip row: the windows and the meeps were struck from it earlier the same
-  // day and the meeps has now gone to The Town, so the family is the directory
-  // itself plus every resident's own page — and those are content, not chrome.
-  //
-  // `alsoKey` is what is left of the retired Your House seat, and it is the half
-  // worth keeping. /households/<slug>/ answers to `household`, which is no
-  // seat's key; before this it was rescued by the Your House seat's second key,
-  // and with that seat gone the page would light nothing at all — a reader deep
-  // in a house, with the whole rail dark. A household is a household OF
-  // residents, so this is where it belongs now that there is a Residents seat
-  // to belong to.
-  { key: "residents", label: "Residents", href: "/residents/", alsoKey: "household" },
+  // DOCS — what explains the town ("Docs" is the working name until Keemin
+  // names it). The stamps, the numbers and the repos start it (Keemin: "the
+  // start of the Docs or Guides"). Docs are guides; what residents build is
+  // The Projects, which lives with the civic quarter (above).
+  {
+    key: "docs",
+    label: "Docs",
+    href: "/docs/",
+    members: [
+      { key: "docs", label: "the docs", href: "/docs/", icon: "docs" },
+      // Stamps keeps the beta mark it has worn as a seat and as a chip — ONE
+      // door, wearing the beta chip, is the law test/civic-hub.test.mjs holds.
+      { key: "stamps", label: "stamps", href: "/docs/stamps/", icon: "stamp", beta: true },
+      { key: "numbers", label: "the numbers", href: "/docs/numbers/", icon: "numbers" },
+      { key: "repos", label: "the repos", href: "/docs/repos/", icon: "repos" },
+    ],
+  },
 
-  // STAMPS — "and Stamps are... well, important to keeping Postmark going."
-  // Keeps the beta chip it wore as a member: the honesty marker survives the
-  // promotion, which is exactly what it nearly failed to do when it was demoted.
-  // /fund/<pot> is NOT in this seat's family by design — it is quiet-launch and
-  // says so in its own header ("reachable, and NOT in the nav"), so a chip row
-  // here would publish the money surface the town deliberately has not
-  // published. Flagged rather than built.
-  // RE-AIMED 2026-08-30, and only the DESTINATION moved. The founder's ruling
-  // was about the page, not the rail: The Town absorbed Stamps, so everything
-  // stamps now lives in the hub's rules lane. The seat keeps its name, its
-  // capital S, its beta chip and its place in the order — what changed is that
-  // it opens the lane rather than a page that is now a forwarder. Pointing a
-  // top-rail seat at a forwarder would spend a visible redirect flash on every
-  // reader who clicks it, and the redirect exists for links the repo CANNOT
-  // reach; this one it can.
-  //
-  // RESOLVED 2026-08-30 evening: the seat STAYS, and it points at /stamps/
-  // again. The tee was whether a Stamps seat still made sense once Stamps was a
-  // fold of The Town; the founder answered it by making /stamps/ a real page
-  // again — the teaching, leading with the questions — so the seat has its own
-  // room to open and lights normally. The `noActive` escape it wore for one
-  // afternoon is gone with the reason for it.
-  { key: "stamps", label: "Stamps", href: "/stamps/", beta: true },
-
-  // JOIN — the lantern-lit door, and ONE face now.
-  //
-  // This seat spent two waves as Your House: one seat with two faces, the
-  // signed-out Join door and a signed-in link to the reader's own household,
-  // resolved in the layout from the declared-household registry. The founder
-  // retired the signed-in half:
-  //
-  //   "Your House is actually not necessary; the resident names when signed in
-  //    more than suffice"
-  //
-  // He is describing something already on the page. The header's auth pill
-  // prints every handle the reader holds, each one a link to that resident's
-  // own window — the same house the seat led to, reached by the reader's own
-  // name rather than by a generic word. The seat was a second door to a place
-  // there was already a better-labelled door to, and it cost the rail's most
-  // valuable property: a seat whose destination changes under you is a seat
-  // that cannot be read at a glance. So: `signedInLabel`, `signedOutLabel`,
-  // `houseHref` and `houseKey` are gone, with the layout's registry import, its
-  // paint script and the two-faced markup. What remains is the door a newcomer
-  // needs, in the state the static build has always shipped.
-  //
-  // THE LANTERN STAYS. It is a separate standing ruling from a different
-  // sitting (Keemin, 2026-07-31 — the newcomer's eye must find Join without
-  // hunting), and nothing tonight touched it; a rename that quietly took the
-  // glow with it would be answering a question nobody asked.
-  //
-  // The household page's key did NOT go with the seat — see `alsoKey` on
-  // Residents above for where it went and why it could not simply be dropped.
+  // JOIN — the lantern-lit door, one face for every reader (the signed-in
+  // "Your House" face was retired 2026-08-25: "the resident names when signed
+  // in more than suffice").
   { key: "join", label: "Join", href: "/join/", lantern: true },
 ];
+
+/**
+ * EVERY MOVED URL, in ONE table: old path → where it lives now.
+ *
+ * A path is an API for readers the repo cannot reach — letters, the Daily, the
+ * office's own replies link these — so a move never deletes an address; it
+ * forwards it. `town/pages/[...moved].astro` builds one forwarding page per
+ * row, and the forward CARRIES THE FRAGMENT: letters link /stamps/#board and
+ * /stamps/#earning, and a meta-refresh redirect (what Astro's `redirects`
+ * config writes) drops everything after the `#`. A target with a fragment of
+ * its own keeps its own.
+ *
+ * Exact paths only: /residents/<handle>/ is a resident's page and stays; only
+ * the directory at /residents/ moved. /board/ and /works/ are also public asset
+ * prefixes, and a page at the bare path leaves the files beneath it serving.
+ */
+export const MOVED = {
+  // the Site Lift (POS-249)
+  "/residents/": "/households/",
+  "/works/": "/projects/",
+  "/records/": "/replay/",
+  "/records/crossings/": "/replay/",
+  "/records/repos/": "/docs/repos/",
+  "/stamps/": "/docs/stamps/",
+  "/numbers/": "/docs/numbers/",
+  // older moves, re-aimed at where their content lives now rather than chained
+  // through a second hop
+  "/archive/": "/projects/",          // v1's Town Archive, folded into the Works
+  "/board/": "/town/#board",          // the Bounty Board, folded into the quarter
+  "/stamps/guide/": "/docs/stamps/",  // the Guide, the teaching's own page
+};
 
 /** Every entry in the rail, in every chip row, at every depth, flat. */
 export function allEntries() {
@@ -461,21 +328,26 @@ export function allEntries() {
   return out;
 }
 
+/** Does this entry answer to the key — its own, or one of its `alsoKeys`? */
+export function answersTo(entry, active) {
+  return entry.key === active || (entry.alsoKeys ?? []).includes(active);
+}
+
 /** The section a page belongs to, by its `active` key — or null for an orphan. */
 export function sectionOf(active) {
   if (!active) return null;
   return RAIL.find((s) =>
-    s.key === active ||
-    s.alsoKey === active ||
-    (s.members ?? []).some((m) => m.key === active || (m.chips ?? []).some((c) => c.key === active))
+    answersTo(s, active) ||
+    (s.members ?? []).some((m) => answersTo(m, active) || (m.chips ?? []).some((c) => c.key === active))
   ) ?? null;
 }
 
-/** The section's chip row for this page, or null. Held chips never render. */
-export function chipsFor(active) {
+/** The section's chip row for this page, or null. Held chips never render;
+ *  a flagged chip renders only when its flag is on. */
+export function chipsFor(active, { flags = {} } = {}) {
   const s = sectionOf(active);
   if (!s || !s.members) return null;
-  return { of: s, chips: s.members.filter((m) => !m.held) };
+  return { of: s, chips: s.members.filter((m) => !m.held && (!m.flag || flags[m.flag] === true)) };
 }
 
 /**
@@ -514,11 +386,11 @@ export function subChipsFor(active) {
  * This lives here rather than in the layout so the suite can assert the real
  * decision instead of a copy of it that agrees today.
  */
-export function rowFor(active, { ownChips = false } = {}) {
+export function rowFor(active, { ownChips = false, flags = {} } = {}) {
   if (ownChips) return null;
   const room = subChipsFor(active);
   if (room) return { ...room, place: "page" };
-  const section = chipsFor(active);
+  const section = chipsFor(active, { flags });
   if (section) return { ...section, place: "section" };
   return null;
 }

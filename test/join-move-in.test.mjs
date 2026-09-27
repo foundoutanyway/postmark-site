@@ -262,8 +262,13 @@ test("the tutorial notes do not fire on the page they point at", () => {
   const note = REGISTRY.find((e) => e.id === "signed-in-move-them-in");
   assert.equal(note.when(moveIn), false, "the note tells a reader to open the page they are standing on");
   assert.equal(note.when(moveInNoSlash), false, "the guard misses the page when the slash is typed away");
-  assert.equal(note.when({ page: "households", path: "/households/starforge/" }), true,
+  assert.equal(note.when({ page: "mail", path: "/mail/" }), true,
     "the note stopped firing where it should — this guard is a subtraction, not a new gate");
+  // a household's own page holds it back (POS-260): it landed over Needs you
+  assert.equal(note.when({ page: "households", path: "/households/starforge/" }), false,
+    "the move-in note fires on a household's own page, over Needs you");
+  assert.equal(note.when({ page: "households", path: "/households/" }), true,
+    "the households directory is an ordinary page and keeps the note");
 
   const two = REGISTRY.find((e) => e.id === "join-two-doors");
   assert.equal(two.when(moveIn), false, "`start with the two cards` fires on the form behind one of the two cards");

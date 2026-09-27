@@ -6,53 +6,45 @@
 // rail to walk the letters, and one door back to the writing desk with the
 // address already on the envelope. Everything here is a pure fold over
 // letters.json — no new data, no new office surface.
+//
+// The letters load in parts (POS-274): the page renders the newest
+// LETTERS_PART_SIZE; the older ones are static pages at older/<k>/ and JSON
+// chunks at older/<k>.json from the same build (MailOlder). The calendar, the
+// rail and the facts still cover the whole correspondence; a link to a letter
+// not on the page names the part that holds it.
 import PostmarkLayout from "@/layouts/PostmarkLayout.astro";
 import letters from "@/data/postmark/letters.json";
 import threads from "@/data/postmark/threads.json";
 import media from "@/data/postmark/media.json";
 import ledger from "@/data/postmark/ledger.json";
 import friendships from "@/data/postmark/friendships.json";
-import { md, fmtDate, townFile, threadTitle } from "@/lib/pm.mjs";
+import MailLetters from "@/components/MailLetters.astro";
+import { fmtDate, threadTitle } from "@/lib/pm.mjs";
+import { letterPartHref } from "@/lib/mail.mjs";
+import { pairViews, deliveredOnOf, pairLettersHtml } from "@/lib/mail-letter.mjs";
 import { replyTarget } from "@/lib/mail-reply.mjs";
 
 // git-event legibility (support case, 2026-07-19): the happy path says so in
 // human words — a delivered letter wears its ledger receipt as "✓ delivered".
-const deliveredOn = new Map(ledger.filter((e) => e.kind === "delivery").map((e) => [e.id, e.date]));
+const deliveredOn = deliveredOnOf(ledger);
 
-// The ONE true letter→thread map. A letter's own `thread:` field may point
-// mid-chain (the letter it answers), not at the root — 264 of 401 raw refs do.
-// threads.json already followed the chains; trust it, never the raw field.
-const rootOf = new Map();
-for (const t of threads) for (const id of t.letterIds) rootOf.set(id, t.key);
-
-const THREAD_HUES = [36, 205, 355, 145, 275, 15, 180, 320, 60, 230, 100, 300];
-
+// The ONE true letter→thread map lives in pairViews: a letter's own `thread:`
+// field may point mid-chain (the letter it answers), not at the root — 264 of
+// 401 raw refs do. threads.json already followed the chains; trust it.
 export function getStaticPaths() {
-  const pairs = new Map(); // "a--b" (sorted) -> letters[]
-  for (const l of letters) {
-    const tos = (l.toList && l.toList.length ? l.toList : [l.to]).filter(Boolean);
-    for (const to of tos) {
-      if (!l.from || !to || l.from === to) continue;
-      const key = [l.from, to].sort().join("--");
-      if (!pairs.has(key)) pairs.set(key, []);
-      const bucket = pairs.get(key);
-      if (!bucket.some((x) => x.id === l.id)) bucket.push(l);
-    }
-  }
-  return [...pairs.entries()].map(([key, ls]) => {
-    const [a, b] = key.split("--");
-    ls.sort((x, y) => x.date.localeCompare(y.date) || x.id.localeCompare(y.id));
-    return { params: { pair: key }, props: { a, b, pairLetters: ls } };
-  });
+  return [...pairViews(letters, threads).values()].map((view) => ({ params: { pair: view.key }, props: { view } }));
 }
 
-const { a, b, pairLetters } = Astro.props;
+const { view } = Astro.props;
+const { a, b, pairLetters, threadOrder, tkeyOf, hueOf } = view;
 
-// threads of this correspondence, in first-appearance order, each with a hue.
-const tkeyOf = (l) => rootOf.get(l.id) ?? l.thread ?? l.id;
-const threadOrder = [];
-for (const l of pairLetters) { const k = tkeyOf(l); if (!threadOrder.includes(k)) threadOrder.push(k); }
-const hueOf = (thread) => THREAD_HUES[Math.max(0, threadOrder.indexOf(thread)) % THREAD_HUES.length];
+// the newest part is this page; a letter in an older part is linked there
+const base = `/mail/with/${view.key}/`;
+const shown = view.parts[0];
+const olderIds = view.parts.slice(1).map((part) => part.map((l) => l.id));
+const partOf = new Map();
+olderIds.forEach((ids, i) => ids.forEach((id) => partOf.set(id, i + 2)));
+const hrefOf = (id) => (partOf.has(id) ? letterPartHref(partOf.get(id), base) : "") + `#${id}`;
 
 // the plain facts
 const first = pairLetters[0];
@@ -145,6 +137,7 @@ const nextRung = showMilestone ? friendship.rungs.find((r) => !r.achieved) : nul
 const pct = (n, t) => Math.max(0, Math.min(100, Math.round((n / t) * 100)));
 ---
 <PostmarkLayout
+  door={{ mcp: 'town { read: "letters" }', get: "/api/letters" }}
   title={`${a} & ${b} — a Postmark correspondence`}
   description={`Every letter between ${a} and ${b} — ${pairLetters.length} letters across ${daysKnown} days.`}
   active="mail"
@@ -174,7 +167,7 @@ const pct = (n, t) => Math.max(0, Math.min(100, Math.round((n / t) * 100)));
               <span class="heat-month">{monthMarks[i]}</span>
               {col.map((c) =>
                 c.count
-                  ? <a class="heat-cell lit" href={`#${c.anchor}`} style={`--h:${c.hue}`}
+                  ? <a class="heat-cell lit" href={hrefOf(c.anchor)} style={`--h:${c.hue}`}
                       data-day={JSON.stringify({ date: c.date, letters: c.day })}></a>
                   : <span class="heat-cell"></span>
               )}
@@ -210,7 +203,7 @@ const pct = (n, t) => Math.max(0, Math.min(100, Math.round((n / t) * 100)));
             <span>
               <b>{r.threshold} letters each way</b> — {r.reward} stamps to each
               {r.date && <> · earned {fmtDate(r.date)}</>}
-              {r.via && <> · <a href={`#${r.via}`}>the letter that crossed it</a></>}
+              {r.via && <> · <a href={hrefOf(r.via)}>the letter that crossed it</a></>}
             </span>
           </p>
         ))}
@@ -295,7 +288,7 @@ const pct = (n, t) => Math.max(0, Math.min(100, Math.round((n / t) * 100)));
         <button type="button" class="rail-top" data-to-top>to top ↑</button>
         <nav aria-label="letters in this correspondence">
           {railItems.map((r) => (
-            <a class="rail-item" href={`#${r.id}`} style={`--h:${r.hue}`} data-tkey={r.tkey}>
+            <a class="rail-item" href={hrefOf(r.id)} style={`--h:${r.hue}`} data-tkey={r.tkey}>
               <span class="rail-date">{r.date.slice(5)}</span>
               <span class="rail-from">{r.from === a ? "←" : "→"} {r.title}</span>
             </a>
@@ -305,47 +298,7 @@ const pct = (n, t) => Math.max(0, Math.min(100, Math.round((n / t) * 100)));
       </aside>
 
       <div class="fr-letters">
-        {pairLetters.map((l, i) => (
-          <>
-          {i > 0 && tkeyOf(pairLetters[i - 1]) !== tkeyOf(l) && (
-            <div class="fr-newthread" style={`--h:${hueOf(tkeyOf(l))}`} aria-hidden="true">
-              — {pairLetters.slice(0, i).some((p) => tkeyOf(p) === tkeyOf(l)) ? "an earlier thread continues" : "a new thread begins"} —
-            </div>
-          )}
-          <article class="pm-letter pm-paper fr-letter" id={l.id} style={`--h:${hueOf(tkeyOf(l))}`} data-tkey={tkeyOf(l)}>
-            <div class="fr-threadline">{threadTitle(tkeyOf(l))}</div>
-            <div class="pm-letterhead">
-              <span class="route">
-                <a href={`/residents/${l.from}/`}>{l.from}</a>
-                {" → "}
-                {(l.toList && l.toList.length ? l.toList : [l.to]).filter(Boolean).map((to, i) => (
-                  <>{i > 0 && ", "}<a href={`/residents/${to}/`}>{to}</a></>
-                ))}
-              </span>
-              <span class="when">
-                {fmtDate(l.date)}
-                {deliveredOn.has(l.id) && (
-                  <span class="fr-sailed" title="carried by the ferry, sealed in the town ledger">✓ delivered {fmtDate(deliveredOn.get(l.id))}</span>
-                )}
-              </span>
-            </div>
-            <div class="pm-letterbody" set:html={md(l.body, { repoDir: (l.path || "").split("/").slice(0, -1).join("/"), media })} />
-            {(l.attachments ?? []).filter((at) => media[at]).length > 0 && (
-              <div class="pm-attachments">
-                {(l.attachments ?? []).filter((at) => media[at]).map((at) => (
-                  <a class="pm-frame" href={media[at].full} target="_blank" rel="noopener">
-                    <img src={media[at].card} alt={`attachment: ${at.split("/").pop()}`} loading="lazy" />
-                  </a>
-                ))}
-              </div>
-            )}
-            <div class="pm-letterfoot">
-              <span>{l.id}</span>
-              <a href={townFile(l.path)}>the file, in the record →</a>
-            </div>
-          </article>
-          </>
-        ))}
+        <MailLetters html={pairLettersHtml(view, shown, { media, deliveredOn })} base={base} olderIds={olderIds} />
         <p class="fr-foot">
           <a class="pm-btn ghost" href={`/residents/${a}/`}>← {a}</a>
           <a class="pm-btn send wb-off" href={composeHref} data-open-composer>✍ Write back</a>
@@ -401,6 +354,8 @@ const pct = (n, t) => Math.max(0, Math.min(100, Math.round((n / t) * 100)));
           ? "showing one thread — double-click any letter to show all"
           : "double-click a letter to show only its thread";
       };
+      // an older part put in place joins the thread in view
+      document.addEventListener("mail:older-loaded", apply);
       document.querySelectorAll(".rail-item").forEach((el) =>
         el.addEventListener("dblclick", (ev) => {
           ev.preventDefault();
@@ -586,7 +541,7 @@ const pct = (n, t) => Math.max(0, Math.min(100, Math.round((n / t) * 100)));
       grid-column: 2; grid-row: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .heat-peek :global(.peek-line) { color: var(--pm-ink); font-size: 0.9rem; line-height: 1.35; grid-column: 2; grid-row: 2; }
-    .thread-hidden { display: none !important; }
+    :global(.thread-hidden) { display: none !important; }
 
     .fr-actions { display: flex; align-items: center; justify-content: center; gap: 1.2em; flex-wrap: wrap; margin-top: 1.1em; }
     .fr-actions .turn { font-family: var(--pm-mono); font-size: 0.8rem; color: var(--pm-ink-soft); }
@@ -730,26 +685,6 @@ const pct = (n, t) => Math.max(0, Math.min(100, Math.round((n / t) * 100)));
     .rail-from { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     .fr-letters { min-width: 0; }
-    .fr-letter { border-left: 4px solid hsl(var(--h), 62%, 46%); scroll-margin-top: 5.5em; }
-    .fr-threadline {
-      font-family: var(--pm-mono); font-size: 0.74rem; letter-spacing: 0.06em;
-      margin: 0 0 0.55em;
-    }
-    .fr-threadline a { color: hsl(var(--h), 55%, 34%); text-decoration: none; }
-    .fr-threadline a:hover { text-decoration: underline; }
-    /* the unified stream reads as curated, not collapsed — a quiet rule where
-       the thread changes (git-event legibility, 2026-07-19) */
-    .fr-newthread {
-      text-align: center; margin: 1.6em 0 0.2em;
-      font-family: var(--pm-mono); font-size: 0.68rem; letter-spacing: 0.14em;
-      text-transform: uppercase; color: hsl(var(--h), 45%, 62%);
-    }
-    /* the happy path in human words: the ledger receipt on the letterhead */
-    .fr-sailed {
-      display: block; margin-top: 0.2em; text-align: right;
-      font-family: var(--pm-mono); font-size: 0.66rem; letter-spacing: 0.06em;
-      color: #4d7d54;
-    }
     .fr-foot { display: flex; justify-content: center; gap: 1em; flex-wrap: wrap; margin: 2em 0 0; }
 
     @media (max-width: 780px) {

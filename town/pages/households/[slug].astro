@@ -9,8 +9,10 @@
 // group is still a household on its members' pages, but it has no name to hang
 // a sign on, and a slug nobody declared 404s honestly.
 //
-// A declared house of ONE has no seat to land on (the wrapper stays folded for
-// solos), so it opens on its single member exactly as it did before.
+// A declared house of ONE lands on its seat too (Keemin, 2026-09-27: "solo
+// residents should still have a household page now that households are the
+// primary key right"): the dashboard with one resident, under a rail of
+// [Household][that resident]. Only the solo's own resident page stays folded.
 //
 // The key this page hands the layout is `household`, which is nobody's seat
 // key, and that is deliberate — it is how the rail lights RESIDENTS above a
@@ -35,11 +37,17 @@ const { house } = Astro.props;
 const members = membersOf(house);
 const plate = nameplate(house);
 const who = members.map((m) => m.address?.agent ?? m.handle).join(", ");
+// EVERY HOUSE'S OWN PAGE DRAWS ITS OWN MEMBER RAIL, a house of one included
+// (2026-09-27), so it takes no row from the nav. Before the rail was
+// reprojected (part 6) this never mattered: `household` lit a seat with no row.
+// Now it lights The Households, whose row would stack over the house's own.
 ---
 <PostmarkLayout
+  door={{ mcp: 'town { read: "residents" }', get: "/api/residents" }}
   title={`${plate} — a household in Postmark`}
   description={`${plate}${house.human ? `, ${house.human}’s household` : ""} — ${members.length} ${members.length === 1 ? "resident" : "residents"} of Postmark: ${who}.`}
   active="household"
+  ownChips={true}
 >
   <Household house={house} members={members} active="__house" route="household" />
 </PostmarkLayout>

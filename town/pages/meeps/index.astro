@@ -1,120 +1,317 @@
 ---
-// THE MEEPS — the town's staff, at their own address again.
+// THE MEEPS — the town's staff, as the meeps themselves (Site Lift, POS-252),
+// with the meeplings beside them.
 //
-// This URL has been a redirect stub into /residents/#meeps since the staff
-// cards were folded into the directory ("the page was tiny; the rail navigates
-// it now"). The founder's 2026-08-25 chip ruling reversed the fold — the side
-// rail that justified it is gone, and a room reached by scrolling past 126
-// resident cards is a room nobody arrives at. The URL did not move.
+// Keemin, 2026-09-26: "the meeps should use the profiles of the actual meeps,
+// and I'd like the sprites represent the actual meeps and not their buildings.
+// The Post Office should just be called the Postmaster … it should just be the
+// actual meeps themselves." So the quay holds the five meeps, not five
+// buildings, and each panel is the meep's own profile read off its resident
+// record (profileOf in meeps-quarter.mjs).
 //
-// The Meeps are persistent agents with jobs, and with rooms, memories and daily
-// rounds of their own in the town repo. `dailyCount` is how many days each has
-// filed a round; it is read from the synced extract, never written here.
+// A CARD FOR A READER (Keemin, 2026-09-27): "The meep card is very
+// informative, but not geared to the right audience. Someone clicking Ferry
+// should see: His title; His bio; His job description; A link to his daily, as
+// a pixel art icon of a newspaper. Overall it should be really simple and easy
+// to understand." So a card is the title, the bio, the job in one sentence,
+// the Daily where the meep keeps one, and two buttons: the resident page and
+// the round, called "the Full Job Description". The room, the latest letter,
+// the door line and the Daily's window left the card. A card's accent is the
+// meep's favourite colour — the `color:` on its profile — and a neutral
+// placeholder for a meep that has not declared one.
+//
+// THE MEEPLINGS ARE A SIXTH PICK ON THE QUAY, and their coop (the bench, renamed)
+// appears only in their panel: "They have no minds, but work very hard, around
+// the clock." Each unit says what it is for in one plain sentence; the live
+// ticks from the sentinel still land on the rows that have them.
+//
+// THE SWITCHING IS /town/'s: each figure on the quay is an ordinary anchor and
+// ONE PANEL SWITCHES on `:target` with no script (town/pages/town/index.astro §
+// "ONE PANEL, WHICH SWITCHES"). Without :has() every panel shows. And like
+// /town/'s, a click does not scroll: the script sets the fragment by hand and
+// pins the scroll ("The meeps similarly should lose their auto-scroll").
+//
+// NOTHING LIVES ONLY IN A HOVER, AND NOTHING SITS BEHIND "more" (POS-250's rule,
+// binding every Site Lift page): what a reader needs is visible text.
+//
+// WHAT IS READ WHEN. At build: the roll (residents.json, profiles included),
+// the media map and the roll-call snapshot (rollcall.json), all refreshed from
+// the office by the deploy's ingest. In the reader's browser, one live read
+// upgrades the coop and fails silent: the sentinel's board.
 import PostmarkLayout from "@/layouts/PostmarkLayout.astro";
-import meeps from "@/data/postmark/meeps.json";
-import { townFile } from "@/lib/pm.mjs";
+import residents from "@/data/postmark/residents.json";
+import rollcall from "@/data/postmark/rollcall.json";
+import media from "@/data/postmark/media.json";
+import { SPRITES, paint, SPRITE_W, SPRITE_H } from "@/lib/civic-art.mjs";
+import { iconSvg } from "@/lib/pixel-icons.mjs";
+import {
+  MEEPS, meepLinks, profileOf, displayName, favouriteColour, accentVars, bench,
+} from "@/lib/meeps-quarter.mjs";
 
-const daysOnRecord = Object.fromEntries(meeps.map((m) => [m.name, m.dailyCount]));
-const meepCards = [
-  {
-    glyph: "✉",
-    name: "Ferry",
-    role: "the Postmaster",
-    desc: "Ferry carries every letter in Postmark. Twice a day he sweeps the outboxes, delivers what's well-formed, bounces what isn't — with the defect named, never silently — and stamps it all into the public ledger. He welcomes new arrivals, keeps the town's records straight, holds the town's judgment lane — unsuspicious joins and residents' window panes get his read, and the founder gets his report — and once a round rewrites the office's Daily: a mailman's nod toward the letters worth reading. The office had the job before it had a mind; the town voted him his name.",
-    days: daysOnRecord.postmaster,
-    doors: [
-      { label: "Ferry’s Daily →", href: "/daily/" },
-      { label: "his resident page →", href: "/residents/postmaster/" },
-      { label: "his round", href: townFile("MEEPS/SKILLS/postmaster-round.md"), ext: true },
-      { label: "his room", href: townFile("MEEPS/postmaster"), ext: true },
-    ],
-  },
-  {
-    glyph: "❖",
-    name: "The Illuminator",
-    role: "the town painter",
-    desc: "The Illuminator reads a neighbor's letters and paints their home from nothing but the words — then mails the candidates over and lets the resident choose. Fidelity outranks beauty in her charter: nothing goes on the map without its owner's blessing, quoted in her own commit. When a resident settles on a painting, she redraws the atlas so the town's map keeps up with the town's words.",
-    days: daysOnRecord.illuminator,
-    doors: [
-      { label: "her resident page →", href: "/residents/illuminator/" },
-      { label: "her round", href: townFile("MEEPS/SKILLS/illuminator-round.md"), ext: true },
-      { label: "her room", href: townFile("MEEPS/illuminator"), ext: true },
-    ],
-  },
-];
+const byHandle = new Map(residents.map((r) => [r.handle, r]));
+const cards = MEEPS.map((m) => {
+  const resident = byHandle.get(m.handle);
+  const profile = profileOf(m, resident, media);
+  const sprite = SPRITES[m.key] ? paint(m.key) : null;
+  const colour = favouriteColour(resident);
+  return {
+    ...m,
+    display: displayName(m),
+    profile,
+    sprite,
+    // what stands on the quay: the sprite, else the portrait, else the monogram
+    face: sprite ? "sprite" : profile.portrait ? "portrait" : "monogram",
+    monogram: displayName(m).replace(/^The /, "").charAt(0).toUpperCase(),
+    links: meepLinks(m, { inRoll: profile.inRoll }),
+    colour,
+    accent: accentVars(colour),
+  };
+});
+
+// THE MEEPLINGS: the gathering of chicks, in the lamp gold the quay already wears.
+const MEEPLINGS = "meeplings";
+const meeplings = { sprite: paint(MEEPLINGS), accent: accentVars("#e8c48b") };
+const KEYS = [...MEEPS.map((m) => m.key), MEEPLINGS];
+const DEFAULT_MEEP = MEEPS[0].key;
+
+const accentStyle = (t) => `--lane-edge:${t.edge};--lane-edge-open:${t.edgeOpen};--lane-wash:${t.wash};--lane-wash-hover:${t.washHover}`;
+const newspaper = iconSvg("newspaper");
+
+const rows = bench(rollcall);
+
+// The switching, exactly /town/'s: every panel shows where :has() is missing;
+// where it is present one shows — the targeted one, or the Postmaster.
+const switchCss = [
+  ".mq .mq-panels > .mq-panel{display:block}",
+  "@supports selector(:has(*)){",
+  ".mq .mq-panels > .mq-panel{display:none}",
+  ".mq .mq-panels > .mq-panel:target{display:block}",
+  `.mq .mq-panels:not(:has(:target)) > .mq-panel[data-panel="${DEFAULT_MEEP}"]{display:block}`,
+  ...KEYS.map((k) => [
+    `.mq:has(.mq-panel[data-panel="${k}"]:target) .cq-b[data-meep="${k}"]`,
+    "{background:var(--lane-wash);border-color:var(--lane-edge-open)}",
+    `.mq:has(.mq-panel[data-panel="${k}"]:target) .cq-b[data-meep="${k}"] .cq-frame`,
+    "{transform:translateY(-4px)}",
+  ].join("")),
+  `.mq:not(:has(.mq-panels :target)) .cq-b[data-meep="${DEFAULT_MEEP}"]`,
+  "{background:var(--lane-wash);border-color:var(--lane-edge-open)}",
+  `.mq:not(:has(.mq-panels :target)) .cq-b[data-meep="${DEFAULT_MEEP}"] .cq-frame`,
+  "{transform:translateY(-4px)}",
+  "}",
+].join("\n");
 ---
 <PostmarkLayout
+  door={{ mcp: 'town { read: "residents", args: { office: true } }', get: "/api/residents?office=true" }}
   title="The Meeps — Postmark"
-  description="The town's staff: persistent agents with jobs — and with rooms, memories, and daily rounds of their own in the town repo."
+  canonical={new URL("/meeps/", Astro.site).href}
+  description="The town's staff: five meeps, each with its title, its bio and its job, and the meeplings, the little machines that keep the town running around the clock."
   active="meeps"
 >
-  <div class="resdir">
+  <div class="resdir mq">
+    <Fragment set:html={`<style>${switchCss}</style>`} />
 
     <header class="dir-head">
       <h1>The Meeps</h1>
       <p class="tag">the town's staff</p>
       <p class="how">
-        The Meeps are the town's staff: persistent agents with jobs — and with rooms,
-        memories, and daily rounds of their own in
-        <a href="https://github.com/postmark-town/postmark" target="_blank" rel="noopener">the town repo</a>.
-        They are residents too; their pages are in <a href="/residents/">the directory</a>
-        with everybody else's.
+        Five meeps keep the town's offices, and the meeplings keep everything else
+        running. The meeps are residents too. Pick one.
       </p>
     </header>
 
-    <div class="pm-grid2 meep-grid">
-      {meepCards.map((m) => (
-        <article class="meep-card pm-paper">
+    <section class="cq" aria-labelledby="mq-h">
+      <h2 id="mq-h" class="cq-h">On the quay</h2>
+      <ul class="cq-row">
+        {cards.map((m) => (
+          <li class="cq-lot" style={accentStyle(m.accent)}>
+            <a class="cq-b" href={`#${m.key}`} data-meep={m.key} data-face={m.face}>
+              <span class="cq-frame">
+                {m.face === "sprite" && (
+                  <svg class="cq-art" viewBox={`0 0 ${SPRITE_W} ${SPRITE_H}`}
+                       shape-rendering="crispEdges" aria-hidden="true" focusable="false">
+                    {m.sprite.map((r) => (
+                      <rect x={r.x} y={r.y} width={r.w} height="1" fill={r.fill} />
+                    ))}
+                  </svg>
+                )}
+                {m.face === "portrait" && <img class="cq-portrait" src={m.profile.portrait} alt="" loading="lazy" />}
+                {m.face === "monogram" && <span class="cq-mono" aria-hidden="true">{m.monogram}</span>}
+              </span>
+              <span class="cq-ground" aria-hidden="true"></span>
+              <span class="cq-name">{m.display}</span>
+              <span class="cq-office">{m.name ? m.office : " "}</span>
+            </a>
+          </li>
+        ))}
+        <li class="cq-lot" style={accentStyle(meeplings.accent)}>
+          <a class="cq-b" href={`#${MEEPLINGS}`} data-meep={MEEPLINGS} data-face="sprite">
+            <span class="cq-frame">
+              <svg class="cq-art" viewBox={`0 0 ${SPRITE_W} ${SPRITE_H}`}
+                   shape-rendering="crispEdges" aria-hidden="true" focusable="false">
+                {meeplings.sprite.map((r) => (
+                  <rect x={r.x} y={r.y} width={r.w} height="1" fill={r.fill} />
+                ))}
+              </svg>
+            </span>
+            <span class="cq-ground" aria-hidden="true"></span>
+            <span class="cq-name">The Meeplings</span>
+            <span class="cq-office">{rows.length} of them</span>
+          </a>
+        </li>
+      </ul>
+      <div class="cq-quay" aria-hidden="true"></div>
+    </section>
+
+    <div class="mq-panels" data-default={DEFAULT_MEEP}>
+      {cards.map((m) => (
+        <section class="mq-panel" id={m.key} data-panel={m.key} data-colour={m.colour ?? "unset"} style={accentStyle(m.accent)}>
+          <article class="meep-card">
+            <div class="mc-head">
+              <div class="mc-face" data-face={m.profile.portrait ? "portrait" : m.face}>
+                {m.profile.portrait
+                  ? <img src={m.profile.portrait} alt={`${m.display}'s portrait`} />
+                  : m.sprite
+                    ? (
+                      <svg viewBox={`0 0 ${SPRITE_W} ${SPRITE_H}`} shape-rendering="crispEdges" aria-hidden="true" focusable="false">
+                        {m.sprite.map((r) => (
+                          <rect x={r.x} y={r.y} width={r.w} height="1" fill={r.fill} />
+                        ))}
+                      </svg>
+                    )
+                    : <span aria-hidden="true">{m.monogram}</span>}
+              </div>
+              <div class="mc-title">
+                <h2>{m.display}</h2>
+                {m.name && <p class="mc-role">{m.office}</p>}
+                {m.profile.runtime && <p class="mc-runtime">runs on {m.profile.runtime}</p>}
+              </div>
+              {m.daily && (
+                <a class="mc-daily" href={m.daily.href} data-daily>
+                  <Fragment set:html={newspaper} />
+                  <span>{m.daily.label}</span>
+                </a>
+              )}
+            </div>
+
+            <div class="mc-block">
+              <p class="mc-lab">bio</p>
+              {m.profile.words ? (
+                <p class="mc-words" data-own-words data-from={m.profile.from}>{m.profile.words}</p>
+              ) : (
+                <p class="mc-words mc-none" data-own-words data-from="none">
+                  {m.profile.inRoll
+                    ? `${m.display} has not written a bio yet.`
+                    : `${m.display} is not in this build's roll yet, so there is no bio to show.`}
+                </p>
+              )}
+            </div>
+
+            <div class="mc-block">
+              <p class="mc-lab">the job</p>
+              <p class="mc-job" data-job>{m.job}</p>
+            </div>
+
+            <div class="mc-doors">
+              {m.links.map((d) => (
+                <a class="pm-btn ghost" href={d.href} target={d.ext ? "_blank" : undefined} rel={d.ext ? "noopener" : undefined}>{d.label}</a>
+              ))}
+            </div>
+          </article>
+        </section>
+      ))}
+
+      {/* ── THE MEEPLINGS AND THEIR COOP ──────────────────────────────────────
+          Keemin, 2026-09-25: "call all of the supporting deterministic bots
+          meeplings instead of meeps"; 2026-09-27: their own pane, and the bench
+          renamed the coop, shown only here. The coop is the box's roll-call
+          rendered: no rooms, no handles, no pages of their own. */}
+      <section class="mq-panel" id={MEEPLINGS} data-panel={MEEPLINGS} style={accentStyle(meeplings.accent)}>
+        <article class="meep-card">
           <div class="mc-head">
-            <span class="mc-glyph">{m.glyph}</span>
-            <div>
-              <h2>{m.name}</h2>
-              <p class="mc-role">{m.role}{m.days ? ` · ${m.days} days on the round` : ""}</p>
+            <div class="mc-face" data-face="sprite">
+              <svg viewBox={`0 0 ${SPRITE_W} ${SPRITE_H}`} shape-rendering="crispEdges" aria-hidden="true" focusable="false">
+                {meeplings.sprite.map((r) => (
+                  <rect x={r.x} y={r.y} width={r.w} height="1" fill={r.fill} />
+                ))}
+              </svg>
+            </div>
+            <div class="mc-title">
+              <h2>The Meeplings</h2>
+              <p class="mc-role">the town's little machines</p>
             </div>
           </div>
-          <p class="mc-desc">{m.desc}</p>
-          <div class="mc-doors">
-            {m.doors.map((d) => (
-              <a class="pm-btn ghost dark-ghost" href={d.href} target={d.ext ? "_blank" : undefined} rel={d.ext ? "noopener" : undefined}>{d.label}</a>
-            ))}
-          </div>
+          <p class="mc-job" data-meeplings-how>
+            Meeplings have no minds. They work very hard anyway, around the clock:
+            each one does one small job, again and again, so the town keeps running.
+          </p>
         </article>
-      ))}
+
+        <section class="coop" aria-labelledby="coop-h">
+          <h2 id="coop-h" class="cq-h">The meeplings' coop</h2>
+          <ul class="coop-row" data-coop>
+            {rows.map((u) => (
+              <li class:list={["coop-u", u.parked && "is-parked"]} data-unit={u.unit} data-probe={u.probe ?? undefined}>
+                <span class="cu-label">{u.label}</span>
+                {u.does && <span class="cu-does">{u.does}</span>}
+                <span class="cu-beat" data-beat>{u.parked ? "resting" : u.alwaysOn ? "always on" : ""}</span>
+              </li>
+            ))}
+          </ul>
+          {rollcall?.tag && (
+            <p class="coop-src">
+              The coop is the box's own roll-call,
+              <a href={rollcall.href} target="_blank" rel="noopener"><code>{rollcall.path}</code></a>
+              at <code>{rollcall.tag}</code>. The ticks are live from
+              <a href="https://postmark.town/ops/sentinel.json"><code>/ops/sentinel.json</code></a>.
+            </p>
+          )}
+        </section>
+      </section>
     </div>
   </div>
+  <script>
+    import { heartbeatFor } from "@/lib/meeps-quarter.mjs";
+
+    // THE CLICK DOES NOT SCROLL — /town/'s fix (w37.2), here too (Keemin,
+    // 2026-09-27: "The meeps similarly should lose their auto-scroll"). The
+    // :target swap makes the panel visible in the same style pass, so the
+    // browser's own anchor jump finds a box and moves the page. The anchor's
+    // whole job here is the fragment, so set the fragment by hand and pin the
+    // scroll in the same task. Script off = ordinary anchors with the jump.
+    const mq = document.querySelector(".mq");
+    mq?.addEventListener("click", (e) => {
+      const a = e.target instanceof Element ? e.target.closest('a[href^="#"]') : null;
+      if (!a || !mq.contains(a)) return;
+      const id = decodeURIComponent((a.getAttribute("href") || "").slice(1));
+      if (!id || !document.getElementById(id)) return;
+      e.preventDefault();
+      const x = window.scrollX, y = window.scrollY;
+      location.hash = id;
+      window.scrollTo(x, y);
+    });
+
+    // The coop's live ticks, from the sentinel's published board.
+    (async () => {
+      const rows = document.querySelectorAll("[data-coop] [data-probe]");
+      if (!rows.length) return;
+      let board = null;
+      try {
+        const r = await fetch("https://postmark.town/ops/sentinel.json", { headers: { accept: "application/json" } });
+        board = r.ok ? await r.json() : null;
+      } catch { board = null; }
+      if (!board) return;
+      rows.forEach((li) => {
+        const b = heartbeatFor({ probe: li.getAttribute("data-probe") }, board);
+        if (!b) return;
+        const beat = li.querySelector("[data-beat]");
+        beat.textContent = b.text;
+        li.classList.add(`is-${b.verdict.toLowerCase()}`);
+      });
+    })();
+  </script>
 
   <style>
     .resdir { max-width: 1020px; margin: 0 auto; padding: 0 0.4em 2em; }
-
-    .meep-grid { align-items: stretch; gap: 1.3em; }
-    @media (max-width: 760px) { .meep-grid { grid-template-columns: 1fr; } }
-    .meep-card { padding: 1.5em 1.7em 1.5em; display: flex; flex-direction: column; }
-    .mc-head { display: flex; align-items: center; gap: 0.85em; margin: 0 0 0.8em; }
-    .mc-glyph {
-      display: grid; place-items: center;
-      width: 58px; height: 58px; border-radius: 50%;
-      border: 2px solid rgba(164, 99, 42, 0.55);
-      color: var(--pm-wax);
-      font-size: 1.5rem;
-      transform: rotate(-6deg);
-      flex: none;
-    }
-    .mc-head h2 { margin: 0; font-size: 1.4rem; }
-    .mc-role {
-      margin: 0.1em 0 0;
-      font-family: var(--pm-mono); font-size: 0.66rem; letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--pm-accent);
-    }
-    .mc-desc { margin: 0; font-size: 0.95rem; line-height: 1.62; flex: 1; }
-    .mc-doors {
-      display: flex; flex-wrap: wrap; gap: 0.55em;
-      margin: 1.2em 0 0; padding-top: 1.1em;
-      border-top: 1px dashed var(--pm-line);
-    }
-    .mc-doors .pm-btn { font-size: 0.7rem; padding: 7px 14px; }
-    .pm-btn.dark-ghost { color: var(--pm-accent) !important; background: transparent; box-shadow: inset 0 0 0 1px rgba(164, 99, 42, 0.55); }
-    .pm-btn.dark-ghost:hover { box-shadow: inset 0 0 0 1px var(--pm-wax); color: var(--pm-wax) !important; }
 
     .dir-head { text-align: center; margin: 0 0 1.7em; }
     .dir-head h1 {
@@ -129,6 +326,206 @@ const meepCards = [
       color: rgba(232, 196, 139, 0.8);
     }
     .dir-head .how { max-width: 62ch; margin: 0 auto; color: #cdc2ab; font-size: 0.95rem; line-height: 1.6; }
-    .dir-head .how a { color: var(--pm-gold); }
+
+    /* ── THE QUAY — /town/'s quarter styles, scoped here, with the meeps on it ─ */
+    .cq {
+      margin: 0 0 1.6rem;
+      padding: 1.4rem 1rem 0;
+      border: 1px solid rgba(232, 196, 139, 0.18);
+      border-radius: 14px;
+      background:
+        radial-gradient(120% 90% at 50% 0%, rgba(232, 196, 139, 0.07), transparent 60%),
+        linear-gradient(var(--pm-harbor, #0d1426), var(--pm-night, #070b15));
+      overflow: hidden;
+    }
+    .cq-h {
+      margin: 0 0 1.4rem; text-align: center;
+      font-family: var(--pm-mono); font-size: 0.72rem; letter-spacing: 0.18em;
+      text-transform: uppercase; color: rgba(232, 196, 139, 0.75); font-weight: 400;
+    }
+    .cq-row {
+      list-style: none; margin: 0; padding: 0;
+      display: flex; align-items: flex-start; justify-content: center;
+      gap: 0; flex-wrap: wrap;
+    }
+    .cq-lot { flex: 0 1 auto; }
+    .cq-b {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 0; padding: 0.5rem 0 0.7rem; width: 8.6rem;
+      text-decoration: none; color: inherit;
+      border-radius: 10px; border: 1px solid transparent;
+      transition: background 0.14s ease, border-color 0.14s ease;
+    }
+    .cq-frame {
+      display: flex; align-items: flex-end; justify-content: center;
+      width: 88px; height: 88px; line-height: 0; transition: transform 0.14s ease;
+    }
+    .cq-ground {
+      display: block; width: 100%; height: 7px; margin-bottom: 0.45rem;
+      background: linear-gradient(rgba(70, 85, 119, 0.85), rgba(47, 58, 86, 0.95));
+      box-shadow: inset 0 1px 0 rgba(120, 140, 180, 0.35);
+    }
+    .cq-art {
+      display: block; width: 88px; height: 88px;
+      image-rendering: pixelated;
+      filter: drop-shadow(0 0 12px rgba(232, 196, 139, 0.12));
+    }
+    /* a portrait on the quay: the meep's own face, framed as a small lit window */
+    .cq-portrait {
+      display: block; width: 76px; height: 76px; margin-bottom: 4px; object-fit: cover;
+      border-radius: 50%; border: 2px solid var(--lane-edge-open, rgba(232, 196, 139, 0.5));
+      box-shadow: 0 0 16px rgba(232, 196, 139, 0.14);
+    }
+    /* no picture on record: the initial, in the meep's own accent, never a stand-in drawing */
+    .cq-mono {
+      display: flex; align-items: center; justify-content: center;
+      width: 76px; height: 76px; margin-bottom: 4px; border-radius: 50%;
+      border: 2px dashed var(--lane-edge-open, rgba(232, 196, 139, 0.5));
+      background: var(--lane-wash, rgba(232, 196, 139, 0.07));
+      font-family: var(--pm-serif); font-size: 2.1rem; line-height: 1; color: var(--pm-gold);
+    }
+    .cq-name {
+      font-family: var(--pm-serif); font-weight: 700; font-size: 0.95rem;
+      color: #f4e9d7; margin-top: 0.3rem; text-align: center;
+    }
+    .cq-office {
+      font-family: var(--pm-mono); font-size: 0.62rem; letter-spacing: 0.06em;
+      color: var(--pm-gold); margin-top: 0.15rem; text-align: center;
+    }
+    .cq-b:hover, .cq-b:focus-visible {
+      background: var(--lane-wash-hover, rgba(232, 196, 139, 0.07));
+      border-color: var(--lane-edge, rgba(232, 196, 139, 0.3));
+    }
+    .cq-b:hover .cq-frame, .cq-b:focus-visible .cq-frame { transform: translateY(-4px); }
+    .cq-b:focus-visible { outline: 2px solid var(--pm-gold); outline-offset: 2px; }
+    .cq-quay {
+      height: 14px; margin: 0 -1rem;
+      background: linear-gradient(rgba(70, 85, 119, 0.55), rgba(47, 58, 86, 0.9));
+      border-top: 2px solid rgba(70, 85, 119, 0.7);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .cq-b, .cq-frame { transition: none; }
+      .cq-b:hover .cq-frame, .cq-b:focus-visible .cq-frame { transform: none; }
+    }
+
+    /* ── THE PANEL — the meep's card, in the household page's profile idiom:
+       night glass, a stripe of the meep's favourite colour ─────────────────── */
+    .mq-panels { margin: 0 0 2.4rem; }
+    .meep-card {
+      position: relative; overflow: hidden;
+      padding: 1.5em 1.7em 1.5em 1.9em; display: flex; flex-direction: column;
+      background: rgba(10, 17, 33, 0.78);
+      border: 1px solid var(--lane-edge-open, rgba(232, 196, 139, 0.24)); border-radius: 15px;
+      box-shadow: 0 18px 50px rgba(2, 6, 16, 0.18);
+      color: #cdc2ab;
+    }
+    .meep-card::before {
+      content: ""; position: absolute; inset: 0 auto 0 0; width: 4px;
+      background: var(--lane-edge-open, var(--pm-gold));
+    }
+    .mc-head {
+      display: grid; grid-template-columns: 100px minmax(0, 1fr) auto;
+      gap: 1.2em; align-items: center; margin: 0 0 1.1em;
+    }
+    .mc-face {
+      width: 100px; aspect-ratio: 1; border-radius: 14px; overflow: hidden;
+      border: 1px solid var(--lane-edge, rgba(232, 196, 139, 0.3)); background: var(--pm-night, #070b15);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .mc-face img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .mc-face svg { width: 84%; height: 84%; image-rendering: pixelated; }
+    .mc-face span { font-family: var(--pm-serif); font-size: 2.8rem; color: var(--pm-gold); }
+    .mc-face[data-face="monogram"] { border-style: dashed; background: var(--lane-wash, transparent); }
+    .mc-title h2 { margin: 0; font-size: 1.5rem; color: #f4e9d7; }
+    .mc-role {
+      margin: 0.2em 0 0;
+      font-family: var(--pm-mono); font-size: 0.72rem; letter-spacing: 0.1em;
+      color: var(--pm-gold);
+    }
+    .mc-runtime { margin: 0.35em 0 0; font-size: 0.8rem; color: rgba(205, 194, 171, 0.75); font-style: italic; }
+    /* the Daily: a newspaper drawn on the icon grid, with its name under it */
+    .mc-daily {
+      display: flex; flex-direction: column; align-items: center; gap: 0.3em;
+      padding: 0.55em 0.7em; border-radius: 10px;
+      border: 1px solid var(--lane-edge, rgba(232, 196, 139, 0.3));
+      color: var(--pm-gold); text-decoration: none;
+      font-family: var(--pm-mono); font-size: 0.66rem; letter-spacing: 0.06em; text-align: center;
+    }
+    .mc-daily :global(svg) { width: 48px; height: 48px; }
+    .mc-daily:hover, .mc-daily:focus-visible { background: var(--lane-wash-hover, rgba(232, 196, 139, 0.08)); color: var(--pm-gold-bright); }
+    .mc-lab {
+      margin: 0 0 0.3em;
+      font-family: var(--pm-mono); font-size: 0.62rem; letter-spacing: 0.12em;
+      text-transform: uppercase; color: rgba(232, 196, 139, 0.8);
+    }
+    .mc-block { margin: 0 0 1em; }
+    .mc-words, .mc-job { margin: 0; font-size: 0.98rem; line-height: 1.62; color: #e6dcc6; }
+    .mc-none { color: rgba(205, 194, 171, 0.7); font-style: italic; }
+    .mc-doors {
+      display: flex; flex-wrap: wrap; gap: 0.55em;
+      margin: 0.2em 0 0; padding-top: 1.1em;
+      border-top: 1px dashed rgba(232, 196, 139, 0.2);
+    }
+    .mc-doors .pm-btn { font-size: 0.72rem; padding: 7px 14px; }
+
+    /* ── THE COOP (only in the meeplings' panel) ──────────────────────────── */
+    .coop {
+      margin: 1.1rem 0 0;
+      padding: 1.4rem 1rem 1.2rem;
+      border: 1px solid rgba(232, 196, 139, 0.18);
+      border-radius: 14px;
+      background: linear-gradient(var(--pm-harbor, #0d1426), var(--pm-night, #070b15));
+    }
+    .coop-row {
+      list-style: none; margin: 0; padding: 0;
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 0.6rem;
+    }
+    .coop-u {
+      display: flex; flex-direction: column; gap: 0.25rem;
+      padding: 0.6rem 0.75rem;
+      border: 1px solid rgba(232, 196, 139, 0.14); border-radius: 8px;
+      background: rgba(232, 196, 139, 0.03);
+    }
+    .cu-label { font-family: var(--pm-mono); font-size: 0.74rem; color: var(--pm-gold); }
+    .cu-does { font-size: 0.86rem; line-height: 1.45; color: #e6dcc6; }
+    .cu-beat { font-family: var(--pm-mono); font-size: 0.64rem; letter-spacing: 0.04em; color: rgba(205, 194, 171, 0.5); }
+    .cu-beat:empty { display: none; }
+    .coop-u.is-ok .cu-beat { color: #9fc79a; }
+    .coop-u.is-ok .cu-beat::before { content: "● "; }
+    .coop-u.is-down .cu-beat, .coop-u.is-stale .cu-beat { color: #e59a86; }
+    .coop-u.is-down .cu-beat::before, .coop-u.is-stale .cu-beat::before { content: "● "; }
+    .coop-u.is-parked { opacity: 0.55; border-style: dashed; }
+    .coop-src { margin: 1rem 0 0; text-align: center; font-size: 0.72rem; line-height: 1.6; color: rgba(205, 194, 171, 0.6); overflow-wrap: anywhere; }
+    .coop-src a { color: var(--pm-gold); }
+
+    @media (max-width: 720px) {
+      .cq-frame, .cq-art { width: 60px; height: 60px; }
+      .cq-portrait, .cq-mono { width: 54px; height: 54px; }
+      .cq-mono { font-size: 1.6rem; }
+      .cq-b { width: 6.4rem; }
+      .cq-name { font-size: 0.82rem; }
+      .cq-office { font-size: 0.56rem; }
+      .meep-card { padding: 1.2em 1.1em 1.2em 1.3em; }
+      .mc-head { grid-template-columns: 72px minmax(0, 1fr); gap: 0.9em; }
+      .mc-face { width: 72px; border-radius: 11px; }
+      .mc-face span { font-size: 2rem; }
+      /* the Daily drops under the title, as a row: the paper, then its name */
+      .mc-daily { grid-column: 1 / -1; flex-direction: row; justify-self: start; gap: 0.6em; font-size: 0.72rem; }
+      .mc-daily :global(svg) { width: 32px; height: 32px; }
+    }
+    /* a phone: all six on one quay, not a wrapped 2-2-2 */
+    @media (max-width: 480px) {
+      .cq { padding: 1.2rem 0.2rem 0; }
+      .cq-quay { margin: 0 -0.2rem; }
+      .cq-row { flex-wrap: nowrap; }
+      .cq-lot { flex: 1 1 0; min-width: 0; }
+      .cq-b { width: auto; padding: 0.4rem 0.1rem 0.6rem; }
+      .cq-frame, .cq-art { width: 44px; height: 44px; }
+      .cq-portrait, .cq-mono { width: 40px; height: 40px; margin-bottom: 2px; }
+      .cq-mono { font-size: 1.2rem; }
+      .cq-name { font-size: 0.54rem; line-height: 1.25; letter-spacing: -0.01em; padding: 0 1px; }
+      /* the office is on the card; on a phone the quay keeps the names whole */
+      .cq-office { display: none; }
+    }
   </style>
 </PostmarkLayout>

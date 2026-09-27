@@ -3,7 +3,7 @@
 
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { buildThreads, parseFrontmatter, readResidentProfiles } from "./town.mjs";
+import { buildThreads, normalizeProfile, parseFrontmatter, readResidentProfiles } from "./town.mjs";
 
 export const RESIDENT_CARD_LANES = 6;
 
@@ -718,9 +718,12 @@ export async function buildOfficeData({
   const ledger = readSnapshot("ledger.json", []);
   endpointGaps.push("ledger.json preserved from committed snapshot: office has metrics but no event-level ledger endpoint yet");
 
-  // Resident profiles are checkout-owned until the Office grows a profile read
-  // endpoint. A checkout refresh wins; without one (ordinary deploy), retain
-  // the committed last-good overlay so fetching API rows cannot erase it.
+  // Resident profiles: a checkout refresh wins. Without one (the ordinary
+  // deploy), the office's own profile on the resident card (GET /residents/{h}
+  // → profile) wins when it is non-empty, through the same normalizer as a
+  // checkout's PROFILE.md (POS-252: a committed `{}` was hiding Ferry's).
+  // Otherwise the committed last-good overlay is kept, so an office that
+  // answers no profile cannot erase one.
   // The committed snapshot is read ONCE and kept whole. Until POS-180 only the
   // `profile` half was taken; the held-over row below needs the row itself, and
   // reading the same file twice for two halves of it is how the two halves
@@ -734,10 +737,16 @@ export async function buildOfficeData({
       profileByHandle.set(handle, profile);
     }
     problems.push(...checkoutProblems);
-    endpointGaps.push("resident profiles read from the supplied checkout: office has no profile endpoint yet");
+    endpointGaps.push("resident profiles read from the supplied checkout");
   } else {
-    endpointGaps.push("resident profiles preserved from committed snapshot: office has no profile endpoint yet");
+    endpointGaps.push("resident profiles preserved from committed snapshot where the office's card answers none");
   }
+  const profileFor = (r) => {
+    if (townRoot && profileByHandle.has(r.handle)) return profileByHandle.get(r.handle);
+    const office = r.profile && typeof r.profile === "object" && !Array.isArray(r.profile) ? r.profile : null;
+    if (office && Object.keys(office).length) return normalizeProfile(office, `office card /residents/${r.handle}`, problems);
+    return profileByHandle.get(r.handle) ?? {};
+  };
 
   // ── THE DROPPED RESIDENT KEEPS THE PAGE THEY HAD (POS-180) ───────────────
   //
@@ -770,7 +779,7 @@ export async function buildOfficeData({
   }
 
   const residents = fullResidents
-    .map((r) => mapResident(r, letters, ledger, profileByHandle.get(r.handle) ?? r.profile ?? {}))
+    .map((r) => mapResident(r, letters, ledger, profileFor(r)))
     .concat(heldOver)
     .sort((a, b) => a.handle.localeCompare(b.handle));
 
@@ -918,4 +927,166 @@ export async function fetchBlueprints({ fetchImpl = fetch, repo = BLUEPRINTS_REP
     });
   }
   return { fetched_at: new Date().toISOString(), repo, branch, works };
+}
+
+// ── THE MEEPLINGS' BENCH (the site, reprojected — part 3) ────────────────────
+// The office's deploy/box-rollcall-manifest.json is the roll-call of every
+// deterministic unit on the box — "every mechanism that is supposed to be
+// running on meepo-ec2" — and the Meeps page renders it as the meeplings'
+// bench. The office repo is public, so the file is read raw, keyless, AT THE
+// RELEASE THE OFFICE SERVES: GET /release names the tag, and the manifest is
+// read at that tag, so the bench shows the units the box actually runs rather
+// than the ones a train is still carrying toward it.
+//
+// Only the fields the page renders are kept. Any failure throws, and the caller
+// keeps the committed snapshot the way it does for every other data file — a
+// bench read from yesterday's release is a floor, not a lie, and the page says
+// which tag it was read at.
+export const OFFICE_REPO_SLUG = "postmark-town/postmark-office";
+export const ROLLCALL_PATH = "deploy/box-rollcall-manifest.json";
+export async function fetchRollcall({ fetchImpl = fetch, apiBase = "https://postmark.town/api", repo = OFFICE_REPO_SLUG, timeoutMs = 15000 } = {}) {
+  const get = async (url) => {
+    const res = await fetchImpl(url, { signal: AbortSignal.timeout(timeoutMs), headers: { accept: "application/json" } });
+    if (!res.ok) throw new Error(`${url} answered ${res.status}`);
+    return res.json();
+  };
+  const release = await get(`${apiBase.replace(/\/+$/, "")}/release`);
+  const tag = typeof release?.tag === "string" && release.tag ? release.tag : null;
+  if (!tag) throw new Error("GET /release named no tag — the served release is unknown, so no bench is read");
+  const url = `https://raw.githubusercontent.com/${repo}/${tag}/${ROLLCALL_PATH}`;
+  const manifest = await get(url);
+  if (!Array.isArray(manifest?.units)) throw new Error(`${url} carries no units array`);
+  const units = manifest.units.map((u) => ({
+    unit: String(u.unit ?? ""),
+    label: String(u.label ?? u.unit ?? ""),
+    stage: u.stage ? String(u.stage) : null,
+    cadence: u.cadence ? String(u.cadence) : null,
+    heartbeat: u.heartbeat && typeof u.heartbeat === "object"
+      ? { kind: u.heartbeat.kind ?? null, stale_after_minutes: Number.isFinite(u.heartbeat.stale_after_minutes) ? u.heartbeat.stale_after_minutes : null }
+      : null,
+  })).filter((u) => u.unit);
+  return {
+    fetched_at: new Date().toISOString(),
+    repo,
+    tag,
+    path: ROLLCALL_PATH,
+    href: `https://github.com/${repo}/blob/${tag}/${ROLLCALL_PATH}`,
+    units,
+  };
+}
+
+// ── THE CROSSINGS (the site, reprojected — part 5) ───────────────────────────
+// Every settlement the Worldkeeper has blessed, for The Record's crossings
+// page. The office's GET /world/settlements answers the newest twenty, number,
+// sha and date only (its RECENT_MAX); the page wants EVERY one, with the
+// Worldkeeper's own receipt. Both live in the world repo's annotated tags,
+// `settlement/S<n>`, which is exactly where the office reads its own list from
+// ("The truth is the world repo's own git TAGS … The tag's commit date is when
+// it was blessed." — postmark-office src/settlements.mjs).
+//
+// So the tags are fetched here, keyless, the cheap way: a bare repository in a
+// temp directory, one shallow fetch of `refs/tags/settlement/*` with no trees
+// (0.8 s and ~240 KB for 81 tags, measured 2026-09-25), then for-each-ref.
+// `blessed_at` is the tagged commit's date — the same instant the office's
+// door serves — and `receipt` is the tag's message, verbatim.
+//
+// The published count is the one structured number the world keeps per
+// settlement: WORLD/settlement-publications.json at the tag, read raw. It is
+// fetched only for a tag the previous snapshot does not already hold at the
+// same sha, so a build reads one or two files, not eighty. A tag whose file is
+// absent (the earliest settlements predate it) carries null, never a guess.
+//
+// WHAT EACH SETTLEMENT CHANGED (the Site Lift, POS-255: the replay marks every
+// settlement and shows "what it changed in the world"). The same file, read at
+// this tag and at the one before, answers it exactly: a mark in this tag's
+// `published` and not the previous one's was LOCKED here, and one in the
+// previous tag's and not this one's was RETIRED here. `locked` and `retired`
+// are those lists, each entry the mark's id and the household the file names.
+// A new tag costs its own file and its predecessor's; a tag either file is
+// missing for carries null for both, and the page says "not recorded".
+// Refusals are not in the file: the Worldkeeper states them in the receipt.
+//
+// Any failure throws, and the caller keeps the committed snapshot.
+export const WORLD_REPO_SLUG = "postmark-town/postmark-world";
+
+/** Two tags' `published` maps → the marks locked and retired between them, by id. */
+export function publicationChanges(before, now) {
+  const entry = (map) => (id) => ({ id, household: map[id]?.household ?? null });
+  const byId = (a, b) => a.id.localeCompare(b.id);
+  return {
+    locked: Object.keys(now).filter((id) => !(id in before)).map(entry(now)).sort(byId),
+    retired: Object.keys(before).filter((id) => !(id in now)).map(entry(before)).sort(byId),
+  };
+}
+export async function fetchCrossings({ fetchImpl = fetch, repo = WORLD_REPO_SLUG, previous = null, timeoutMs = 15000, git = null } = {}) {
+  const { execFileSync } = await import("node:child_process");
+  const { mkdtempSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join: pjoin } = await import("node:path");
+  const run = git ?? ((args, cwd) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 120000 }));
+
+  const dir = mkdtempSync(pjoin(tmpdir(), "pm-crossings-"));
+  let rows;
+  try {
+    run(["init", "-q", "--bare", "."], dir);
+    run(["fetch", "-q", "--depth=1", "--filter=tree:0", `https://github.com/${repo}.git`, "refs/tags/settlement/*:refs/tags/settlement/*"], dir);
+    const SEP = "\u001f", END = "\u001e";
+    const out = run(["for-each-ref", `--format=%(refname:short)${SEP}%(*objectname)${SEP}%(*committerdate:iso-strict)${SEP}%(creatordate:iso-strict)${SEP}%(contents)${END}`, "refs/tags/settlement"], dir);
+    rows = out.split(END).map((r) => r.replace(/^\s+/, "")).filter(Boolean).map((r) => {
+      const [tag, sha, blessed, tagged, ...rest] = r.split(SEP);
+      return { tag, sha, blessed, tagged, message: rest.join(SEP) };
+    });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+
+  const prev = new Map((previous?.crossings ?? []).map((c) => [c.n, c]));
+  // One read per tag per build, shared by the tag itself and its successor.
+  const files = new Map();
+  const publications = (tag) => {
+    if (!files.has(tag)) files.set(tag, (async () => {
+      try {
+        const res = await fetchImpl(`https://raw.githubusercontent.com/${repo}/${tag}/WORLD/settlement-publications.json`, { signal: AbortSignal.timeout(timeoutMs) });
+        if (!res.ok) return null;
+        const body = await res.json();
+        return body && typeof body.published === "object" && body.published ? body.published : null;
+      } catch { return null; /* the count stays null; the receipt still stands */ }
+    })());
+    return files.get(tag);
+  };
+  const tags = rows
+    .map((row) => ({ row, m: /^settlement\/S(\d+)$/.exec(row.tag ?? "") }))
+    .filter(({ m }) => m)
+    .map(({ row, m }) => ({ row, n: Number(m[1]) }))
+    .sort((a, b) => a.n - b.n);
+  const crossings = [];
+  for (const [i, { row, n }] of tags.entries()) {
+    const sha = row.sha || null;
+    const kept = prev.get(n);
+    const same = kept && kept.sha === sha;
+    let published = same && "published_total" in kept ? kept.published_total : undefined;
+    let changes = same && "locked" in kept && "retired" in kept ? { locked: kept.locked, retired: kept.retired } : undefined;
+    if (published === undefined || changes === undefined) {
+      const now = await publications(row.tag);
+      if (published === undefined) published = now ? Object.keys(now).length : null;
+      if (changes === undefined) {
+        const before = i > 0 ? await publications(tags[i - 1].row.tag) : null;
+        changes = now && before ? publicationChanges(before, now) : { locked: null, retired: null };
+      }
+    }
+    crossings.push({
+      n,
+      tag: row.tag,
+      sha,
+      blessed_at: row.blessed || null,
+      tagged_at: row.tagged || null,
+      receipt: String(row.message ?? "").trim(),
+      published_total: published,
+      locked: changes.locked,
+      retired: changes.retired,
+    });
+  }
+  crossings.sort((a, b) => b.n - a.n);
+  if (!crossings.length) throw new Error("the world repo answered no settlement tags");
+  return { fetched_at: new Date().toISOString(), repo, crossings };
 }
