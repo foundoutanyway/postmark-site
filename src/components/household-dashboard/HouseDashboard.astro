@@ -361,7 +361,8 @@ const facesByHandle = Object.fromEntries(faces.map((f) => [f.handle, {
   .hd :global(.hd-face) { flex: none; width: 3.1em; height: 3.1em; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: rgba(205, 194, 171, 0.12); box-shadow: 0 0 0 2px var(--hd-c, rgba(205, 194, 171, 0.3)); color: var(--hd-warm); font-size: 1.3rem; text-decoration: none; }
   .hd :global(.hd-face img) { width: 100%; height: 100%; object-fit: cover; }
   .hd :global(.hd-face svg) { width: 86%; height: 86%; image-rendering: pixelated; }
-  .hd :global(.hd-card-id) { display: flex; flex-direction: column; min-width: 0; flex: 1; padding-left: 0.3em; }
+  .hd :global(.hd-card-id) { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+  .hd :global(.hd-face-wrap:has(.hd-sprite-mini) + .hd-card-id) { padding-left: 1em; }
   .hd :global(.hd-card-name) { font-size: 1.2rem; font-weight: 700; color: var(--hd-warm); text-decoration: none; }
   .hd :global(.hd-card-sub) { font-family: var(--pm-mono); font-size: 0.64rem; color: rgba(205, 194, 171, 0.72); overflow-wrap: anywhere; }
   .hd :global(.hd-pill-new) { align-self: flex-start; font-family: var(--pm-mono); font-size: 0.58rem; background: rgba(232, 196, 139, 0.16); color: var(--pm-gold-bright); border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
