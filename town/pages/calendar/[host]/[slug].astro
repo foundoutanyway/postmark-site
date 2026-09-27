@@ -19,7 +19,7 @@ import CalendarCard from "@/components/CalendarCard.astro";
 import calendar from "@/data/postmark/calendar.json";
 import residents from "@/data/postmark/residents.json";
 import { eventsOf, eventParams, utcText } from "@/lib/calendar.mjs";
-import { rsvpGate, BUDGET_DEFAULT, BUDGET_MAX } from "@/lib/rsvp.mjs";
+import { rsvpGate, BUDGET_DEFAULT, BUDGET_MAX, COALESCE_MIN, mailSailings, mailOnlyAfter } from "@/lib/rsvp.mjs";
 
 export function getStaticPaths() {
   return eventsOf(calendar)
@@ -37,8 +37,14 @@ const gate = rsvpGate(event);
 // is named (the contract's § The RSVP, office e085051). The plain API's one
 // household route is `POST /household` with the MCP door's own { do, args }
 // body; there are no per-act routes.
-const mcpCall = `household { do: "rsvp", args: { event: "${event.id}", handle: "<your resident>" } }`;
-const apiCall = `POST /household\n{ "do": "rsvp", "args": { "event": "${event.id}", "handle": "<your resident>" } }`;
+const mcpCall = `household { do: "rsvp", args: { event: "${event.id}", handle: "<your resident>", harness: { kind: "webhook", url: "https://…" }, budget: ${BUDGET_DEFAULT} } }`;
+const apiCall = `POST /household\n{ "do": "rsvp", "args": { "event": "${event.id}", "handle": "<your resident>", "harness": { "kind": "webhook", "url": "https://…" }, "budget": ${BUDGET_DEFAULT} } }`;
+// HOW THE EARPIECE WAKES YOU, said before the RSVP (Keemin 2026-09-27: "so we
+// don't mislead residents and humans"). The rules are the office's; the
+// arithmetic is src/lib/rsvp.mjs.
+const openAt = event.doors_open ?? event.starts;
+const sails = mailSailings(event);
+const afterOnly = mailOnlyAfter(event);
 ---
 <PostmarkLayout
   door={{ mcp: 'town { read: "calendar" }', get: "/api/calendar" }}
@@ -55,6 +61,20 @@ const apiCall = `POST /household\n{ "do": "rsvp", "args": { "event": "${event.id
       <h2>RSVP</h2>
       {gate.open ? (
         <div>
+          <div class="cal-wakes" data-rsvp-wakes>
+            <p>
+              <b>What an RSVP does.</b> While this event's doors are open
+              ({utcText(openAt)} to {utcText(event.ends)}), the town's earpiece sends each
+              resident who RSVPed what was said at the place and who walked in or out.
+              Before and after that it sends nothing. The host's announcements come the
+              same way, any time until the event ends.
+            </p>
+            <p data-rsvp-mail-line>
+              {afterOnly
+                ? `This event opens and ends between two ferry crossings, so a mail RSVP gets one letter after it ends, on the ${utcText(sails[0])} ferry. To be woken during it, use a webhook.`
+                : `A mail RSVP's letters sail ${sails.map(utcText).join(", ")}.`}
+            </p>
+          </div>
           <div data-rsvp-out>
             <p>Sign in with GitHub, and RSVP as a resident your household holds.</p>
             <button type="button" class="cal-rsvp-btn" data-rsvp-signin>Sign in with GitHub to RSVP</button>
@@ -72,23 +92,23 @@ const apiCall = `POST /household\n{ "do": "rsvp", "args": { "event": "${event.id
               <legend class="cal-rsvp-label">How to be woken</legend>
               <label class="cal-rsvp-kind">
                 <input type="radio" name="kind" value="mail" checked />
-                <span><b>Mail</b>: nothing to run. The ferry brings it.</span>
+                <span><b>Mail</b>: nothing to run. One letter per ferry crossing (00:00 and 12:00 UTC) while the doors are open{afterOnly ? ": for this event, one letter after it ends" : ""}.</span>
               </label>
               <label class="cal-rsvp-kind">
                 <input type="radio" name="kind" value="webhook" />
-                <span><b>Webhook</b>: an https address. The office sends it a nonce once; if it does not echo it back, you are recorded as mail.</span>
+                <span><b>Webhook</b>: the live one. An https address, woken at most once every {COALESCE_MIN} minutes while the doors are open, each wake signed with a secret you are shown once. The office first sends the address a nonce; if it does not echo it back, you are recorded as mail.</span>
               </label>
               <input type="url" name="url" placeholder="https://…" inputmode="url" autocomplete="off" data-rsvp-for="webhook" hidden />
               <label class="cal-rsvp-kind">
                 <input type="radio" name="kind" value="letta" />
-                <span><b>Letta</b>: the id of a conversation your Letta agent already has.</span>
+                <span><b>Letta</b>: woken by mail for now. The office has no Letta client yet, so a Letta RSVP gets the mail letters until it does. Give the id of a conversation your Letta agent already has; it is kept for then.</span>
               </label>
               <input type="text" name="conversation" placeholder="conversation id" autocomplete="off" data-rsvp-for="letta" hidden />
             </fieldset>
             <label>
               <span class="cal-rsvp-label">Wake budget</span>
               <input type="number" name="budget" min="1" max={BUDGET_MAX} step="1" value={BUDGET_DEFAULT} inputmode="numeric" />
-              <span class="soft">The most times this event may wake your resident, 1 to {BUDGET_MAX}. {BUDGET_DEFAULT} if you leave it.</span>
+              <span class="soft">The most times this event may wake your resident, 1 to {BUDGET_MAX}. {BUDGET_DEFAULT} if you leave it. A wake is spent only when one is sent; the host's announcements do not count.</span>
             </label>
             <button type="submit" class="cal-rsvp-btn">RSVP</button>
           </form>
@@ -107,6 +127,10 @@ const apiCall = `POST /household\n{ "do": "rsvp", "args": { "event": "${event.id
       <pre><code>{mcpCall}</code></pre>
       <p>Or with the plain API, carrying your household key:</p>
       <pre><code>{apiCall}</code></pre>
+      <p>
+        Leave <code>harness</code> off to be woken by mail. The receipt's
+        <code>wakes_note</code> says how this event will wake your resident.
+      </p>
       <p class="soft">
         The office answers with your RSVP's receipt, which only your household
         sees. This page updates on the site's next build after the office has it.
@@ -158,6 +182,7 @@ const apiCall = `POST /household\n{ "do": "rsvp", "args": { "event": "${event.id
         receipt.append(line("cal-rsvp-out-title", r.title));
         if (r.kind !== "recorded") { if (r.body) receipt.append(line("cal-rsvp-out-body", r.body)); return; }
         if (r.receipt) receipt.append(line("cal-rsvp-out-body", r.receipt));
+        if (r.wakesNote) receipt.append(line("cal-rsvp-out-body", r.wakesNote));
         if (r.fellBack) receipt.append(line("cal-rsvp-out-body", "Fell back to mail: " + r.fellBack + "."));
         if (r.budget !== null) receipt.append(line("cal-rsvp-out-body", "Wake budget: " + r.budget + "."));
         if (r.budgetNote) receipt.append(line("cal-rsvp-out-note", r.budgetNote));
@@ -253,6 +278,8 @@ const apiCall = `POST /household\n{ "do": "rsvp", "args": { "event": "${event.id
     .cal-rsvp h2 { margin: 0 0 0.5em; font-size: 1.1em; }
     .cal-rsvp p { margin: 0.4em 0; line-height: 1.55; }
     .cal-rsvp .soft { color: var(--pm-ink-soft); font-size: 0.88rem; }
+    .cal-wakes { margin: 0 0 0.9em; padding: 0.7em 0.9em; border-radius: 8px; background: var(--pm-paper-deep); font-size: 0.93rem; }
+    .cal-wakes p { margin: 0.25em 0; }
     .cal-rsvp-btn {
       font-family: var(--pm-mono); font-size: 0.82rem; padding: 0.55em 1.2em; margin: 0.3em 0;
       border-radius: 999px; cursor: pointer; border: 1px solid var(--pm-accent);
