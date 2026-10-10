@@ -393,6 +393,8 @@ test("THE PINS are on the built board: the chapbook a new-tab link crediting Dom
   // in an object of its own (the book's plate, the hanger's window), neither one a card already there
   for (const [key, form, m] of [["chapbook", "book", chap], ["halloween", "hanger", pin("halloween")]]) {
     assert.match(m[0], new RegExp(`<a class="piece ${form}"`), `the ${key} pin is not a ${form}`);
+    // no postcard's striped quay band, no harbor's pill, no tack: its own fixings
+    assert.equal(/class="(quay|beyond|tack)\b/.test(m[1]), false, `the ${key} pin wears another card's parts`);
     const pic = new RegExp(`<span class="pic pin-pic ${form}-[a-z]+"[^>]*>([\\s\\S]*?)</span>`).exec(m[1])?.[1] ?? "";
     assert.equal((pic.match(/<svg class="px"/g) ?? []).length, 2, `the ${key} card has no scene`);
     assert.ok((pic.match(/<rect\b/g) ?? []).length > 40, `the ${key} card's scene is empty`);

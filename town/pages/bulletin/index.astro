@@ -314,8 +314,9 @@ const views = JSON.stringify({
                       {p.form === "book"
                         ? (
                           <>
-                            <span class="tack" aria-hidden="true"></span>
+                            <span class="washi" aria-hidden="true"></span>
                             <span class="book-spine" aria-hidden="true"></span>
+                            <span class="book-ribbon" aria-hidden="true"></span>
                             <span class="pic pin-pic book-plate" aria-hidden="true">{picture}</span>
                             <span class="book-title">{p.title}</span>
                             {p.by && <span class="book-by">by {p.by}</span>}
@@ -325,7 +326,7 @@ const views = JSON.stringify({
                         )
                         : (
                           <>
-                            <span class="hanger-hole" aria-hidden="true"><span class="tack red"></span></span>
+                            <span class="hanger-hole" aria-hidden="true"><span class="nail"></span></span>
                             <span class="pic pin-pic hanger-window" aria-hidden="true">{picture}</span>
                             {p.kind && <span class="hanger-kick">{p.kind}</span>}
                             <span class="hanger-title">{p.title}</span>
@@ -1025,7 +1026,23 @@ const views = JSON.stringify({
         linear-gradient(90deg, #233826, #3b5e40);
       box-shadow: inset -2px 0 3px rgba(0, 0, 0, 0.45);
     }
-    .book .tack { left: 58%; }
+    /* held to the cork by a strip of washi tape across its head, never a tack,
+       and a ribbon bookmark in the wax red trailing from the foot */
+    .washi {
+      position: absolute; top: -0.75em; left: 50%; z-index: 3; width: 5.2em; height: 1.5em;
+      transform: translateX(-50%) rotate(-4deg);
+      background:
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.22) 0 6px, transparent 6px 12px),
+        rgba(147, 214, 196, 0.78);
+      clip-path: polygon(0 8%, 4% 0, 8% 10%, 12% 0, 100% 0, 96% 50%, 100% 100%, 8% 100%, 4% 92%, 0 100%, 3% 50%);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    }
+    .book-ribbon {
+      position: absolute; bottom: -1.6em; right: 22%; z-index: -1; width: 0.75em; height: 2.4em;
+      background: linear-gradient(90deg, var(--pm-wax), #c4553f 50%, var(--pm-wax));
+      clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+    }
+    .book { isolation: isolate; }
     .book-plate {
       margin: 0.5em 0 0.2em; border-radius: 2px;
       border: 3px double var(--pm-gold);
@@ -1044,8 +1061,9 @@ const views = JSON.stringify({
     }
     .book-line { padding-top: 0.3em; text-align: center; font-style: italic; font-size: 0.84rem; line-height: 1.45; color: #e7dcc4; }
     .book-foot {
-      align-self: center; margin-top: 0.45em; padding-top: 0.4em; border-top: 1px solid rgba(232, 196, 139, 0.5);
-      font-family: var(--pm-mono); font-size: 0.56rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--pm-gold);
+      align-self: center; margin-top: 0.5em;
+      font-style: italic; font-size: 0.86rem; color: var(--pm-gold);
+      text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px;
     }
 
     /* HALLOWEEN: a door-hanger in plum card stock, hung through its punched
@@ -1062,7 +1080,12 @@ const views = JSON.stringify({
       background: radial-gradient(circle at 50% 40%, #443c30, #2d271f);
       box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.7), 0 0 0 2px rgba(201, 130, 61, 0.55);
     }
-    .hanger-hole .tack { top: 0.45em; left: 50%; }
+    /* hung on a nail, driven through the hole into the cork: an iron head */
+    .nail {
+      position: absolute; top: 0.3em; left: 50%; margin-left: -0.45em; width: 0.9em; height: 0.9em; border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #d6e7ef, #9fb0c9 40%, #465577 80%);
+      box-shadow: 0 2px 2px rgba(0, 0, 0, 0.7);
+    }
     .hanger-window {
       border-radius: 50% 50% 3px 3px / 3.4em 3.4em 3px 3px;
       padding-top: 2.2em;
@@ -1081,9 +1104,9 @@ const views = JSON.stringify({
     .hanger-steps :global(strong), .hanger-line :global(strong) { color: var(--pm-gold-bright); }
     .hanger-line { font-size: 0.82rem; line-height: 1.45; font-style: italic; color: #d8c7ef; }
     .hanger-foot {
-      align-self: center; margin-top: 0.4em; padding: 0.3em 0.8em; border-radius: 999px;
-      font-family: var(--pm-mono); font-size: 0.56rem; letter-spacing: 0.14em; text-transform: uppercase;
-      color: #2a1a08; background: #c9823d;
+      align-self: center; margin-top: 0.45em;
+      font-style: italic; font-size: 0.88rem; color: #c9823d;
+      text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px;
     }
 
     /* the stickers: die-cut, slapped on at a lean; a stamp's perforated edge

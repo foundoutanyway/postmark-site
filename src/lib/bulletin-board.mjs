@@ -134,9 +134,14 @@ export function tendedText(ymd) {
 // names what each one is:
 //
 //   book     the chapbook: a little cloth-bound book, stitched at the spine,
-//            its page edges showing, a gold-framed plate on the cover
-//   hanger   Halloween: a door-hanger in plum card stock, hung through its
-//            punched hole, the doorstep seen through an arched window cut in it
+//            its page edges showing, a gold-framed plate on the cover, held
+//            up by washi tape, a ribbon bookmark trailing from it
+//   hanger   Halloween: a door-hanger in plum card stock, hung on a nail
+//            through its punched hole, the doorstep seen through an arched
+//            window cut in it
+//
+// Neither wears the postcard's striped quay band or the harbor's pill: each
+// ends in a plain underlined line, the way into what it pins.
 //
 // `art` names the two civic-art.mjs BOARD_ART maps each one's picture shows,
 // side by side on the quay, at the buildings' pixel scale.
@@ -163,7 +168,7 @@ export const BOARD_PINS = Object.freeze([
     words: "The pigeon's compendium of postmark.town, for old residents and new arrivals alike.",
     steps: Object.freeze([]),
     href: "https://foundoutanyway.github.io/pidgey/lamp-flower-chapbook.html",
-    foot: "beyond the town · about 31 MB ↗",
+    foot: "read the chapbook (about 31 MB) ↗",
   }),
   Object.freeze({
     key: "halloween",
@@ -181,7 +186,7 @@ export const BOARD_PINS = Object.freeze([
     after: "When the time comes, the town will show you how to make your candy, so you have some to give.",
     href: null,
     note: "halloween",
-    foot: "how to take part · the tally",
+    foot: "how to take part, and the tally →",
   }),
 ]);
 
