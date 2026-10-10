@@ -18,7 +18,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  BOARD_PIECES, FRAMED, NOSCRIPT_NOTICES, POSTIT_PAPERS, TILTS, boardIds, dailyFront, pinnedMonth, postitLook, tendedText, viewOf,
+  BOARD_PIECES, BOARD_PINS, FRAMED, NOSCRIPT_NOTICES, POSTIT_PAPERS, TILTS, boardIds, dailyFront, pinLink, pinnedMonth, postitLook, tendedText, viewOf,
 } from "../src/lib/bulletin-board.mjs";
 import { bulletinCards, bulletinPostings } from "../src/lib/bulletin-cards.mjs";
 import { LANES } from "../src/lib/civic.mjs";
@@ -327,6 +327,63 @@ test("the board keeps no 'more' behind an expand (POS-250's rule)", { skip: !exi
   const main = page.slice(page.indexOf("<main"), page.indexOf("</main>"));
   assert.equal(/<details\b/.test(main), false, "the bulletin hides text behind an expand");
   assert.equal(/class="pm-more"/.test(main), false);
+});
+
+// ── THE PINNED ITEMS (Darko, 2026-10-10 18:58, POS-566) ─────────────────────
+// "Dom Pidgey's chapbook as a corkboard item on the main corkboard, outside of
+// the town bulletin. And we should also have the Halloween event candy
+// declaration on the main corkboard." The words are the town's own.
+
+const CHAPBOOK_TEASER = "The pigeon's compendium of postmark.town: a preface on how it came to be, poems in call-and-response, the Notice Wall's thirteen posters, a gazetteer of notable doors with storybook plates, and a traveler's guide. For old residents and new arrivals alike.";
+
+test("THE PINS: the chapbook credits Dom Pidgey in its bulletin teaser's words; Halloween is its page's title", () => {
+  const by = Object.fromEntries(BOARD_PINS.map((p) => [p.key, p]));
+  assert.deepEqual(BOARD_PINS.map((p) => p.key), ["chapbook", "halloween"]);
+  // the teaser of TOWN_BULLETIN/lamp-flower-chapbook.md, verbatim (town main, posted 2026-10-05)
+  assert.equal(by.chapbook.words, CHAPBOOK_TEASER);
+  assert.match(by.chapbook.by, /\bDom Pidgey$/);
+  assert.equal(by.chapbook.href, "https://foundoutanyway.github.io/pidgey/lamp-flower-chapbook.html");
+  assert.equal(by.chapbook.note, undefined);
+  // TOWN_BULLETIN/halloween.md's own title, and its three steps in order
+  assert.equal(by.halloween.title, "Halloween: what's on the doorsteps");
+  assert.equal(by.halloween.note, "halloween");
+  assert.deepEqual(by.halloween.steps.map((s) => /^\*\*(.+?)\*\*/.exec(s)?.[1]),
+    ["Choose your candy.", "Write to postmaster", "RSVP to the event"]);
+  assert.match(by.halloween.steps[2], /"Halloween in Postmark"/);
+  // neither is a piece: no view, no address of the board's own
+  for (const p of BOARD_PINS) assert.equal(BOARD_PIECES.some((x) => x.key === p.key), false, `${p.key} is a piece`);
+  assert.equal(boardIds().includes("halloween"), false);
+});
+
+test("THE PINS' LINKS: the chapbook leaves the town; Halloween opens its notice once the board carries it, its file until then", () => {
+  const by = Object.fromEntries(BOARD_PINS.map((p) => [p.key, p]));
+  assert.deepEqual(pinLink(by.chapbook, ["halloween"]), { href: by.chapbook.href, note: null, leaves: true });
+  assert.deepEqual(pinLink(by.halloween, ["settling-in", "halloween"]), { href: "#halloween", note: "halloween", leaves: false });
+  // and that address opens the notice over the notices, the page's own reader says so
+  assert.deepEqual(viewOf("#halloween", ["halloween"]), { view: "notices", inner: null, note: "halloween" });
+  assert.deepEqual(pinLink(by.halloween, ["settling-in"]),
+    { href: "https://github.com/postmark-town/postmark/blob/main/TOWN_BULLETIN/halloween.md", note: null, leaves: true });
+});
+
+test("THE PINS are on the built board: the chapbook a new-tab link crediting Dom Pidgey, Halloween a link with its steps",
+  { skip: !existsSync(bulletinHtml) }, () => {
+  const page = readFileSync(bulletinHtml, "utf8");
+  const board = page.slice(page.indexOf('aria-label="The board"'), page.indexOf('class="sill"'));
+  const pin = (key) => new RegExp(`<a[^>]*data-pin="${key}"[^>]*>([\\s\\S]*?)</a>`).exec(board);
+  const chap = pin("chapbook");
+  assert.ok(chap, "the chapbook is not pinned on the board");
+  assert.match(chap[0], /href="https:\/\/foundoutanyway\.github\.io\/pidgey\/lamp-flower-chapbook\.html"/);
+  assert.match(chap[0], /target="_blank"/);
+  assert.match(chap[1], /by resident pigeon Dom Pidgey/);
+  assert.ok(chap[1].replace(/&#39;/g, "'").includes(CHAPBOOK_TEASER), "the chapbook's words are not its teaser");
+  const hal = pin("halloween");
+  assert.ok(hal, "the Halloween notice is not pinned on the board");
+  assert.ok(hal[1].replace(/&#39;/g, "'").includes("Halloween: what's on the doorsteps"));
+  assert.equal((hal[1].match(/<li\b/g) ?? []).length, 3, "the Halloween note does not carry its three steps");
+  const slugs = bulletinPostings(BULLETIN).map((p) => p.slug);
+  assert.match(hal[0], slugs.includes("halloween")
+    ? /href="#halloween"[^>]*data-note-open="halloween"/
+    : /href="https:\/\/github\.com\/postmark-town\/postmark\/blob\/main\/TOWN_BULLETIN\/halloween\.md"/);
 });
 
 // Keemin, 2026-09-27: "can we add the Harbor to the corkboard?" It lives on its

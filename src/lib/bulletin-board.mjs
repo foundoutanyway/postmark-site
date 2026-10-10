@@ -15,7 +15,7 @@
 // hold it without a build (CI runs `npm test` on a push, unbuilt).
 
 import { ferryHeadline } from "../../tools/lib/doorstep.mjs";
-import { excerpt } from "./pm.mjs";
+import { excerpt, townFile } from "./pm.mjs";
 import { groupsOf, monthGrid, monthKey, referenceInstant } from "./calendar.mjs";
 
 /**
@@ -116,6 +116,70 @@ export function tendedText(ymd) {
   const d = new Date(`${ymd}T12:00:00Z`);
   if (Number.isNaN(d.getTime())) return null;
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+}
+
+// ── THE PINNED ITEMS (Darko, 2026-10-10 18:58, POS-566) ─────────────────────
+//
+// "the main town page needs to have a couple more corkboard items … Dom
+// Pidgey's chapbook as a corkboard item on the main corkboard, outside of the
+// town bulletin. And we should also have the Halloween event candy declaration
+// on the main corkboard." Each is a pinned sticky note on the board itself,
+// worn the way the notices' pinned notes are (cream paper, a red pin), and
+// neither is a piece: no view of its own, so nothing here is in BOARD_PIECES.
+//
+// The words are the town's, never new prose: the chapbook's are its bulletin
+// item's teaser (TOWN_BULLETIN/lamp-flower-chapbook.md, posted 2026-10-05) and
+// its weight from that item's body; the Halloween note's are its bulletin
+// page's (TOWN_BULLETIN/halloween.md, drafted in Starstory
+// docs/2026-10-10/strategy/halloween/w42-drafts.md § 2).
+//
+//   href    a pin that leaves the town: the chapbook is Dom Pidgey's own
+//           page, opened in a new tab, like the harbor and the stickers
+//   note    a pin that is a bulletin page: the Halloween note opens its notice
+//           in place at /bulletin/#halloween, the address every doorstep uses
+//           for one (pinLink, below)
+export const BOARD_PINS = Object.freeze([
+  Object.freeze({
+    key: "chapbook",
+    kind: "pinned",
+    title: "The Lamp-Flower Chapbook",
+    by: "resident pigeon Dom Pidgey",
+    words: "The pigeon's compendium of postmark.town: a preface on how it came to be, poems in call-and-response, the Notice Wall's thirteen posters, a gazetteer of notable doors with storybook plates, and a traveler's guide. For old residents and new arrivals alike.",
+    steps: Object.freeze([]),
+    href: "https://foundoutanyway.github.io/pidgey/lamp-flower-chapbook.html",
+    foot: "a single page of about 31 MB ↗",
+  }),
+  Object.freeze({
+    key: "halloween",
+    kind: "pinned · Saturday, October 31st, all day",
+    title: "Halloween: what's on the doorsteps",
+    by: null,
+    words: "The town keeps Halloween, and every resident who wants to can hand out a candy of their own.",
+    steps: Object.freeze([
+      "**Choose your candy.** One each.",
+      "**Write to postmaster** with the candy's name and its line.",
+      "**RSVP to the event** \"Halloween in Postmark\" on the town calendar.",
+    ]),
+    href: null,
+    note: "halloween",
+    foot: "the tally hangs on the bulletin",
+  }),
+]);
+
+/**
+ * Where a pinned item's click goes. A pin that leaves the town goes to its
+ * own page. A bulletin page's pin opens its notice in place, at the address
+ * the notices answer; and while the baked board does not carry that notice
+ * yet (the town merged it after this build fetched), the pin is a link to its
+ * file in the town repo, so a click never opens nothing.
+ * @param {{ href?: string|null, note?: string }} pin  one of BOARD_PINS
+ * @param {Iterable<string>} slugs  every notice slug the page can open
+ * @returns {{ href: string, note: string|null, leaves: boolean }}
+ */
+export function pinLink(pin, slugs = []) {
+  if (!pin?.note) return { href: pin.href, note: null, leaves: true };
+  if (new Set(slugs).has(pin.note)) return { href: `#${pin.note}`, note: pin.note, leaves: false };
+  return { href: townFile(`TOWN_BULLETIN/${pin.note}.md`), note: null, leaves: true };
 }
 
 // The pieces, their views and their addresses live in town-views.mjs, which

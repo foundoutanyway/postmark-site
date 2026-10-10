@@ -8,7 +8,9 @@
 // The board holds five pieces, in Keemin's order (src/lib/town-views.mjs,
 // BOARD_PIECES): the calendar, Ferry's Daily, a cluster of post-its, the meeps
 // and the civic quarter's postcard. And the town's social links are stickers
-// slapped on the cork, read from src/lib/door-line.mjs's SOCIALS.
+// slapped on the cork, read from src/lib/door-line.mjs's SOCIALS. Under the
+// pieces, two pinned items (Darko, POS-566): Dom Pidgey's chapbook and the
+// Halloween notice (bulletin-board.mjs, BOARD_PINS).
 //
 // THE BOARD SLIDES, NOTHING POPS (Keemin, 2026-09-27): "I'm also generally
 // not a fan of the whole pop-up window. could we try containing everything in
@@ -43,7 +45,7 @@ import calendar from "@/data/postmark/calendar.json";
 import residents from "@/data/postmark/residents.json";
 import { md, emph, postingTitle, postingTeaser } from "@/lib/pm.mjs";
 import { bulletinCards, bulletinPostings, isPinned, subBoard } from "@/lib/bulletin-cards.mjs";
-import { BOARD_PIECES, FRAMED, NOSCRIPT_NOTICES, dailyFront, pinnedMonth, postitLook, tendedText } from "@/lib/bulletin-board.mjs";
+import { BOARD_PIECES, BOARD_PINS, FRAMED, NOSCRIPT_NOTICES, dailyFront, pinLink, pinnedMonth, postitLook, tendedText } from "@/lib/bulletin-board.mjs";
 import { WEEKDAYS, utcText } from "@/lib/calendar.mjs";
 import { LANES } from "@/lib/civic.mjs";
 import { MEEPS, displayName } from "@/lib/meeps-quarter.mjs";
@@ -58,6 +60,8 @@ const cards = bulletinCards(bulletin);
 // happenings, so /bulletin/#<a happening> still opens its notice.
 const postings = bulletinPostings(bulletin);
 const sticks = subBoard(bulletin);
+// the pinned items on the board itself, each with where its click goes
+const pins = BOARD_PINS.map((p) => ({ ...p, link: pinLink(p, postings.map((x) => x.slug)) }));
 const month = pinnedMonth(calendar);
 const daily = dailyFront(bulletin);
 const tended = tendedText(daily.tended);
@@ -286,8 +290,31 @@ const views = JSON.stringify({
               <span class="beyond">beyond the town · 1f4ee.town ↗</span>
             </a>
 
+            {/* 7 · THE PINNED ITEMS (Darko, POS-566): sticky notes on the board
+                itself, worn as the notices' pinned ones are, cream under a red
+                pin. The chapbook leaves the town; the Halloween note opens its
+                notice in place (bulletin-board.mjs, BOARD_PINS and pinLink). */}
+            <ul class="sticks pins" aria-label="Pinned on the board">
+              {pins.map((p) => (
+                <li class="stick is-pinned" style="--paper: #f7efdc; --tilt: 0deg">
+                  <a href={p.link.href} data-pin={p.key} data-note-open={p.link.note ?? undefined}
+                     target={p.link.leaves ? "_blank" : undefined} rel={p.link.leaves ? "noopener" : undefined}
+                     aria-label={p.link.leaves ? `${p.title}${p.by ? `, by ${p.by}` : ""} (opens in a new tab)` : undefined}>
+                    <span class="pin red" aria-hidden="true"></span>
+                    <span class="st-kind">{p.kind}</span>
+                    <span class="st-title">{p.title}</span>
+                    {p.by && <span class="st-by">by {p.by}</span>}
+                    <span class="st-words" set:html={emph(p.words)} />
+                    {p.steps.length > 0 && <ol class="st-steps">{p.steps.map((s) => <li set:html={emph(s)} />)}</ol>}
+                    <span class="st-foot">{p.foot}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+
             {/* THE STICKERS: the town's socials, slapped on the cork. Plain external
-                links; a platform not open yet (TikTok) is a greyed sticker, not a link. */}
+                links; a platform not open yet (`soon` in door-line.mjs) would be a
+                greyed sticker, not a link. Since TikTok opened (POS-566) none is. */}
             <ul class="stickers" aria-label="Postmark elsewhere">
               {stickers.map((s) => (
                 <li style={`--tilt: ${s.tilt}deg`}>
@@ -655,7 +682,7 @@ const views = JSON.stringify({
       position: relative;
       display: grid;
       grid-template-columns: 1fr 1.35fr 1fr;
-      grid-template-areas: "cal news notes" "card meeps meeps" "card stick harbor";
+      grid-template-areas: "cal news notes" "card meeps meeps" "card stick harbor" "pins pins pins";
       gap: 2.2em 2em;
       align-items: start;
       padding: 2.6em 2em 2.8em;
@@ -936,6 +963,23 @@ const views = JSON.stringify({
       color: #0d2033; background: #93d6c4;
     }
 
+    /* 7 · the pinned items: the notices' pinned sticky notes (.stick, below),
+       two of them on the board itself, side by side under the pieces */
+    .board .pins {
+      grid-area: pins;
+      grid-template-columns: repeat(2, minmax(0, 19em)); justify-content: center; gap: 1.8em 2.6em;
+    }
+    .board .pins .stick a { min-height: 0; }
+    .st-by { font-style: italic; font-size: 0.82rem; color: var(--pm-ink-soft); }
+    .st-words { font-size: 0.82rem; line-height: 1.45; color: #3d3021; overflow-wrap: anywhere; }
+    .st-steps { margin: 0; padding-left: 1.3em; font-size: 0.8rem; line-height: 1.45; color: #3d3021; }
+    .st-words :global(strong), .st-steps :global(strong) { color: var(--pm-ink); }
+    .st-foot {
+      margin-top: auto; padding-top: 0.35em;
+      font-family: var(--pm-mono); font-size: 0.56rem; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #b23a24;
+    }
+
     /* the stickers: die-cut, slapped on at a lean; a stamp's perforated edge
        or a blob of wax, in the style guide's inks, never a platform's tile */
     .stickers {
@@ -978,9 +1022,10 @@ const views = JSON.stringify({
     @media (max-width: 760px) {
       .board {
         grid-template-columns: minmax(0, 1fr);
-        grid-template-areas: "cal" "news" "notes" "meeps" "card" "harbor" "stick";
+        grid-template-areas: "cal" "news" "notes" "meeps" "card" "harbor" "pins" "stick";
         gap: 2.4em; padding: 2.2em 0.9em 2.4em; border-width: 8px; border-bottom-width: 0;
       }
+      .board .pins { grid-template-columns: minmax(0, 1fr); gap: 2.4em; }
       .piece, .piece:hover, .piece:focus-visible { transform: none; }
       .notes { height: 15em; }
       .hand-name { font-size: 0.5rem; }
