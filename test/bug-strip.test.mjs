@@ -18,7 +18,7 @@ import { execFileSync } from "node:child_process";
 
 import {
   LADDER, CONFIRMED_CAP, STAGES, FINISHED, PANELS, ADVISORY_URL, NEW_ISSUE_URL, POST_CALL,
-  JAR_ART, plainOf, VIDEO_URL, VIDEO_THUMB, VIDEO_EMBED, playVideo, LEGACY_LINE,
+  JAR_ART, plainOf, VIDEO_URL, VIDEO_THUMB, VIDEO_EMBED, playVideo,
 } from "../src/lib/bug-strip.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -267,12 +267,13 @@ test("the built jar: one list of cards read live from the office's bug posts, af
   // the jar and the board are one list now, not two
   assert.doesNotMatch(bc, /data-bug-jar|data-bug-board/);
   assert.match(bc, new RegExp(`<a class="pm-btn" href="${NEW_ISSUE_URL}"[^>]*\\bdata-report\\b[^>]*>Report a bug</a>`));
-  // POS-558: the legacy shelf, then the Hall of Fame, after the jar, each hidden until the read paints it
-  const shelf = bc.indexOf("data-bug-legacy-shelf"), hall = bc.indexOf("data-bug-fame-hall");
-  assert.ok(shelf > bc.indexOf("data-bug-cards") && hall > shelf, "the shelf and the Hall are not after the jar, in that order");
-  assert.match(bc, /<section class="bug-legacy[^"]*"[^>]*\bhidden\b[^>]*data-bug-legacy-shelf/);
+  // POS-558: the pager under the cards and the Hall of Fame after the jar, each hidden until the read paints it;
+  // the legacy shelf is the pages' last group, painted with the cards
+  const pager = bc.indexOf("data-bug-pager"), hall = bc.indexOf("data-bug-fame-hall");
+  assert.ok(pager > bc.indexOf("data-bug-cards") && hall > pager, "the pager and the Hall are not after the cards, in that order");
+  assert.match(bc, /<nav class="bc-pager[^"]*"[^>]*data-bug-pager[^>]*\bhidden\b/);
   assert.match(bc, /<section class="bug-fame[^"]*"[^>]*\bhidden\b[^>]*data-bug-fame-hall/);
-  assert.ok(bc.includes(LEGACY_LINE.replace(/'/g, "&#39;")) || bc.includes(LEGACY_LINE), "the shelf's line is not on the page");
+  assert.doesNotMatch(bc, /data-bug-legacy/);
   assert.match(bc, /The Bug Catchers(?:'|&#39;) Hall of Fame/);
   assert.doesNotMatch(bc, /unnamed/i);
 });

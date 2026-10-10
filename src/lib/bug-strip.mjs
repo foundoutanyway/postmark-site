@@ -27,6 +27,7 @@
 // so; it never reads as an empty jar.
 
 import { MEEPS } from "./meeps-quarter.mjs";
+import { mailPagerItems } from "./mail.mjs";
 
 /** The flat ladder, a copy of the office's BUG_LADDER. */
 export const LADDER = Object.freeze({
@@ -287,16 +288,27 @@ export const STAGE_LABEL = Object.freeze({
 // HISTORY): one row per stage act, { stage, at, hand, credit, link,
 // stamps_paid }.
 //
-// COLLAPSED, a card is the jar's slot: the critter (its picked picture once
-// revealed, the lit jar with the name its fixer gave it, or the "?" silhouette
-// while it is loose), the title, the reporter and the stage. EXPANDED, it is
-// the ladder: every stage of the main line, each reached one with who did it,
-// when, its stamps and its link, the unreached ones dim; then the issue, the
-// PR and the release. A side exit's ladder ends at its exit.
+// COLLAPSED, a card is the jar's slot as prod drew it, a squarish card in a
+// grid (Darko, 2026-10-10, POS-558: "pretty much like the way the bug jars
+// look on prod, where they have their own squarish, rectangularish cards"):
+// the critter (its picked picture once revealed, the lit jar with the name its
+// fixer gave it, or the "?" silhouette while it is loose), the title, the
+// reporter and the stage. EXPANDED, it spans its whole row ("open them to fill
+// that entire row with the information of the expanded version") and is the
+// ladder, unchanged from POS-547: every stage of the main line, each reached
+// one with who did it, when, its stamps and its link, the unreached ones dim;
+// then the issue, the PR and the release. A side exit's ladder ends at its exit.
 //
-// THE ORDER: open bugs first, by stage in the lifecycle's order; then the ones
-// set aside (duplicate, not a bug); shipped bugs last. Every post in the read
-// is one card.
+// THE PAGES (POS-558): the office's bug read pages (office town-posts.mjs §
+// THE BUG READ PAGES: limit and offset in; total, shown, limit, offset,
+// complete out), so the browser reads one page of PAGE_SIZE at a time and
+// draws the site's numbered pager (mail.mjs § mailPagerItems, MailPager's
+// look) under the cards. An office before POS-558 ignores the limit and sends
+// every bug: that answer is one page, with no pager.
+//
+// THE ORDER is the office's, page after page. Within a page the cards are
+// grouped: open bugs by stage in the lifecycle's order, then the ones set
+// aside (duplicate, not a bug), then the shipped, then the legacy shelf.
 //
 // Everything a resident wrote reaches the page as text (textContent), and an
 // href is only ever a URL on the town's own GitHub org.
@@ -312,12 +324,21 @@ const LINK_RE = /^https:\/\/github\.com\/postmark-town\/[A-Za-z0-9._-]+\/\S+$/;
 /** A revealed critter's picture: the town's own media (office media.mjs). */
 const MEDIA_RE = /^https:\/\/media\.postmark\.town\/\S+$/;
 
-/** The card groups, in the page's order. */
+/** The legacy shelf's line (Darko, 2026-10-10, POS-558). */
+export const LEGACY_LINE = "These bugs were spotted before the Bug Catcher's jar existed. They're here to credit the residents who caught them.";
+
+/** The card groups, in the page's order. The legacy shelf holds the finished bugs with no name (§ THE JAR), whatever their state. */
 export const CARD_GROUPS = Object.freeze([
   ...STAGES.filter((s) => s !== "shipped").map((s) => Object.freeze({ key: s, label: STAGE_LABEL[s], states: [s] })),
   Object.freeze({ key: "set-aside", label: "Set aside", states: ["duplicate", "not-a-bug"] }),
   Object.freeze({ key: "shipped", label: "Shipped", states: ["shipped"] }),
+  Object.freeze({ key: "legacy", label: "Legacy bugs", states: ["fixed", "shipped"], note: LEGACY_LINE }),
 ]);
+
+/** Bugs per page of the jar: four rows of prod's slots at desktop width. */
+export const PAGE_SIZE = 24;
+/** The read of one page: BOARD_PATH with its limit and offset. */
+export const pagePath = (offset = 0) => `${BOARD_PATH}&limit=${PAGE_SIZE}&offset=${Math.max(0, Math.trunc(Number(offset) || 0))}`;
 
 const dayOf = (iso) => {
   const t = Date.parse(iso);
@@ -403,11 +424,24 @@ export function cardsOf(read) {
         ladder: ladderOf(p),
       };
     });
-  const jar = cards.filter((c) => !c.legacy);
   const groups = CARD_GROUPS
-    .map((g) => ({ key: g.key, label: g.label, cards: jar.filter((c) => g.states.includes(c.stage)) }))
+    .map((g) => ({ key: g.key, label: g.label, note: g.note ?? null,
+      cards: cards.filter((c) => (g.key === "legacy") === c.legacy && g.states.includes(c.stage)) }))
     .filter((g) => g.cards.length);
-  return { ok: true, groups, legacy: cards.filter((c) => c.legacy), total: cards.length, caught: jar.filter((c) => c.caught).length };
+  return { ok: true, groups, total: Number.isInteger(read.total) ? read.total : cards.length, page: pageOf(read, cards.length) };
+}
+
+/**
+ * Where this answer sits in the bug read: `{ current, pages, limit }`. An
+ * answer without the paged read's `limit` (an office before POS-558) is the
+ * whole read, one page.
+ */
+function pageOf(read, shown) {
+  const limit = Number.isInteger(read.limit) && read.limit > 0 ? read.limit : null;
+  const total = Number.isInteger(read.total) ? read.total : shown;
+  if (!limit) return { current: 1, pages: 1, limit: null };
+  const offset = Number.isInteger(read.offset) && read.offset > 0 ? read.offset : 0;
+  return { current: Math.floor(offset / limit) + 1, pages: Math.max(1, Math.ceil(total / limit)), limit };
 }
 
 /** What a credited, paying stage with no ledger line says: the tick pays within about fifteen minutes, or a cap held it. */
@@ -421,7 +455,11 @@ export const CARDS_EMPTY = "No bugs have been reported yet.";
 
 const elOf = (doc) => (tag, cls, s) => { const e = doc.createElement(tag); if (cls) e.className = cls; if (s !== undefined) e.textContent = s; return e; };
 
-/** One card as a <details>: collapsed, the jar's slot, the title, the reporter and the stage; expanded, the ladder and where the work is. */
+/**
+ * One card as a <details>. Its summary is the jar's slot (closed, a squarish
+ * card in the grid; the page's CSS lays the same summary out as the ladder's
+ * head row when it is open); the body is the ladder and where the work is.
+ */
 function cardEl(c, doc) {
   const el = elOf(doc);
   const out = (href, cls, s) => { const e = el("a", cls, s); e.href = href; e.target = "_blank"; e.rel = "noopener"; return e; };
@@ -429,17 +467,18 @@ function cardEl(c, doc) {
   card.dataset.post = c.id;
   card.dataset.stage = c.stage;
 
-  // collapsed: the jar's slot, the title and reporter, the stage
+  // the slot: the jar, the name or "?", the title and reporter, the stage
   const sum = el("summary", "bc-sum");
   const img = el("img", "bc-img");
   img.src = c.picture ?? (c.caught ? JAR_ART.finished : JAR_ART.open);
-  img.alt = ""; img.width = 48; img.height = 48;
+  img.alt = ""; img.width = 64; img.height = 64;
   const jar = el("span", "bc-jar");
   jar.append(img);
   const head = el("span", "bc-head");
   // a loose bug is the jar's "?"; a named one is its name, above the title; a legacy one has no name to show
   if (c.critter) head.append(el("span", "bc-name", c.critter));
   else if (!c.caught) jar.append(el("span", "bc-name bc-q", "?"));
+  if (c.namedBy) head.append(el("span", "bc-nb", `named by ${c.namedBy}`));
   head.append(el("span", "bc-title", c.title));
   if (c.reporter) head.append(el("span", "bc-by", `${c.legacy ? "caught" : "reported"} by ${c.reporter}`));
   sum.append(jar, head, el("span", `bc-stage is-${c.stage}`, c.stageLabel));
@@ -480,7 +519,7 @@ function cardEl(c, doc) {
   return li;
 }
 
-/** Paints the jar from `cardsOf`'s answer into `root` with createElement and textContent only; each card is a <details>. */
+/** Paints one page of `cardsOf`'s answer into `root` with createElement and textContent only: a grid of <details> per group. */
 export function paintCards(root, board, doc = globalThis.document) {
   root.replaceChildren();
   const el = elOf(doc);
@@ -489,7 +528,8 @@ export function paintCards(root, board, doc = globalThis.document) {
   for (const g of board.groups) {
     const sec = el("section", "bc-group");
     sec.dataset.group = g.key;
-    sec.append(el("h4", "bc-group-h", `${g.label} · ${g.cards.length}`));
+    sec.append(el("h4", "bc-group-h", g.label));
+    if (g.note) sec.append(el("p", "bc-group-note", g.note));
     const ul = el("ul", "bc-list");
     for (const c of g.cards) ul.append(cardEl(c, doc));
     sec.append(ul);
@@ -497,16 +537,34 @@ export function paintCards(root, board, doc = globalThis.document) {
   }
 }
 
-/** The legacy shelf's line (Darko, 2026-10-10, POS-558). */
-export const LEGACY_LINE = "These bugs were spotted before the Bug Catcher's jar existed. They're here to credit the residents who caught them.";
-
-/** Paints the legacy shelf, the same cards; answers whether the shelf has anything to show (the page hides it when not). */
-export function paintLegacy(root, board, doc = globalThis.document) {
-  root.replaceChildren();
-  if (!board.ok || !board.legacy?.length) return false;
-  const ul = elOf(doc)("ul", "bc-list");
-  for (const c of board.legacy) ul.append(cardEl(c, doc));
-  root.append(ul);
+/**
+ * The numbered pager under the cards: mail.mjs § mailPagerItems (the first,
+ * the last, and two either side of this one) in MailPager's look and words.
+ * The page reads live, so the pages are buttons that ask for their page
+ * (`onPage(n)`), not links. One page draws nothing.
+ */
+export function paintPager(nav, board, onPage, doc = globalThis.document) {
+  nav.replaceChildren();
+  const pages = board.ok ? board.page.pages : 1;
+  if (pages < 2) return false;
+  const el = elOf(doc);
+  const now = board.page.current;
+  const go = (n, cls, s) => {
+    const b = el("button", cls, s);
+    b.type = "button";
+    b.dataset.page = String(n);
+    b.addEventListener?.("click", () => onPage(n));
+    return b;
+  };
+  nav.append(now > 1 ? go(now - 1, "mp-step", "← newer") : el("span", "mp-step off", "← newer"));
+  const list = el("span", "mp-pages");
+  for (const p of mailPagerItems(now, pages)) {
+    if (p === "gap") list.append(el("span", "mp-gap", "…"));
+    else if (p === now) { const s = el("span", "mp-page on", String(p)); s.setAttribute?.("aria-current", "page"); list.append(s); }
+    else list.append(go(p, "mp-page", String(p)));
+  }
+  nav.append(list);
+  nav.append(now < pages ? go(now + 1, "mp-step", "older →") : el("span", "mp-step off", "older →"));
   return true;
 }
 
@@ -514,21 +572,21 @@ export function paintLegacy(root, board, doc = globalThis.document) {
 //
 // "residents in order of amount of stamp contribution towards bugs, because
 // our stamp pricing already acts as a really good proxy for how much total
-// they've contributed." From the same one read as the cards: a resident's
-// stamps are the sum of `history[].stamps_paid` on the rows whose `credit` is
-// them, across every bug; their bugs are the posts they hold a credit on (a
-// report counts: the reported row credits its author). A bug set aside (a
-// duplicate, not a bug) credits only a stage that paid.
+// they've contributed." The bug read pages, and a page cannot add up the town,
+// so the office serves the totals over the whole record on every page:
+// `catchers`, { handle, stamps, bugs } per credited handle (office bugs.mjs §
+// THE CATCHERS, from the same history credits and stamps_paid; a bug set aside
+// credits only a stage that paid). The page never sums pages.
 //
 // THE TOWN'S HANDS ARE NEVER RANKED: the meeps (meeps-quarter.mjs § MEEPS),
 // who never take stamps, and the founders' hands, who pay them. A credited
 // resident whose stages paid nothing (the legacy shelf's catchers) is listed
 // under the ranked rows, by bugs credited, so no catcher is invisible.
 //
-// A read with no history at all (an office before POS-547) says so in one
-// line rather than drawing an empty board. A read whose ledger chain is
-// unavailable (`unavailable`, every stamps_paid null) lists the catchers by
-// bugs and says the stamps can't be read, rather than ranking everyone at 0.
+// A read without `catchers` (an office before POS-558) says so in one line
+// rather than drawing an empty board. Catchers whose stamps are null (the
+// chain is unavailable) are listed by bugs, with a line saying the stamps
+// can't be read, rather than ranking everyone at 0.
 
 /** The founders' hands: `keemin` and `wright` move bugs (office bugs.mjs § BUG_HANDS), and `keeminlee` is the founder's account (funding.mjs § FOUNDER_ACCOUNT). */
 export const FOUNDER_HANDS = Object.freeze(["keemin", "keeminlee", "wright"]);
@@ -541,34 +599,23 @@ export const HALL_NO_STAMPS = "What each stage paid can't be read right now, so 
 export const HALL_EMPTY = "No resident has been credited on a bug yet.";
 
 /**
- * The Hall, from the office's `GET /posts?class=bug` answer: `ranked` (stamps
- * above 0, most first, ties sharing a rank) and `also` (credited, no stamps),
- * each row `{ handle, name, stamps, bugs }`. `known` is false when no post
- * carries history.
+ * The Hall, from the office's `catchers` (on any page of the bug read):
+ * `ranked` (stamps above 0, most first, ties sharing a rank) and `also`
+ * (credited, no stamps), each row `{ handle, name, stamps, bugs }`. `known`
+ * is false when the answer carries no catchers.
  */
 export function hallOf(read, hands = TOWN_HANDS) {
   if (!read || typeof read !== "object" || !Array.isArray(read.posts)) return { ok: false, known: false, stamps: false, ranked: [], also: [] };
-  const posts = read.posts.filter((p) => p && typeof p === "object" && typeof p.id === "string");
-  if (!posts.some(historyOf)) return { ok: true, known: false, stamps: false, ranked: [], also: [] };
-  const by = new Map();
-  for (const p of posts) {
-    const aside = SIDE_EXITS.has(p.state);
-    for (const h of historyOf(p) ?? []) {
-      const who = h && typeof h === "object" ? text(h.credit, 40) : "";
-      if (!who || hands.has(who)) continue;
-      const paid = paidOf(h.stamps_paid) ?? 0;
-      if (aside && !paid) continue;
-      const r = by.get(who) ?? { handle: who, name: named(who), stamps: 0, posts: new Set() };
-      r.stamps += paid;
-      r.posts.add(p.id);
-      by.set(who, r);
-    }
-  }
-  const rows = [...by.values()].map(({ handle, name, stamps, posts }) => ({ handle, name, stamps, bugs: posts.size }));
+  if (!Array.isArray(read.catchers)) return { ok: true, known: false, stamps: false, ranked: [], also: [] };
+  const rows = read.catchers
+    .filter((c) => c && typeof c === "object")
+    .map((c) => ({ handle: text(c.handle, 40), stamps: Number.isInteger(c.stamps) && c.stamps > 0 ? c.stamps : c.stamps === null ? null : 0, bugs: Number.isInteger(c.bugs) && c.bugs > 0 ? c.bugs : 0 }))
+    .filter((c) => c.handle && c.bugs && !hands.has(c.handle))
+    .map((c) => ({ ...c, name: named(c.handle) }));
   const byBugs = (a, b) => b.bugs - a.bugs || a.name.localeCompare(b.name);
   const ranked = rows.filter((r) => r.stamps > 0).sort((a, b) => b.stamps - a.stamps || byBugs(a, b));
   ranked.forEach((r, i) => { r.rank = i && ranked[i - 1].stamps === r.stamps ? ranked[i - 1].rank : i + 1; });
-  return { ok: true, known: true, stamps: !read.unavailable, ranked, also: rows.filter((r) => !r.stamps).sort(byBugs) };
+  return { ok: true, known: true, stamps: !rows.some((r) => r.stamps === null), ranked, also: rows.filter((r) => !r.stamps).sort(byBugs) };
 }
 
 const bugsWord = (n) => `${n} bug${n === 1 ? "" : "s"}`;
