@@ -306,6 +306,7 @@ const views = JSON.stringify({
                     {p.by && <span class="st-by">by {p.by}</span>}
                     <span class="st-words" set:html={emph(p.words)} />
                     {p.steps.length > 0 && <ol class="st-steps">{p.steps.map((s) => <li set:html={emph(s)} />)}</ol>}
+                    {p.after && <span class="st-words" set:html={emph(p.after)} />}
                     <span class="st-foot">{p.foot}</span>
                   </a>
                 </li>

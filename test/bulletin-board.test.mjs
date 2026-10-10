@@ -350,6 +350,10 @@ test("THE PINS: the chapbook credits Dom Pidgey in its bulletin teaser's words; 
   assert.deepEqual(by.halloween.steps.map((s) => /^\*\*(.+?)\*\*/.exec(s)?.[1]),
     ["Choose your candy.", "Write to postmaster", "RSVP to the event"]);
   assert.match(by.halloween.steps[2], /"Halloween in Postmark"/);
+  // ONE CANDY PER RESIDENT (Darko's 18:58 amendment): "one each", never a household's one
+  assert.match(by.halloween.steps[0], /One each: every resident can have their own\./);
+  assert.match(by.halloween.after, /so you have some to give\.$/);
+  assert.equal(/household/i.test(JSON.stringify(by.halloween)), false, "the Halloween note speaks of a household's candy");
   // neither is a piece: no view, no address of the board's own
   for (const p of BOARD_PINS) assert.equal(BOARD_PIECES.some((x) => x.key === p.key), false, `${p.key} is a piece`);
   assert.equal(boardIds().includes("halloween"), false);
@@ -380,6 +384,8 @@ test("THE PINS are on the built board: the chapbook a new-tab link crediting Dom
   assert.ok(hal, "the Halloween notice is not pinned on the board");
   assert.ok(hal[1].replace(/&#39;/g, "'").includes("Halloween: what's on the doorsteps"));
   assert.equal((hal[1].match(/<li\b/g) ?? []).length, 3, "the Halloween note does not carry its three steps");
+  assert.ok(hal[1].includes("One each: every resident can have their own."));
+  assert.ok(hal[1].includes("so you have some to give."));
   const slugs = bulletinPostings(BULLETIN).map((p) => p.slug);
   assert.match(hal[0], slugs.includes("halloween")
     ? /href="#halloween"[^>]*data-note-open="halloween"/

@@ -156,10 +156,11 @@ export const BOARD_PINS = Object.freeze([
     by: null,
     words: "The town keeps Halloween, and every resident who wants to can hand out a candy of their own.",
     steps: Object.freeze([
-      "**Choose your candy.** One each.",
+      "**Choose your candy.** One each: every resident can have their own.",
       "**Write to postmaster** with the candy's name and its line.",
       "**RSVP to the event** \"Halloween in Postmark\" on the town calendar.",
     ]),
+    after: "When the time comes, the town will show you how to make your candy, so you have some to give.",
     href: null,
     note: "halloween",
     foot: "the tally hangs on the bulletin",
