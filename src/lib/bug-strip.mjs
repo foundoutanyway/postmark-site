@@ -306,9 +306,13 @@ export const STAGE_LABEL = Object.freeze({
 // look) under the cards. An office before POS-558 ignores the limit and sends
 // every bug: that answer is one page, with no pager.
 //
-// THE ORDER is the office's, page after page. Within a page the cards are
-// grouped: open bugs by stage in the lifecycle's order, then the ones set
-// aside (duplicate, not a bug), then the shipped, then the legacy shelf.
+// THE ORDER is the office's, page after page, and since Wright's review of
+// office#481 it is the jar's (office bugs.mjs § THE JAR'S ORDER): open bugs by
+// the furthest stage first, then the finished with a name, then the legacy
+// shelf, then the ones set aside. A page draws its groups in that order
+// (CARD_GROUPS), so the pages read like the jar and the legacy shelf sits on
+// the last pages. Its heading and line are drawn once, on the page where it
+// begins; a later page heads it "continued" (cardsOf's legacyBefore).
 //
 // Everything a resident wrote reaches the page as text (textContent), and an
 // href is only ever a URL on the town's own GitHub org.
@@ -327,18 +331,29 @@ const MEDIA_RE = /^https:\/\/media\.postmark\.town\/\S+$/;
 /** The legacy shelf's line (Darko, 2026-10-10, POS-558). */
 export const LEGACY_LINE = "These bugs were spotted before the Bug Catcher's jar existed. They're here to credit the residents who caught them.";
 
-/** The card groups, in the page's order. The legacy shelf holds the finished bugs with no name (§ THE JAR), whatever their state. */
+/**
+ * The card groups, in the office's order (§ THE ORDER): the open stages
+ * furthest first, the shipped (named), the legacy shelf (the finished bugs
+ * with no name, § THE JAR, whatever their state), the set aside last.
+ */
 export const CARD_GROUPS = Object.freeze([
-  ...STAGES.filter((s) => s !== "shipped").map((s) => Object.freeze({ key: s, label: STAGE_LABEL[s], states: [s] })),
-  Object.freeze({ key: "set-aside", label: "Set aside", states: ["duplicate", "not-a-bug"] }),
+  ...STAGES.filter((s) => s !== "shipped").reverse().map((s) => Object.freeze({ key: s, label: STAGE_LABEL[s], states: [s] })),
   Object.freeze({ key: "shipped", label: "Shipped", states: ["shipped"] }),
   Object.freeze({ key: "legacy", label: "Legacy bugs", states: ["fixed", "shipped"], note: LEGACY_LINE }),
+  Object.freeze({ key: "set-aside", label: "Set aside", states: ["duplicate", "not-a-bug"] }),
 ]);
+/** The legacy shelf's heading on a page after the one where it begins. */
+export const LEGACY_CONTINUED = "Legacy bugs, continued";
+
+/** A post on the legacy shelf: finished (fixed or shipped) with no name (§ THE JAR). */
+export function isLegacyPost(p) {
+  return Boolean(p && typeof p === "object" && FINISHED_STATES.has(p.state) && !text(p.fields?.critter, 40));
+}
 
 /** Bugs per page of the jar: four rows of prod's slots at desktop width. */
 export const PAGE_SIZE = 24;
 /** The read of one page: BOARD_PATH with its limit and offset. */
-export const pagePath = (offset = 0) => `${BOARD_PATH}&limit=${PAGE_SIZE}&offset=${Math.max(0, Math.trunc(Number(offset) || 0))}`;
+export const pagePath = (offset = 0, limit = PAGE_SIZE) => `${BOARD_PATH}&limit=${limit}&offset=${Math.max(0, Math.trunc(Number(offset) || 0))}`;
 
 const dayOf = (iso) => {
   const t = Date.parse(iso);
@@ -395,8 +410,10 @@ function ladderOf(p) {
 /**
  * The cards, from the office's `GET /posts?class=bug` answer. `null` (or
  * anything that is not the read's shape) is a read that failed: `{ ok: false }`.
+ * `legacyBefore`: the bug just before this page is on the legacy shelf too, so
+ * the shelf began on an earlier page and is headed "continued", without its line.
  */
-export function cardsOf(read) {
+export function cardsOf(read, { legacyBefore = false } = {}) {
   if (!read || typeof read !== "object" || !Array.isArray(read.posts)) return { ok: false, groups: [], total: 0 };
   const cards = read.posts
     .filter((p) => p && typeof p === "object" && typeof p.id === "string" && LADDER_LABEL[p.state])
@@ -413,7 +430,7 @@ export function cardsOf(read) {
         stageLabel: LADDER_LABEL[p.state],
         caught,
         aside: SIDE_EXITS.has(p.state),
-        legacy: caught && !critter,
+        legacy: isLegacyPost(p),
         critter,
         namedBy: critter ? named(f.named_by) || null : null,
         picture: caught && typeof f.reveal?.image === "string" && MEDIA_RE.test(f.reveal.image) ? f.reveal.image : null,
@@ -425,7 +442,7 @@ export function cardsOf(read) {
       };
     });
   const groups = CARD_GROUPS
-    .map((g) => ({ key: g.key, label: g.label, note: g.note ?? null,
+    .map((g) => ({ key: g.key, ...(g.key === "legacy" && legacyBefore ? { label: LEGACY_CONTINUED, note: null } : { label: g.label, note: g.note ?? null }),
       cards: cards.filter((c) => (g.key === "legacy") === c.legacy && g.states.includes(c.stage)) }))
     .filter((g) => g.cards.length);
   return { ok: true, groups, total: Number.isInteger(read.total) ? read.total : cards.length, page: pageOf(read, cards.length) };

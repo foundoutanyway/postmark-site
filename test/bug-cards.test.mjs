@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   cardsOf, paintCards, paintPager, hallOf, paintHall, pagePath, PAGE_SIZE, CARD_GROUPS, CARDS_FAILED, CARDS_EMPTY, JAR_ART, NOT_YET_PAID, NO_HISTORY,
-  LEGACY_LINE, TOWN_HANDS, TOWN_NAMES, HALL_NO_HISTORY, HALL_NO_STAMPS,
+  LEGACY_LINE, LEGACY_CONTINUED, isLegacyPost, TOWN_HANDS, TOWN_NAMES, HALL_NO_HISTORY, HALL_NO_STAMPS,
 } from "../src/lib/bug-strip.mjs";
 import { mailPagerItems } from "../src/lib/mail.mjs";
 
@@ -45,20 +45,21 @@ const textOf = (el) => [el.textContent, ...el.children.map(textOf)].filter(Boole
 const find = (el, pred) => (pred(el) ? [el] : []).concat(...el.children.map((c) => find(c, pred)));
 const cls = (name) => (e) => e.className.split(" ").includes(name);
 
-test("cardsOf: one card per post; open bugs first by stage, then the ones set aside, shipped last", () => {
+test("cardsOf: one card per post, grouped in the office's order: open bugs furthest stage first, the shipped, the legacy shelf, the set aside last", () => {
   const b = cardsOf(READ);
   assert.equal(b.ok, true);
   assert.equal(b.total, READ.posts.length);
   assert.deepEqual(b.groups.map((g) => [g.key, g.cards.map((c) => c.id)]), [
-    ["reported", ["mari/letters-vanish"]],
-    ["confirmed", ["vermillion/spotted"]],
-    ["reproduced", ["kinofire/stamps-overlap"]],
     ["fixed", ["sage/old-crack"]],
-    ["set-aside", ["sage/dupe", "odd/not-one"]],
+    ["reproduced", ["kinofire/stamps-overlap"]],
+    ["confirmed", ["vermillion/spotted"]],
+    ["reported", ["mari/letters-vanish"]],
     ["shipped", ["wildcat/preview-disagrees"]],
+    ["set-aside", ["sage/dupe", "odd/not-one"]],
   ]);
-  assert.deepEqual(CARD_GROUPS.map((g) => g.key).slice(-3), ["set-aside", "shipped", "legacy"]);
-  assert.deepEqual(b.groups.map((g) => g.label), ["Reported", "Spotted", "Reproduced", "Fixed, shipping soon", "Set aside", "Shipped"]);
+  assert.deepEqual(CARD_GROUPS.map((g) => g.key), ["fixed", "briefed", "diagnosed", "reproduced", "confirmed", "reported", "shipped", "legacy", "set-aside"],
+    "the page's groups are not the office's order (office bugs.mjs § THE JAR'S ORDER)");
+  assert.deepEqual(b.groups.map((g) => g.label), ["Fixed, shipping soon", "Reproduced", "Spotted", "Reported", "Shipped", "Set aside"]);
 });
 
 test("cardsOf: the shipped bug's ladder names who did each stage, when, what it paid and where it points; a stage it jumped is skipped", () => {
@@ -125,7 +126,7 @@ test("paintCards: each bug is one <details>; its summary is the jar's slot, the 
   paintCards(doc.root, cardsOf(READ), doc);
   const cards = find(doc.root, (e) => e.tagName === "DETAILS");
   assert.equal(cards.length, READ.posts.length);
-  assert.deepEqual(cards.map((d) => d.dataset.post), ["mari/letters-vanish", "vermillion/spotted", "kinofire/stamps-overlap", "sage/old-crack", "sage/dupe", "odd/not-one", "wildcat/preview-disagrees"]);
+  assert.deepEqual(cards.map((d) => d.dataset.post), ["sage/old-crack", "kinofire/stamps-overlap", "vermillion/spotted", "mari/letters-vanish", "wildcat/preview-disagrees", "sage/dupe", "odd/not-one"]);
   for (const d of cards) assert.equal(d.children[0].tagName, "SUMMARY");
   const sum = (id) => cards.find((d) => d.dataset.post === id).children[0];
   assert.equal(find(sum("kinofire/stamps-overlap"), cls("bc-img"))[0].src, JAR_ART.open);
@@ -195,14 +196,14 @@ const LEGACY = [
 ];
 const WITH_LEGACY = { ...READ, total: READ.posts.length + LEGACY.length, posts: [...READ.posts, ...LEGACY] };
 
-test("cardsOf: a finished bug with no name goes on the legacy shelf, the last group, with its line; a named one stays with its stage", () => {
+test("cardsOf: a finished bug with no name goes on the legacy shelf, after the shipped and before the set aside, with its line; a named one stays with its stage", () => {
   const b = cardsOf(WITH_LEGACY);
-  assert.deepEqual(b.groups.map((g) => g.key).slice(-2), ["shipped", "legacy"]);
-  const legacy = b.groups.at(-1);
+  assert.deepEqual(b.groups.map((g) => g.key).slice(-3), ["shipped", "legacy", "set-aside"]);
+  const legacy = b.groups.find((g) => g.key === "legacy");
   assert.deepEqual(legacy.cards.map((c) => c.id), ["kogane/refused-claim", "odd/fixed-before-names"]);
   assert.equal(legacy.label, "Legacy bugs");
   assert.equal(legacy.note, LEGACY_LINE);
-  const elsewhere = b.groups.slice(0, -1).flatMap((g) => g.cards.map((c) => c.id));
+  const elsewhere = b.groups.filter((g) => g.key !== "legacy").flatMap((g) => g.cards.map((c) => c.id));
   assert.ok(!elsewhere.includes("kogane/refused-claim") && !elsewhere.includes("odd/fixed-before-names"), "a legacy bug is still among the stages");
   assert.ok(elsewhere.includes("wildcat/preview-disagrees") && elsewhere.includes("sage/old-crack"), "a named bug left its stage");
   assert.ok(!cardsOf(READ).groups.some((g) => g.key === "legacy"), "an empty shelf is drawn");
@@ -238,6 +239,26 @@ test("a legacy card's credited stage with no ledger line says nothing about stam
   assert.doesNotMatch(textOf(k), /not yet paid/);
   const jar = find(doc.root, (e) => e.tagName === "DETAILS" && e.dataset.post === "kinofire/stamps-overlap")[0];
   assert.equal(stamps(jar, "confirmed"), NOT_YET_PAID, "a jar card stopped saying not yet paid");
+});
+
+test("the legacy heading and its line are drawn once, where the shelf begins; a later page heads it 'continued', without the line", () => {
+  const page = (posts, offset) => ({ ...READ, total: 30, limit: 2, offset, posts });
+  assert.equal(isLegacyPost(LEGACY[0]), true);
+  assert.equal(isLegacyPost(LEGACY[1]), true, "a fixed bug with no name");
+  assert.equal(isLegacyPost(READ.posts.find((p) => p.id === "wildcat/preview-disagrees")), false, "a named bug");
+  assert.equal(isLegacyPost(READ.posts.find((p) => p.id === "sage/dupe")), false, "a bug set aside");
+  // the page where it begins: heading and line
+  const begins = cardsOf(page([READ.posts[0], LEGACY[0]], 10), { legacyBefore: false }).groups.find((g) => g.key === "legacy");
+  assert.deepEqual([begins.label, begins.note], ["Legacy bugs", LEGACY_LINE]);
+  // a later page: continued, no line
+  const later = cardsOf(page(LEGACY, 12), { legacyBefore: true }).groups.find((g) => g.key === "legacy");
+  assert.deepEqual([later.label, later.note], [LEGACY_CONTINUED, null]);
+  const doc = stubDoc();
+  paintCards(doc.root, cardsOf(page(LEGACY, 12), { legacyBefore: true }), doc);
+  assert.equal(textOf(find(doc.root, cls("bc-group-h"))[0]), "Legacy bugs, continued");
+  assert.equal(find(doc.root, cls("bc-group-note")).length, 0, "the shelf's line repeats on a later page");
+  // the page asks for the bug before only when it opens on a legacy bug
+  assert.equal(pagePath(11, 1), "/posts?class=bug&limit=1&offset=11");
 });
 
 // ── The pages (POS-558, addendum 1) ──────────────────────────────────────────

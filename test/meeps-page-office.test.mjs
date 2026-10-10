@@ -22,7 +22,7 @@ const SCRIPT = PAGE.slice(PAGE.indexOf("<script>"), PAGE.indexOf("</script>"));
 test("the board's read is officeBase() + the bug posts path, from the page's own script", () => {
   assert.match(SCRIPT, /import \{ officeBase \} from "@\/lib\/auth\.mjs";/);
   // since POS-558 a page of it: BOARD_PATH with the paged read's limit and offset
-  assert.match(SCRIPT, /fetch\(officeBase\(\) \+ pagePath\(offset\),/);
+  assert.match(SCRIPT, /fetch\(officeBase\(\) \+ pagePath\(offset, limit\),/);
   assert.equal(BOARD_PATH, "/posts?class=bug");
   assert.ok(pagePath(24).startsWith(BOARD_PATH + "&"), "a page is not the bug posts path");
 });

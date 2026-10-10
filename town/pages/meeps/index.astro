@@ -360,7 +360,7 @@ const switchCss = [
   </div>
   <script>
     import { heartbeatFor } from "@/lib/meeps-quarter.mjs";
-    import { cardsOf, paintCards, paintPager, hallOf, paintHall, pagePath, playVideo } from "@/lib/bug-strip.mjs";
+    import { cardsOf, paintCards, paintPager, hallOf, paintHall, pagePath, isLegacyPost, playVideo } from "@/lib/bug-strip.mjs";
 
     // THE VIDEO: click to play. The box is a real link (Enter follows it), so a
     // click is caught here and swapped for the player; with script off, it is
@@ -384,24 +384,31 @@ const switchCss = [
       const root = document.querySelector("[data-bug-cards]");
       if (!root) return;
       const pager = document.querySelector("[data-bug-pager]");
-      const read = async (offset) => {
+      const read = async (offset, limit) => {
         try {
-          const r = await fetch(officeBase() + pagePath(offset), { headers: { accept: "application/json" } });
+          const r = await fetch(officeBase() + pagePath(offset, limit), { headers: { accept: "application/json" } });
           return r.ok ? await r.json() : null;
         } catch { return null; }
       };
-      const show = (answer) => {
-        const board = cardsOf(answer);
+      // The legacy shelf's heading and line go on the page where it begins:
+      // a page that opens on a legacy bug asks for the one bug before it.
+      const legacyBefore = async (answer) => {
+        const first = answer?.posts?.[0];
+        if (!(answer?.offset > 0) || !isLegacyPost(first)) return false;
+        return isLegacyPost((await read(answer.offset - 1, 1))?.posts?.[0]);
+      };
+      const show = async (answer) => {
+        const board = cardsOf(answer, { legacyBefore: await legacyBefore(answer) });
         paintCards(root, board);
         if (pager) pager.hidden = !paintPager(pager, board, async (n) => {
           root.setAttribute("aria-busy", "true");
-          show(await read((n - 1) * (board.page.limit ?? 0)));
+          await show(await read((n - 1) * (board.page.limit ?? 0)));
           root.removeAttribute("aria-busy");
           root.closest(".bug-cards")?.scrollIntoView({ block: "start" });
         });
       };
       const first = await read(0);
-      show(first);
+      await show(first);
       const hall = document.querySelector("[data-bug-fame-hall]");
       const fame = document.querySelector("[data-bug-fame]");
       if (hall && fame) hall.hidden = !paintHall(fame, hallOf(first));
