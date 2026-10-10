@@ -24,6 +24,7 @@ import { bulletinCards, bulletinPostings } from "../src/lib/bulletin-cards.mjs";
 import { LANES } from "../src/lib/civic.mjs";
 import { MEEPS } from "../src/lib/meeps-quarter.mjs";
 import { SOCIALS } from "../src/lib/door-line.mjs";
+import { ACCENTS, BOARD_ART, BOARD_INK, INK, SPRITES, checkSprite, paintArt } from "../src/lib/civic-art.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const BULLETIN = JSON.parse(readFileSync(join(ROOT, "src", "data", "postmark", "bulletin.json"), "utf8"));
@@ -339,8 +340,12 @@ const CHAPBOOK_TEASER = "The pigeon's compendium of postmark.town: a preface on 
 test("THE PINS: the chapbook credits Dom Pidgey in its bulletin teaser's words; Halloween is its page's title", () => {
   const by = Object.fromEntries(BOARD_PINS.map((p) => [p.key, p]));
   assert.deepEqual(BOARD_PINS.map((p) => p.key), ["chapbook", "halloween"]);
-  // the teaser of TOWN_BULLETIN/lamp-flower-chapbook.md, verbatim (town main, posted 2026-10-05)
-  assert.equal(by.chapbook.words, CHAPBOOK_TEASER);
+  // the teaser of TOWN_BULLETIN/lamp-flower-chapbook.md (town main, posted
+  // 2026-10-05), cut to its first and last clauses for the card (Darko, 19:21:
+  // a picture "instead of just having the raw text")
+  const [first, last] = by.chapbook.words.replace(/\.$/, "").split(", for ");
+  assert.ok(CHAPBOOK_TEASER.startsWith(`${first}:`), "the chapbook's line does not open with its teaser's");
+  assert.ok(CHAPBOOK_TEASER.endsWith(`For ${last}.`), "the chapbook's line does not close with its teaser's");
   assert.match(by.chapbook.by, /\bDom Pidgey$/);
   assert.equal(by.chapbook.href, "https://foundoutanyway.github.io/pidgey/lamp-flower-chapbook.html");
   assert.equal(by.chapbook.note, undefined);
@@ -354,6 +359,10 @@ test("THE PINS: the chapbook credits Dom Pidgey in its bulletin teaser's words; 
   assert.match(by.halloween.steps[0], /One each: every resident can have their own\./);
   assert.match(by.halloween.after, /so you have some to give\.$/);
   assert.equal(/household/i.test(JSON.stringify(by.halloween)), false, "the Halloween note speaks of a household's candy");
+  // each card is illustrated: two of the board's own pictures, on a sky
+  assert.deepEqual(by.chapbook.art, ["pigeon", "lampflower"]);
+  assert.deepEqual(by.halloween.art, ["door", "pumpkin"]);
+  assert.deepEqual(BOARD_PINS.map((p) => p.scene), ["night", "dusk"]);
   // neither is a piece: no view, no address of the board's own
   for (const p of BOARD_PINS) assert.equal(BOARD_PIECES.some((x) => x.key === p.key), false, `${p.key} is a piece`);
   assert.equal(boardIds().includes("halloween"), false);
@@ -379,7 +388,13 @@ test("THE PINS are on the built board: the chapbook a new-tab link crediting Dom
   assert.match(chap[0], /href="https:\/\/foundoutanyway\.github\.io\/pidgey\/lamp-flower-chapbook\.html"/);
   assert.match(chap[0], /target="_blank"/);
   assert.match(chap[1], /by resident pigeon Dom Pidgey/);
-  assert.ok(chap[1].replace(/&#39;/g, "'").includes(CHAPBOOK_TEASER), "the chapbook's words are not its teaser");
+  assert.ok(chap[1].replace(/&#39;/g, "'").includes("The pigeon's compendium of postmark.town, for old residents and new arrivals alike."));
+  // each card carries its scene: two pixel pictures on the quay, drawn as the postcard's buildings are
+  for (const [key, m] of [["chapbook", chap], ["halloween", pin("halloween")]]) {
+    const pic = /<span class="pic pin-pic"[^>]*>([\s\S]*?)<\/span>/.exec(m[1])?.[1] ?? "";
+    assert.equal((pic.match(/<svg class="px"/g) ?? []).length, 2, `the ${key} card has no scene`);
+    assert.ok((pic.match(/<rect\b/g) ?? []).length > 40, `the ${key} card's scene is empty`);
+  }
   const hal = pin("halloween");
   assert.ok(hal, "the Halloween notice is not pinned on the board");
   assert.ok(hal[1].replace(/&#39;/g, "'").includes("Halloween: what's on the doorsteps"));
@@ -435,3 +450,28 @@ for (const [name, segs] of [["the calendar", ["calendar"]], ["Ferry's Daily", ["
     assert.match(page, /data-board-back[^>]*>\s*<a href="\/bulletin\/"/, `${name} has no way back to the Town`);
   });
 }
+
+// ── THE PINS' PICTURES (civic-art.mjs § the board's pinned pictures) ────────
+
+test("the pinned cards' pictures are well-formed maps, inked only in hexes the site wears, every ink used", () => {
+  const worn = [
+    ...Object.values(INK),
+    ...Object.values(ACCENTS).flatMap((a) => Object.values(a)),
+    ...POSTIT_PAPERS.map((p) => p.bg),
+    readFileSync(join(ROOT, "src", "styles", "global.css"), "utf8"),
+    readFileSync(join(ROOT, "src", "styles", "postmark.css"), "utf8"),
+    readFileSync(join(ROOT, "town", "pages", "mail", "with", "[pair].astro"), "utf8"),
+  ].join(" ").toLowerCase();
+  for (const [ch, hex] of Object.entries(BOARD_INK)) {
+    assert.ok(worn.includes(hex.toLowerCase()), `the board's ink "${ch}" (${hex}) is a hex the site does not wear`);
+  }
+  const used = new Set();
+  for (const name of BOARD_PINS.flatMap((p) => p.art)) {
+    assert.deepEqual(checkSprite(name, BOARD_ART[name]), [], `${name} is not a 24×24 map`);
+    for (const r of paintArt(name)) used.add(r.fill);
+  }
+  for (const [ch, hex] of Object.entries(BOARD_INK)) assert.ok(used.has(hex), `the board's ink "${ch}" is declared and never painted`);
+  // a pumpkin is nobody's face: the pictures stay out of SPRITES
+  for (const name of Object.keys(BOARD_ART)) assert.equal(Object.hasOwn(SPRITES, name), false, `${name} is in SPRITES`);
+  assert.throws(() => paintArt("no-such-picture"), /no board picture named/);
+});

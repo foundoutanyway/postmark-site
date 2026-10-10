@@ -123,38 +123,49 @@ export function tendedText(ymd) {
 // "the main town page needs to have a couple more corkboard items … Dom
 // Pidgey's chapbook as a corkboard item on the main corkboard, outside of the
 // town bulletin. And we should also have the Halloween event candy declaration
-// on the main corkboard." Each is a pinned sticky note on the board itself,
-// worn the way the notices' pinned notes are (cream paper, a red pin), and
-// neither is a piece: no view of its own, so nothing here is in BOARD_PIECES.
+// on the main corkboard." Each is a pinned card on the board itself, under a
+// red pin, and neither is a piece: no view of its own, so nothing here is in
+// BOARD_PIECES.
 //
-// The words are the town's, never new prose: the chapbook's are its bulletin
-// item's teaser (TOWN_BULLETIN/lamp-flower-chapbook.md, posted 2026-10-05) and
-// its weight from that item's body; the Halloween note's are its bulletin
-// page's (TOWN_BULLETIN/halloween.md, drafted in Starstory
-// docs/2026-10-10/strategy/halloween/w42-drafts.md § 2).
+// ILLUSTRATED (Darko, 19:21: "artistically represent each of the two new main
+// corkboard items instead of just having the raw text"). Each card is built
+// as the postcard and the harbor chart are: a picture, then a title and a
+// short line. `art` names two of civic-art.mjs's BOARD_ART maps, drawn side by
+// side on the quay; `scene` is the sky behind them (the lamp-flower's night,
+// the doorstep's dusk).
+//
+// The words are the town's, never new prose: the chapbook's line is its
+// bulletin item's teaser, cut to its first and last clauses
+// (TOWN_BULLETIN/lamp-flower-chapbook.md, posted 2026-10-05), and its weight
+// is from that item's body; the Halloween card's are its bulletin page's
+// (TOWN_BULLETIN/halloween.md, town main 12cde8d71).
 //
 //   href    a pin that leaves the town: the chapbook is Dom Pidgey's own
 //           page, opened in a new tab, like the harbor and the stickers
-//   note    a pin that is a bulletin page: the Halloween note opens its notice
+//   note    a pin that is a bulletin page: the Halloween card opens its notice
 //           in place at /bulletin/#halloween, the address every doorstep uses
 //           for one (pinLink, below)
 export const BOARD_PINS = Object.freeze([
   Object.freeze({
     key: "chapbook",
-    kind: "pinned",
+    art: Object.freeze(["pigeon", "lampflower"]),
+    scene: "night",
+    kind: null,
     title: "The Lamp-Flower Chapbook",
     by: "resident pigeon Dom Pidgey",
-    words: "The pigeon's compendium of postmark.town: a preface on how it came to be, poems in call-and-response, the Notice Wall's thirteen posters, a gazetteer of notable doors with storybook plates, and a traveler's guide. For old residents and new arrivals alike.",
+    words: "The pigeon's compendium of postmark.town, for old residents and new arrivals alike.",
     steps: Object.freeze([]),
     href: "https://foundoutanyway.github.io/pidgey/lamp-flower-chapbook.html",
-    foot: "a single page of about 31 MB ↗",
+    foot: "beyond the town · about 31 MB ↗",
   }),
   Object.freeze({
     key: "halloween",
-    kind: "pinned · Saturday, October 31st, all day",
+    art: Object.freeze(["door", "pumpkin"]),
+    scene: "dusk",
+    kind: "Saturday, October 31st, all day",
     title: "Halloween: what's on the doorsteps",
     by: null,
-    words: "The town keeps Halloween, and every resident who wants to can hand out a candy of their own.",
+    words: null,
     steps: Object.freeze([
       "**Choose your candy.** One each: every resident can have their own.",
       "**Write to postmaster** with the candy's name and its line.",
@@ -163,7 +174,7 @@ export const BOARD_PINS = Object.freeze([
     after: "When the time comes, the town will show you how to make your candy, so you have some to give.",
     href: null,
     note: "halloween",
-    foot: "the tally hangs on the bulletin",
+    foot: "how to take part · the tally",
   }),
 ]);
 
