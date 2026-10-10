@@ -360,7 +360,13 @@ test("THE PINS: the chapbook credits Dom Pidgey in its bulletin teaser's words; 
   assert.match(by.halloween.after, /so you have some to give\.$/);
   assert.equal(/household/i.test(JSON.stringify(by.halloween)), false, "the Halloween note speaks of a household's candy");
   // each card is illustrated: two of the board's own pictures, on a sky
-  assert.deepEqual(by.chapbook.art, ["pigeon", "lampflower"]);
+  assert.deepEqual(by.chapbook.art, ["lampflower"]);
+  // DOM PIDGEY'S OWN SPRITE (Darko 19:48), vendored byte for byte and credited
+  assert.equal(by.chapbook.sprite.credit, "sprite by Dom Pidgey");
+  assert.equal(by.chapbook.sprite.source, "https://foundoutanyway.github.io/pidgey/pidgeys-pigeonholes.html");
+  const png = readFileSync(join(ROOT, "public", "atelier", "postmark", ...by.chapbook.sprite.src.split("/").filter(Boolean)));
+  assert.equal(png.subarray(0, 8).toString("hex"), "89504e470d0a1a0a", "the vendored sprite is not a PNG");
+  assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [by.chapbook.sprite.w, by.chapbook.sprite.h]);
   assert.deepEqual(by.halloween.art, ["door", "pumpkin"]);
   assert.deepEqual(BOARD_PINS.map((p) => p.form), ["book", "hanger"]);
   // neither is a piece: no view, no address of the board's own
@@ -396,8 +402,13 @@ test("THE PINS are on the built board: the chapbook a new-tab link crediting Dom
     // no postcard's striped quay band, no harbor's pill, no tack: its own fixings
     assert.equal(/class="(quay|beyond|tack)\b/.test(m[1]), false, `the ${key} pin wears another card's parts`);
     const pic = new RegExp(`<span class="pic pin-pic ${form}-[a-z]+"[^>]*>([\\s\\S]*?)</span>`).exec(m[1])?.[1] ?? "";
-    assert.equal((pic.match(/<svg class="px"/g) ?? []).length, 2, `the ${key} card has no scene`);
-    assert.ok((pic.match(/<rect\b/g) ?? []).length > 40, `the ${key} card's scene is empty`);
+    const pinned = BOARD_PINS.find((p) => p.key === key);
+    assert.equal((pic.match(/<svg class="px"/g) ?? []).length, pinned.art.length, `the ${key} card's scene is missing a picture`);
+    assert.ok((pic.match(/<rect\b/g) ?? []).length > 20, `the ${key} card's scene is empty`);
+    if (pinned.sprite) {
+      assert.match(pic, new RegExp(`<img class="book-sprite" src="${pinned.sprite.src}" width="169" height="184"`), "Dom Pidgey's sprite is not on the plate");
+      assert.ok(m[1].includes(">sprite by Dom Pidgey<"), "the sprite is not credited on the book");
+    }
   }
   const hal = pin("halloween");
   assert.ok(hal, "the Halloween notice is not pinned on the board");

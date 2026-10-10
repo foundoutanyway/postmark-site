@@ -317,9 +317,14 @@ const views = JSON.stringify({
                             <span class="washi" aria-hidden="true"></span>
                             <span class="book-spine" aria-hidden="true"></span>
                             <span class="book-ribbon" aria-hidden="true"></span>
-                            <span class="pic pin-pic book-plate" aria-hidden="true">{picture}</span>
+                            <span class="pic pin-pic book-plate" aria-hidden="true">
+                              {/* Dom Pidgey's own sprite, his art (bulletin-board.mjs § DOM PIDGEY'S OWN SPRITE) */}
+                              {p.sprite && <img class="book-sprite" src={p.sprite.src} width={p.sprite.w} height={p.sprite.h} alt="" loading="lazy" decoding="async" />}
+                              {picture}
+                            </span>
                             <span class="book-title">{p.title}</span>
                             {p.by && <span class="book-by">by {p.by}</span>}
+                            {p.sprite && <span class="book-credit">{p.sprite.credit}</span>}
                             {p.words && <span class="book-line" set:html={emph(p.words)} />}
                             <span class="book-foot">{p.foot}</span>
                           </>
@@ -1000,7 +1005,7 @@ const views = JSON.stringify({
       gap: 2.4em 3.4em;
     }
     .pins > li { flex: 0 1 auto; }
-    .pin-book { width: min(100%, 15.5em); }
+    .pin-book { width: min(100%, 19.5em); }
     .pin-hanger { width: min(100%, 16em); margin-top: 1.2em; }
     .pin-pic { display: flex; justify-content: center; align-items: flex-end; padding: 1.2em 0.5em 0; }
     .pin-pic .px { width: 96px; max-width: 46%; height: auto; display: block; image-rendering: pixelated; }
@@ -1044,11 +1049,21 @@ const views = JSON.stringify({
     }
     .book { isolation: isolate; }
     .book-plate {
-      margin: 0.5em 0 0.2em; border-radius: 2px;
+      margin: 0.5em 0 0.2em; border-radius: 2px; padding: 0.8em 0.4em 0;
       border: 3px double var(--pm-gold);
       background:
-        radial-gradient(circle at 72% 40%, rgba(246, 220, 174, 0.3), transparent 34%),
+        radial-gradient(circle at 24% 30%, rgba(246, 220, 174, 0.34), transparent 38%),
         linear-gradient(180deg, var(--pm-night) 0%, var(--pm-harbor-2) 75%, #2f3a56 100%);
+    }
+    /* Dom Pidgey at his own pixel size (his art is 1×; smaller would cut it),
+       the lamp-flower glowing at his shoulder on our 24-grid, four to a pixel */
+    .book-sprite {
+      position: relative; width: 169px; max-width: 70%; height: auto; display: block;
+      image-rendering: pixelated;
+    }
+    .book-plate .px { order: -1; flex: none; width: 96px; max-width: 38%; margin-right: -26px; }
+    .book-credit {
+      text-align: center; font-style: italic; font-size: 0.72rem; color: rgba(232, 196, 139, 0.85);
     }
     .book-title {
       margin-top: 0.5em; text-align: center;

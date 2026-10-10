@@ -565,13 +565,14 @@ function runs(label, rows, ink) {
 // "it would be nice if we could artistically represent each of the two new
 // main corkboard items instead of just having the raw text." So the two notes
 // pinned on the Town page's board (bulletin-board.mjs, BOARD_PINS) each carry
-// a small scene, two of these maps side by side, as the postcard carries its
+// a small scene of these maps, as the postcard carries its
 // buildings: the same 24×24 grid, the same quay row, the same painter.
 //
-//   pigeon, lampflower   the Lamp-Flower Chapbook: a pigeon of OUR drawing
-//                        reading an open book by a lamp-flower's glow. Nothing
-//                        here is taken from Dom Pidgey's own plates; they are
-//                        his, and the board only points at them.
+//   lampflower           the Lamp-Flower Chapbook: the lamp-flower glowing on
+//                        the book's plate, beside Dom Pidgey's own sprite (his
+//                        art, vendored and credited: bulletin-board.mjs,
+//                        BOARD_PINS). The board's own pigeon was retired
+//                        for his on Darko's word, 2026-10-10 19:48.
 //   door, pumpkin        Halloween: a house door at dusk with its windows lit,
 //                        and on the step a jack-o'-lantern smiling (not
 //                        leering) beside a bowl of candy. An event notice, warm,
@@ -582,15 +583,9 @@ function runs(label, rows, ink) {
 // pumpkin is nobody's face. The ink rule is the table's: every hex is one the
 // site already wears, named where it is worn.
 export const BOARD_INK = {
-  u: "#6d82b5", // the pigeon, lit: the Think Tank's lit blue
-  b: "#4a5c8a", // the pigeon: the Think Tank's blue
-  B: "#2f3c5c", // the pigeon's wing bars and tail: the Think Tank's mid tone
-  n: "#5fc9d0", // the neck's sheen: global.css --teal
-  v: "#8a72ab", // the neck's other sheen: the Quest Guild's lit purple
-  e: "#edba68", // an amber eye, the flower's heart, a candy: global.css --amber
-  y: "#cdbda4", // a beak, a page's lines: global.css --ink-soft, the parchment
-  r: "#c4553f", // the pigeon's feet, the bowl's pattern: the Marketplace's lit red
-  c: "#9c3f2e", // the book's corners, the bowl: the Marketplace's red, --pm-wax
+  e: "#edba68", // the flower's heart, a candy: global.css --amber
+  r: "#c4553f", // the bowl's pattern: the Marketplace's lit red
+  c: "#9c3f2e", // the bowl: the Marketplace's red, --pm-wax
   m: "#97a266", // the flower's stem: global.css --moss
   M: "#4d7d54", // its shade, the pumpkin's stem: the mail pair page's check green
   h: "#f4d6a0", // the glow around the lamp-flower: global.css --amber-soft
@@ -603,32 +598,6 @@ export const BOARD_INK = {
 };
 
 export const BOARD_ART = {
-  pigeon: [
-    "........................",
-    "........................",
-    "........................",
-    "........kkkk............",
-    ".......kuuuuk...........",
-    ".......kuekuuyy.........",
-    ".......kuuuuuk..........",
-    "......knvnvnk...........",
-    ".....kbnvnvnbk..........",
-    "....kbbbbvbbbbk.........",
-    "...kubbbbbbbbbbk........",
-    "..kuuuuuubbbbbbbk.......",
-    ".kuuuuuuuubbbbbbk.......",
-    "kuBBBBBuuubbbbbbk.......",
-    "kuuuuuuuuubbbbbk........",
-    "kBBBBBBBuubbbbk.kkk.kkk.",
-    ".kBBkkbbbbbk...kpppkpppk",
-    "...kkkkkkkk....kyypkpyyk",
-    ".....r..r......kpppkpppk",
-    "....rr.rr......kyypkpyyk",
-    "...............ckkkkkkkc",
-    "..sSssssSsssssSssssSss..",
-    "........................",
-    "........................",
-  ],
   lampflower: [
     "........................",
     ".........h..h...........",

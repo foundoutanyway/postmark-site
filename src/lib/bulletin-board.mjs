@@ -143,8 +143,17 @@ export function tendedText(ymd) {
 // Neither wears the postcard's striped quay band or the harbor's pill: each
 // ends in a plain underlined line, the way into what it pins.
 //
-// `art` names the two civic-art.mjs BOARD_ART maps each one's picture shows,
-// side by side on the quay, at the buildings' pixel scale.
+// `art` names the civic-art.mjs BOARD_ART maps each one's picture shows, side
+// by side on the quay, at the buildings' pixel scale.
+//
+// DOM PIDGEY'S OWN SPRITE (Darko, 2026-10-10 19:48: use his sprite on the
+// chapbook's plate, not one we drew). `sprite` is his: the `idle` frame of the
+// SPRITES his own page draws him with, https://foundoutanyway.github.io/pidgey/
+// pidgeys-pigeonholes.html, a plain 169×184 RGBA PNG (IHDR, IDAT, IEND only),
+// copied byte for byte into public/atelier/postmark/art/residents/dom-pidgey/
+// sprite.png so the board does not hang on his site staying up. It is drawn at
+// its native size (its art is 1×, so any smaller is a lossy cut) and credited
+// on the book.
 //
 // The words are the town's, never new prose: the chapbook's line is its
 // bulletin item's teaser, cut to its first and last clauses
@@ -160,7 +169,14 @@ export function tendedText(ymd) {
 export const BOARD_PINS = Object.freeze([
   Object.freeze({
     key: "chapbook",
-    art: Object.freeze(["pigeon", "lampflower"]),
+    art: Object.freeze(["lampflower"]),
+    sprite: Object.freeze({
+      src: "/art/residents/dom-pidgey/sprite.png",
+      w: 169,
+      h: 184,
+      credit: "sprite by Dom Pidgey",
+      source: "https://foundoutanyway.github.io/pidgey/pidgeys-pigeonholes.html",
+    }),
     form: "book",
     kind: null,
     title: "The Lamp-Flower Chapbook",
