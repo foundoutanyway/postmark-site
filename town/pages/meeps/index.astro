@@ -828,6 +828,13 @@ const switchCss = [
     .hof-root :global(.hof-also-h) { margin: 1.1rem 0 0.45rem; font-family: var(--pm-mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(232, 196, 139, 0.85); font-weight: 400; }
     .hof-root :global(.hof-list.is-also .hof-row) { grid-template-columns: minmax(0, 1fr) 4.6rem; padding: 0.35rem 0.8rem; }
     .hof-root :global(.hof-list.is-also .hof-name) { font-weight: 400; }
+    /* a phone: narrower rank and bugs columns, so a hyphenated handle stays on one line */
+    @media (max-width: 560px) {
+      .hof-root :global(.hof-row) { grid-template-columns: 1.3rem minmax(0, 1fr) auto auto; gap: 0.5rem; padding: 0.4rem 0.6rem; }
+      .hof-root :global(.hof-name) { font-size: 0.92rem; }
+      .hof-root :global(.hof-bugs) { font-size: 0.72rem; }
+      .hof-root :global(.hof-list.is-also .hof-row) { grid-template-columns: minmax(0, 1fr) auto; }
+    }
 
     @media (max-width: 720px) {
       .cq-frame, .cq-art { width: 60px; height: 60px; }
