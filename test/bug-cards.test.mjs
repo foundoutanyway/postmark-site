@@ -14,7 +14,10 @@ import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { cardsOf, paintCards, CARD_GROUPS, CARDS_FAILED, CARDS_EMPTY, JAR_ART, NOT_YET_PAID, NO_HISTORY } from "../src/lib/bug-strip.mjs";
+import {
+  cardsOf, paintCards, paintLegacy, hallOf, paintHall, CARD_GROUPS, CARDS_FAILED, CARDS_EMPTY, JAR_ART, NOT_YET_PAID, NO_HISTORY,
+  LEGACY_LINE, TOWN_HANDS, TOWN_NAMES, HALL_NO_HISTORY, HALL_NO_STAMPS,
+} from "../src/lib/bug-strip.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const READ = JSON.parse(readFileSync(join(ROOT, "test", "fixtures", "office-bug-history.json"), "utf8"));
@@ -106,7 +109,7 @@ test("cardsOf: only the town's own GitHub becomes a link, and only the town's me
 
 test("cardsOf: a failed read is a failed read, never an empty one; a read before #462 (no history) says skipped about nothing", () => {
   for (const bad of [null, undefined, {}, { posts: "no" }, "<html>"]) assert.equal(cardsOf(bad).ok, false, `${JSON.stringify(bad)} read as cards`);
-  assert.deepEqual(cardsOf({ ...READ, posts: [] }), { ok: true, groups: [], total: 0, caught: 0 });
+  assert.deepEqual(cardsOf({ ...READ, posts: [] }), { ok: true, groups: [], legacy: [], total: 0, caught: 0 });
   const old = cardsOf({ ...READ, posts: READ.posts.map(({ history, ...p }) => p) });
   assert.equal(old.total, READ.posts.length);
   const w = card(old, "wildcat/preview-disagrees");
@@ -170,13 +173,138 @@ test("paintCards: a failed read says so, and an empty town says something else",
   assert.notEqual(CARDS_FAILED, CARDS_EMPTY);
 });
 
-test("cardsOf: a bug fixed before names is lit and 'unnamed'; only a loose bug is '?' (Wright's review of the jar, 2026-09-29)", () => {
-  const read = { ...READ, posts: [{ class: "bug", id: "odd/fixed-before-names", title: "Fixed before the jar", author: "odd", state: "fixed", fields: { size: "S" }, history: [] }] };
+// ── The legacy shelf (POS-558, Darko 2026-10-10) ─────────────────────────────
+// Supersedes the 09-29 review's "unnamed": a finished bug with no name leaves
+// the jar for its own shelf, crediting the resident who caught it.
+
+const LEGACY = [
+  { class: "bug", id: "kogane/refused-claim", title: "A refused claim was not legible", author: "kogane", state: "shipped",
+    fields: { issue: "https://github.com/postmark-town/postmark/issues/2858" },
+    history: [
+      { stage: "reported", at: "2026-09-20T10:00:00.000Z", hand: null, credit: "kogane", link: null, stamps_paid: null },
+      { stage: "shipped", at: "2026-09-21T10:00:00.000Z", hand: "keemin", credit: null, link: null, stamps_paid: null },
+    ] },
+  { class: "bug", id: "odd/fixed-before-names", title: "Fixed before the jar", author: "keemin", state: "fixed", fields: { size: "S" }, history: [] },
+];
+const WITH_LEGACY = { ...READ, posts: [...READ.posts, ...LEGACY] };
+
+test("cardsOf: a finished bug with no name leaves the jar for the legacy shelf; a named one stays in the jar", () => {
+  const b = cardsOf(WITH_LEGACY);
+  assert.deepEqual(b.legacy.map((c) => c.id), ["kogane/refused-claim", "odd/fixed-before-names"]);
+  const jar = b.groups.flatMap((g) => g.cards.map((c) => c.id));
+  assert.ok(!jar.includes("kogane/refused-claim") && !jar.includes("odd/fixed-before-names"), "a legacy bug is still in the jar");
+  assert.ok(jar.includes("wildcat/preview-disagrees") && jar.includes("sage/old-crack"), "a named bug left the jar");
+  assert.equal(b.total, WITH_LEGACY.posts.length);
+  assert.equal(b.caught, 2, "the jar's caught count holds only the named");
+  assert.deepEqual(cardsOf(READ).legacy, []);
+});
+
+test("paintLegacy: the same cards, each crediting its catcher by name and linking its issue; 'unnamed' is printed nowhere", () => {
+  const board = cardsOf(WITH_LEGACY);
+  const shelf = stubDoc();
+  assert.equal(paintLegacy(shelf.root, board, shelf), true);
+  const cards = find(shelf.root, (e) => e.tagName === "DETAILS");
+  assert.deepEqual(cards.map((d) => d.dataset.post), ["kogane/refused-claim", "odd/fixed-before-names"]);
+  for (const d of cards) assert.equal(d.children[0].tagName, "SUMMARY");
+  const k = cards[0];
+  assert.match(textOf(k.children[0]), /A refused claim was not legible caught by kogane Shipped/);
+  assert.equal(find(k, cls("bc-name")).length, 0, "a legacy card shows a name slot");
+  assert.equal(find(k, cls("bc-img"))[0].src, JAR_ART.finished);
+  assert.deepEqual(find(k, (e) => e.tagName === "A").map((a) => a.href), ["https://github.com/postmark-town/postmark/issues/2858"]);
+  assert.match(textOf(cards[1]), /caught by Darko/);
+  const jar = stubDoc();
+  paintCards(jar.root, board, jar);
+  for (const root of [shelf.root, jar.root]) assert.doesNotMatch(textOf(root), /unnamed/i);
+  assert.doesNotMatch(SRC.replace(/^\s*\/\/.*$/gm, ""), /"unnamed"|bc-unnamed/, "the code still prints unnamed");
+  assert.match(LEGACY_LINE, /spotted before the Bug Catcher's jar existed/);
+  assert.match(LEGACY_LINE, /credit the residents who caught them/);
+});
+
+test("paintLegacy: nothing on the shelf (or a failed read) answers false, so the page keeps the shelf hidden", () => {
+  for (const board of [cardsOf(READ), cardsOf(null)]) {
+    const doc = stubDoc();
+    assert.equal(paintLegacy(doc.root, board, doc), false);
+    assert.equal(doc.root.children.length, 0);
+  }
+});
+
+// ── The Bug Catchers' Hall of Fame (POS-558, Darko 2026-10-10) ───────────────
+
+test("hallOf: residents by the stamps paid to them on bug stages, from the same read; ties share a rank; unpaid catchers below, by bugs", () => {
+  const h = hallOf(READ);
+  assert.deepEqual([h.ok, h.known, h.stamps], [true, true, true]);
+  assert.deepEqual(h.ranked.map((r) => [r.rank, r.name, r.stamps, r.bugs]), [
+    [1, "lupi", 25, 1],
+    [2, "sage", 12, 2],          // 10 for the fix, 2 for the duplicate's paid confirm
+    [3, "kogane", 8, 1],         // 3 + 5 on one bug
+    [4, "seven", 3, 1],
+    [5, "vermillion", 2, 1],
+    [5, "wildcat", 2, 1],
+  ]);
+  // credited, no stamps paid: kinofire's confirm is not yet paid, mari only reported
+  assert.deepEqual(h.also.map((r) => [r.name, r.stamps, r.bugs]), [["kinofire", 0, 1], ["mari", 0, 1]]);
+  // odd's report was ruled not a bug and paid nothing: it credits no one
+  assert.ok(![...h.ranked, ...h.also].some((r) => r.handle === "odd"));
+});
+
+test("hallOf: the town's hands are never ranked: the meeps, and the founders' hands (keemin, keeminlee, wright)", () => {
+  for (const hand of ["bugcatcher", "postmaster", "illuminator", "registrar", "worldkeeper", "architect", "keemin", "keeminlee", "wright"]) assert.ok(TOWN_HANDS.has(hand), hand);
+  const hands = [...TOWN_HANDS].map((hand, i) => ({ class: "bug", id: `${hand}/own-${i}`, title: "a hand's own bug", author: hand, state: "shipped",
+    fields: { critter: "Hand Moth", named_by: hand },
+    history: [
+      { stage: "reported", at: "2026-10-09T10:00:00.000Z", hand: null, credit: hand, link: null, stamps_paid: null },
+      { stage: "fixed", at: "2026-10-09T11:00:00.000Z", hand: "wright", credit: hand, link: null, stamps_paid: 50 },
+    ] }));
+  const h = hallOf({ ...READ, posts: [...READ.posts, ...hands] });
+  const listed = [...h.ranked, ...h.also].map((r) => r.handle);
+  for (const hand of TOWN_HANDS) assert.ok(!listed.includes(hand), `${hand} is on the Hall`);
+  assert.deepEqual(h.ranked.map((r) => r.name), hallOf(READ).ranked.map((r) => r.name));
+});
+
+test("hallOf: a legacy catcher still appears, below the paid rows, with bugs credited and no stamps", () => {
+  const h = hallOf(WITH_LEGACY);
+  const kogane = h.ranked.find((r) => r.handle === "kogane");
+  assert.deepEqual([kogane.stamps, kogane.bugs], [8, 2], "the legacy bug is not counted among kogane's");
+  const more = { ...WITH_LEGACY, posts: [...WITH_LEGACY.posts, { ...LEGACY[0], id: "ellery/old-one", author: "ellery",
+    history: LEGACY[0].history.map((r) => (r.stage === "reported" ? { ...r, credit: "ellery" } : r)) }] };
+  const e = hallOf(more).also.find((r) => r.handle === "ellery");
+  assert.deepEqual([e.stamps, e.bugs], [0, 1]);
+});
+
+test("hallOf: a read with no history says so (not an empty board); a read whose chain is unavailable lists by bugs and says the stamps can't be read", () => {
+  for (const history of [undefined, []]) {
+    const h = hallOf({ ...READ, posts: READ.posts.map((p) => ({ ...p, history })) });
+    assert.deepEqual([h.ok, h.known, h.ranked.length, h.also.length], [true, false, 0, 0]);
+    const doc = stubDoc();
+    assert.equal(paintHall(doc.root, h, doc), true);
+    assert.equal(textOf(doc.root), HALL_NO_HISTORY);
+    assert.equal(find(doc.root, (e) => e.tagName === "OL").length, 0);
+  }
+  const none = { ...READ, unavailable: "the store has no stamp chain yet", posts: READ.posts.map((p) => ({ ...p, history: p.history.map((r) => ({ ...r, stamps_paid: null })) })) };
+  const h = hallOf(none);
+  assert.deepEqual([h.stamps, h.ranked.length], [false, 0]);
+  // every catcher holds one bug here (sage's duplicate paid nothing now, so it credits no one), so by name
+  assert.deepEqual(h.also.map((r) => [r.name, r.bugs]), ["kinofire", "kogane", "lupi", "mari", "sage", "seven", "vermillion", "wildcat"].map((n) => [n, 1]));
   const doc = stubDoc();
-  paintCards(doc.root, cardsOf(read), doc);
-  assert.equal(textOf(find(doc.root, cls("bc-name"))[0]), "unnamed");
-  assert.equal(find(doc.root, cls("bc-img"))[0].src, JAR_ART.finished);
-  assert.equal(find(doc.root, cls("bc-q")).length, 0);
+  paintHall(doc.root, h, doc);
+  assert.equal(textOf(find(doc.root, cls("hof-note"))[0]), HALL_NO_STAMPS);
+  assert.doesNotMatch(textOf(doc.root), /✦/);
+  const failed = stubDoc();
+  assert.equal(paintHall(failed.root, hallOf(null), failed), false, "a failed read draws a Hall");
+});
+
+test("paintHall: each row is the name, the stamps (purple) and the bugs credited; Darko is never 'keemin'", () => {
+  const doc = stubDoc();
+  assert.equal(paintHall(doc.root, hallOf(WITH_LEGACY), doc), true);
+  const rows = find(doc.root, cls("hof-row")).map((r) => textOf(r).replace(/\s+/g, " "));
+  assert.deepEqual(rows, [
+    "1 lupi 25 ✦ 1 bug", "2 sage 12 ✦ 2 bugs", "3 kogane 8 ✦ 2 bugs", "4 seven 3 ✦ 1 bug", "5 vermillion 2 ✦ 1 bug", "5 wildcat 2 ✦ 1 bug",
+    "kinofire 1 bug", "mari 1 bug",
+  ]);
+  assert.match(textOf(doc.root), /Also credited/);
+  for (const star of find(doc.root, (e) => e.textContent === "✦")) assert.equal(star.className, "m-u");
+  assert.doesNotMatch(textOf(doc.root), /keemin/i);
+  assert.equal(TOWN_NAMES.keemin, "Darko");
 });
 
 // ── Wright's review of #462 (2026-10-09) ─────────────────────────────────────

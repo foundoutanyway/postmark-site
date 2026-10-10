@@ -47,7 +47,7 @@ import { iconSvg } from "@/lib/pixel-icons.mjs";
 import {
   MEEPS, meepLinks, profileOf, displayName, favouriteColour, accentVars, bench,
 } from "@/lib/meeps-quarter.mjs";
-import { PANELS, NEW_ISSUE_URL, VIDEO_URL, VIDEO_THUMB, VIDEO_TITLE } from "@/lib/bug-strip.mjs";
+import { PANELS, NEW_ISSUE_URL, VIDEO_URL, VIDEO_THUMB, VIDEO_TITLE, LEGACY_LINE } from "@/lib/bug-strip.mjs";
 // a strip text is a list of segments; a { stamps } segment renders as <amount>✦ in the stamp family
 const segs = (x) => (typeof x === "string" ? [x] : x);
 
@@ -282,13 +282,36 @@ const switchCss = [
                   THE CARDS); each card is a <details>. */}
               <section class="bug-cards" aria-labelledby="bc-h">
                 <h3 id="bc-h" class="cq-h">The Bug Catcher's jar</h3>
-                <p class="bc-lede">Every bug the town has reported, one card each. Open one to see who did each stage, what it paid, and where the work is.</p>
+                <p class="bc-lede">Every bug the town is catching, and every one caught and named, one card each. Open one to see who did each stage, what it paid, and where the work is.</p>
                 <div class="bc-root" data-bug-cards aria-live="polite">
                   <p class="bc-empty">The bugs are read live from the office when this page opens in a browser with scripts on.</p>
                 </div>
                 <p class="bb-report">
                   <a class="pm-btn" href={NEW_ISSUE_URL} target="_blank" rel="noopener" data-report>Report a bug</a>
                 </p>
+              </section>
+
+              {/* THE LEGACY SHELF (Darko, 2026-10-10, POS-558: "their own
+                  category on the site that just says that these bugs were
+                  spotted before the Bug Catcher was a thing and they are there
+                  to credit the residents who caught them"). A finished bug with
+                  no name leaves the jar for here, the same cards (bug-strip.mjs
+                  § THE JAR). Hidden until the read has one. */}
+              <section class="bug-legacy" aria-labelledby="bl-h" hidden data-bug-legacy-shelf>
+                <h3 id="bl-h" class="cq-h">Legacy bugs</h3>
+                <p class="bc-lede">{LEGACY_LINE}</p>
+                <div class="bc-root" data-bug-legacy aria-live="polite"></div>
+              </section>
+
+              {/* THE BUG CATCHERS' HALL OF FAME (Darko, 2026-10-10, POS-558:
+                  "residents in order of amount of stamp contribution towards
+                  bugs"). From the same one read (bug-strip.mjs § THE BUG
+                  CATCHERS' HALL OF FAME); the town's own hands are not ranked.
+                  Hidden until the read answers. */}
+              <section class="bug-fame" aria-labelledby="hf-h" hidden data-bug-fame-hall>
+                <h3 id="hf-h" class="cq-h">The Bug Catchers' Hall of Fame</h3>
+                <p class="bc-lede">Residents in order of the stamps their bug work has earned, across every stage they're credited on. The town's own hands, the meeps and the founders, aren't ranked.</p>
+                <div class="hof-root" data-bug-fame aria-live="polite"></div>
               </section>
             </section>
           )}
@@ -346,7 +369,7 @@ const switchCss = [
   </div>
   <script>
     import { heartbeatFor } from "@/lib/meeps-quarter.mjs";
-    import { cardsOf, paintCards, BOARD_PATH, playVideo } from "@/lib/bug-strip.mjs";
+    import { cardsOf, paintCards, paintLegacy, hallOf, paintHall, BOARD_PATH, playVideo } from "@/lib/bug-strip.mjs";
 
     // THE VIDEO: click to play. The box is a real link (Enter follows it), so a
     // click is caught here and swapped for the player; with script off, it is
@@ -358,7 +381,8 @@ const switchCss = [
     });
     import { officeBase } from "@/lib/auth.mjs";
 
-    // The bugs' cards, live from one read of the office's bug posts.
+    // The bugs' cards, the legacy shelf and the Hall of Fame, live from one
+    // read of the office's bug posts.
     // The page asks its own office (officeBase(): the operator's pm.office.base,
     // else the same-origin /api), never a build-time production URL: on dev a
     // baked prod URL read prod's office, which had no /posts (the fund page's
@@ -371,7 +395,14 @@ const switchCss = [
         const r = await fetch(officeBase() + BOARD_PATH, { headers: { accept: "application/json" } });
         read = r.ok ? await r.json() : null;
       } catch { read = null; }
-      paintCards(root, cardsOf(read));
+      const board = cardsOf(read);
+      paintCards(root, board);
+      const shelf = document.querySelector("[data-bug-legacy-shelf]");
+      const legacy = document.querySelector("[data-bug-legacy]");
+      if (shelf && legacy) shelf.hidden = !paintLegacy(legacy, board);
+      const hall = document.querySelector("[data-bug-fame-hall]");
+      const fame = document.querySelector("[data-bug-fame]");
+      if (hall && fame) hall.hidden = !paintHall(fame, hallOf(read));
     })();
 
     // THE CLICK DOES NOT SCROLL — /town/'s fix (w37.2), here too (Keemin,
@@ -716,9 +747,10 @@ const switchCss = [
     }
     .bc-root :global(.bc-head) { display: flex; flex-direction: column; gap: 0.12rem; min-width: 0; }
     .bc-root :global(.bc-name) { font-weight: 700; font-size: 1rem; color: #9fd8b8; overflow-wrap: anywhere; }
-    .bc-root :global(.bc-unnamed) { font-style: italic; font-weight: 400; color: rgba(159, 216, 184, 0.75); }
     .bc-root :global(.bc-title) { font-weight: 700; font-size: 0.92rem; line-height: 1.35; overflow-wrap: anywhere; }
     .bc-root :global(.bc-card.is-caught .bc-title) { font-weight: 400; color: rgba(230, 220, 198, 0.88); }
+    /* a legacy card has no name above its title, so the title leads */
+    .bc-root :global(.bc-card.is-legacy .bc-title) { font-weight: 700; color: #e6dcc6; }
     .bc-root :global(.bc-by) { font-size: 0.78rem; color: rgba(205, 194, 171, 0.75); overflow-wrap: anywhere; }
     .bc-root :global(.bc-stage) {
       justify-self: end; white-space: nowrap; padding: 0.2em 0.6em; border-radius: 999px;
@@ -774,6 +806,28 @@ const switchCss = [
       .bc-root :global(.bc-link:empty), .bc-root :global(.bc-day:empty) { display: none; }
     }
     .bb-report { margin: 1rem 0 0; text-align: center; }
+
+    /* THE LEGACY SHELF AND THE HALL OF FAME (POS-558): the shelf is the jar's
+       cards under its own heading; the Hall is one row per resident, [rank]
+       [name] [stamps] [bugs], the stamps in the stamp purple. */
+    .bug-legacy, .bug-fame { margin: 1.8rem 0 0; }
+    .hof-root { max-width: 34rem; margin: 0 auto; }
+    .hof-root :global(.hof-note) { margin: 0 0 0.6rem; text-align: center; font-size: 0.86rem; font-style: italic; color: rgba(205, 194, 171, 0.8); }
+    .hof-root :global(.hof-list) { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; }
+    .hof-root :global(.hof-row) {
+      display: grid; grid-template-columns: 2rem minmax(0, 1fr) auto 4.6rem; align-items: baseline; gap: 0.6rem;
+      padding: 0.45rem 0.8rem; border: 1px solid rgba(232, 196, 139, 0.2); border-radius: 10px; color: #e6dcc6; background: rgba(13, 20, 38, 0.35);
+    }
+    .hof-root :global(.hof-list:not(.is-also) .hof-row:first-child) { border-color: rgba(232, 196, 139, 0.55); background: rgba(232, 196, 139, 0.07); }
+    .hof-root :global(.hof-rank) { font-family: var(--pm-mono); font-size: 0.8rem; color: var(--pm-gold); text-align: right; font-variant-numeric: tabular-nums; }
+    .hof-root :global(.hof-name) { font-weight: 700; overflow-wrap: anywhere; }
+    /* STAMPS ARE PURPLE (postmark.css's law) */
+    .hof-root :global(.hof-stamps .bc-stamp) { font-size: 1rem; color: var(--pm-stamp); font-variant-numeric: tabular-nums; }
+    .hof-root :global(.hof-stamps .m-u) { margin-left: 0.08em; }
+    .hof-root :global(.hof-bugs) { font-size: 0.78rem; color: rgba(205, 194, 171, 0.75); text-align: right; white-space: nowrap; }
+    .hof-root :global(.hof-also-h) { margin: 1.1rem 0 0.45rem; font-family: var(--pm-mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(232, 196, 139, 0.85); font-weight: 400; }
+    .hof-root :global(.hof-list.is-also .hof-row) { grid-template-columns: minmax(0, 1fr) 4.6rem; padding: 0.35rem 0.8rem; }
+    .hof-root :global(.hof-list.is-also .hof-name) { font-weight: 400; }
 
     @media (max-width: 720px) {
       .cq-frame, .cq-art { width: 60px; height: 60px; }
