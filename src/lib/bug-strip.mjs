@@ -444,7 +444,7 @@ function pageOf(read, shown) {
   return { current: Math.floor(offset / limit) + 1, pages: Math.max(1, Math.ceil(total / limit)), limit };
 }
 
-/** What a credited, paying stage with no ledger line says: the tick pays within about fifteen minutes, or a cap held it. */
+/** What a credited, paying stage with no ledger line says on a jar card: the tick pays within about fifteen minutes, or a cap held it. A legacy card says nothing there. */
 export const NOT_YET_PAID = "not yet paid";
 /** What an opened card says when the read carries no history for it. */
 export const NO_HISTORY = "Who did each stage isn't in the office's answer right now, so the ladder shows only how far this bug has come.";
@@ -501,7 +501,8 @@ function cardEl(c, doc) {
     if (r.at) day.dateTime = r.at;
     const st = el("span", "bc-stamps");
     if (r.paid) { const b = el("b", "bc-stamp", `+${r.paid}`); b.append(el("span", "m-u", "✦")); st.append(b); }
-    else if (r.pays && r.who) st.textContent = NOT_YET_PAID;
+    // a legacy bug's stages predate the ladder and will not pay: nothing about stamps, never "not yet paid" (Wright, 2026-10-10, POS-558)
+    else if (r.pays && r.who && !c.legacy) st.textContent = NOT_YET_PAID;
     const lk = el("span", "bc-link");
     if (r.link) lk.append(out(r.link, "", `${LINK_LABEL[r.stage] ?? "the work"} →`));
     row.append(el("span", "bc-step-name", r.label), who, day, st, lk);

@@ -187,6 +187,8 @@ const LEGACY = [
     fields: { issue: "https://github.com/postmark-town/postmark/issues/2858" },
     history: [
       { stage: "reported", at: "2026-09-20T10:00:00.000Z", hand: null, credit: "kogane", link: null, stamps_paid: null },
+      { stage: "confirmed", at: "2026-09-20T11:00:00.000Z", hand: "bugcatcher", credit: "kogane", link: null, stamps_paid: null },
+      { stage: "reproduced", at: "2026-09-20T12:00:00.000Z", hand: "bugcatcher", credit: "kogane", link: null, stamps_paid: 3 },
       { stage: "shipped", at: "2026-09-21T10:00:00.000Z", hand: "keemin", credit: null, link: null, stamps_paid: null },
     ] },
   { class: "bug", id: "odd/fixed-before-names", title: "Fixed before the jar", author: "keemin", state: "fixed", fields: { size: "S" }, history: [] },
@@ -224,6 +226,18 @@ test("paintCards: the legacy cards credit their catcher by name and link their i
   assert.doesNotMatch(SRC.replace(/^\s*\/\/.*$/gm, ""), /"unnamed"|bc-unnamed/, "the code still prints unnamed");
   assert.match(LEGACY_LINE, /spotted before the Bug Catcher's jar existed/);
   assert.match(LEGACY_LINE, /credit the residents who caught them/);
+});
+
+test("a legacy card's credited stage with no ledger line says nothing about stamps, never 'not yet paid'; a jar card still says it", () => {
+  const doc = stubDoc();
+  paintCards(doc.root, cardsOf(WITH_LEGACY), doc);
+  const k = find(doc.root, (e) => e.tagName === "DETAILS" && e.dataset.post === "kogane/refused-claim")[0];
+  const stamps = (d, stage) => textOf(find(d, (e) => cls("bc-step")(e) && e.dataset.stage === stage)[0].children[3]);
+  assert.equal(stamps(k, "confirmed"), "", "a legacy stage that will never pay says something");
+  assert.equal(stamps(k, "reproduced"), "+3 ✦", "a legacy stage that paid lost its stamps");
+  assert.doesNotMatch(textOf(k), /not yet paid/);
+  const jar = find(doc.root, (e) => e.tagName === "DETAILS" && e.dataset.post === "kinofire/stamps-overlap")[0];
+  assert.equal(stamps(jar, "confirmed"), NOT_YET_PAID, "a jar card stopped saying not yet paid");
 });
 
 // ── The pages (POS-558, addendum 1) ──────────────────────────────────────────
