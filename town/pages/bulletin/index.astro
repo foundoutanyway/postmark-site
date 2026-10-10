@@ -62,7 +62,7 @@ const postings = bulletinPostings(bulletin);
 const sticks = subBoard(bulletin);
 // the pinned items on the board itself, each with where its click goes
 const pins = BOARD_PINS.map((p) => ({ ...p, link: pinLink(p, postings.map((x) => x.slug)), pictures: p.art.map((a) => paintArt(a)) }));
-const PIN_TILTS = [-1.2, 1.1];
+const PIN_TILTS = [-2, 2.6];
 const month = pinnedMonth(calendar);
 const daily = dailyFront(bulletin);
 const tended = tendedText(daily.tended);
@@ -291,37 +291,53 @@ const views = JSON.stringify({
               <span class="beyond">beyond the town · 1f4ee.town ↗</span>
             </a>
 
-            {/* 7 · THE PINNED ITEMS (Darko, POS-566): two illustrated cards under
-                red pins, built as the postcard is: a pixel scene on the quay
-                (civic-art.mjs, BOARD_ART), then the caption. The chapbook leaves
-                the town; the Halloween card opens its notice in place
-                (bulletin-board.mjs, BOARD_PINS and pinLink). */}
+            {/* 7 · THE PINNED ITEMS (Darko, POS-566): two objects of their own,
+                as the board is a collage of different things. The chapbook is a
+                little cloth-bound book, a plate on its cover; Halloween is a
+                door-hanger hung through its hole, a window cut in it. Each
+                picture is two civic-art.mjs BOARD_ART maps on the quay. The
+                chapbook leaves the town; the Halloween hanger opens its notice
+                in place (bulletin-board.mjs, BOARD_PINS and pinLink). */}
             <ul class="pins" aria-label="Pinned on the board">
-              {pins.map((p, i) => (
-                <li>
-                  <a class={`piece pin-card ${p.scene}`} style={`--tilt: ${PIN_TILTS[i % PIN_TILTS.length]}deg`}
-                     href={p.link.href} data-pin={p.key} data-note-open={p.link.note ?? undefined}
-                     target={p.link.leaves ? "_blank" : undefined} rel={p.link.leaves ? "noopener" : undefined}
-                     aria-label={p.link.leaves ? `${p.title}${p.by ? `, by ${p.by}` : ""} (opens in a new tab)` : undefined}>
-                    <span class="tack red" aria-hidden="true"></span>
-                    <span class="pic pin-pic" aria-hidden="true">
-                      {p.pictures.map((rects) => (
-                        <svg class="px" viewBox={`0 0 ${SPRITE_W} 22`} shape-rendering="crispEdges">
-                          {rects.map((r) => <rect x={r.x} y={r.y} width={r.w} height="1" fill={r.fill} />)}
-                        </svg>
-                      ))}
-                    </span>
-                    <span class="quay" aria-hidden="true"></span>
-                    {p.kind && <span class="pin-kick">{p.kind}</span>}
-                    <span class="pin-title">{p.title}</span>
-                    {p.by && <span class="pin-by">by {p.by}</span>}
-                    {p.words && <span class="pin-line" set:html={emph(p.words)} />}
-                    {p.steps.length > 0 && <ol class="pin-steps">{p.steps.map((s) => <li set:html={emph(s)} />)}</ol>}
-                    {p.after && <span class="pin-line" set:html={emph(p.after)} />}
-                    <span class:list={["beyond", { here: !p.link.leaves || p.note }]}>{p.foot}</span>
-                  </a>
-                </li>
-              ))}
+              {pins.map((p, i) => {
+                const picture = p.pictures.map((rects) => (
+                  <svg class="px" viewBox={`0 0 ${SPRITE_W} 22`} shape-rendering="crispEdges">
+                    {rects.map((r) => <rect x={r.x} y={r.y} width={r.w} height="1" fill={r.fill} />)}
+                  </svg>
+                ));
+                return (
+                  <li class={`pin-${p.form}`}>
+                    <a class={`piece ${p.form}`} style={`--tilt: ${PIN_TILTS[i % PIN_TILTS.length]}deg`}
+                       href={p.link.href} data-pin={p.key} data-note-open={p.link.note ?? undefined}
+                       target={p.link.leaves ? "_blank" : undefined} rel={p.link.leaves ? "noopener" : undefined}
+                       aria-label={p.link.leaves ? `${p.title}${p.by ? `, by ${p.by}` : ""} (opens in a new tab)` : undefined}>
+                      {p.form === "book"
+                        ? (
+                          <>
+                            <span class="tack" aria-hidden="true"></span>
+                            <span class="book-spine" aria-hidden="true"></span>
+                            <span class="pic pin-pic book-plate" aria-hidden="true">{picture}</span>
+                            <span class="book-title">{p.title}</span>
+                            {p.by && <span class="book-by">by {p.by}</span>}
+                            {p.words && <span class="book-line" set:html={emph(p.words)} />}
+                            <span class="book-foot">{p.foot}</span>
+                          </>
+                        )
+                        : (
+                          <>
+                            <span class="hanger-hole" aria-hidden="true"><span class="tack red"></span></span>
+                            <span class="pic pin-pic hanger-window" aria-hidden="true">{picture}</span>
+                            {p.kind && <span class="hanger-kick">{p.kind}</span>}
+                            <span class="hanger-title">{p.title}</span>
+                            {p.steps.length > 0 && <ol class="hanger-steps">{p.steps.map((s) => <li set:html={emph(s)} />)}</ol>}
+                            {p.after && <span class="hanger-line" set:html={emph(p.after)} />}
+                            <span class="hanger-foot">{p.foot}</span>
+                          </>
+                        )}
+                    </a>
+                  </li>
+                );
+              })}
             </ul>
 
             {/* THE STICKERS: the town's socials, slapped on the cork. Plain external
@@ -975,46 +991,100 @@ const views = JSON.stringify({
       color: #0d2033; background: #93d6c4;
     }
 
-    /* 7 · the pinned items: two illustrated cards under red pins, side by
-       side under the pieces, each built as the postcard is (a paper card, a
-       pixel scene on the quay, then the caption) */
+    /* 7 · the pinned items: two objects of their own, side by side under the
+       pieces, each a different thing on the cork (Darko: the board's DIVERSITY) */
     .pins {
       grid-area: pins; list-style: none; margin: 0; padding: 0;
-      display: grid; grid-template-columns: repeat(2, minmax(0, 21em)); justify-content: center; align-items: start;
-      gap: 2em 2.8em;
+      display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start;
+      gap: 2.4em 3.4em;
     }
-    .pin-card {
-      padding: 1em 1.1em 1.1em; border-radius: 6px;
-      background: var(--pm-paper);
-      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55);
-    }
-    .pin-pic { display: flex; justify-content: center; align-items: flex-end; padding: 1.4em 0.6em 0; }
-    .pin-pic .px { width: 120px; max-width: 46%; height: auto; display: block; image-rendering: pixelated; }
-    /* the chapbook's night: the postcard's sky, warmed where the lamp-flower stands */
-    .pin-card.night .pin-pic {
+    .pins > li { flex: 0 1 auto; }
+    .pin-book { width: min(100%, 15.5em); }
+    .pin-hanger { width: min(100%, 16em); margin-top: 1.2em; }
+    .pin-pic { display: flex; justify-content: center; align-items: flex-end; padding: 1.2em 0.5em 0; }
+    .pin-pic .px { width: 96px; max-width: 46%; height: auto; display: block; image-rendering: pixelated; }
+
+    /* THE CHAPBOOK: a little cloth-bound book in the moss of the town's banner,
+       stitched at the spine, its page edges showing at the fore-edge, a gold
+       double rule round the cover and the picture set in it as a plate */
+    .book {
+      padding: 1.1em 1.3em 1.2em 2.1em; border-radius: 3px 8px 8px 3px;
       background:
-        radial-gradient(circle at 70% 38%, rgba(246, 220, 174, 0.28), transparent 32%),
-        linear-gradient(180deg, var(--pm-night) 0%, var(--pm-harbor-2) 70%, #2f3a56 100%);
+        repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.06) 0 2px, transparent 2px 5px),
+        linear-gradient(160deg, #4d7d54, #2f4a33);
+      color: var(--pm-gold-bright);
+      box-shadow:
+        inset 0 0 0 5px #2f4a33, inset 0 0 0 6px var(--pm-gold), inset 0 0 0 8px #2f4a33, inset 0 0 0 9px rgba(232, 196, 139, 0.6),
+        5px 0 0 -1px var(--pm-paper), 7px 1px 0 -1px var(--pm-paper-deep), 9px 2px 0 -1px #cdbda4,
+        0 12px 24px rgba(0, 0, 0, 0.55);
     }
-    /* the doorstep's dusk: the last of the light, low and copper, behind the house */
-    .pin-card.dusk .pin-pic {
+    .book-spine {
+      position: absolute; left: 0; top: 0; bottom: 0; width: 0.95em; border-radius: 3px 0 0 3px;
       background:
-        radial-gradient(ellipse at 50% 100%, rgba(201, 130, 61, 0.55), transparent 62%),
-        linear-gradient(180deg, var(--pm-harbor-2) 0%, #433554 58%, #6d4220 100%);
+        repeating-linear-gradient(180deg, transparent 0 9px, rgba(246, 220, 174, 0.75) 9px 14px, transparent 14px 20px) 50% 0 / 2px 100% no-repeat,
+        linear-gradient(90deg, #233826, #3b5e40);
+      box-shadow: inset -2px 0 3px rgba(0, 0, 0, 0.45);
     }
-    .pin-kick {
-      padding-top: 0.6em;
-      font-family: var(--pm-mono); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.16em;
-      text-transform: uppercase; color: var(--pm-wax);
+    .book .tack { left: 58%; }
+    .book-plate {
+      margin: 0.5em 0 0.2em; border-radius: 2px;
+      border: 3px double var(--pm-gold);
+      background:
+        radial-gradient(circle at 72% 40%, rgba(246, 220, 174, 0.3), transparent 34%),
+        linear-gradient(180deg, var(--pm-night) 0%, var(--pm-harbor-2) 75%, #2f3a56 100%);
     }
-    .pin-title { padding-top: 0.15em; font-weight: 700; font-size: 1.2rem; line-height: 1.2; }
-    .pin-card.night .pin-title { padding-top: 0.6em; }
-    .pin-by { font-style: italic; font-size: 0.86rem; color: var(--pm-ink-soft); }
-    .pin-line { font-size: 0.86rem; line-height: 1.45; }
-    .pin-steps { margin: 0; padding-left: 1.3em; font-size: 0.84rem; line-height: 1.45; }
-    .pin-line :global(strong), .pin-steps :global(strong) { color: var(--pm-ink); }
-    /* the foot is the harbor's "beyond the town" pill; the notice's, in gold, stays in town */
-    .beyond.here { color: var(--pm-ink); background: var(--pm-gold); }
+    .book-title {
+      margin-top: 0.5em; text-align: center;
+      font-weight: 700; font-size: 1.22rem; line-height: 1.15; letter-spacing: 0.01em;
+      color: var(--pm-gold-bright); text-shadow: 0 1px 0 #1f3322;
+    }
+    .book-by {
+      text-align: center; font-family: var(--pm-mono); font-size: 0.58rem; letter-spacing: 0.16em;
+      text-transform: uppercase; color: var(--pm-gold);
+    }
+    .book-line { padding-top: 0.3em; text-align: center; font-style: italic; font-size: 0.84rem; line-height: 1.45; color: #e7dcc4; }
+    .book-foot {
+      align-self: center; margin-top: 0.45em; padding-top: 0.4em; border-top: 1px solid rgba(232, 196, 139, 0.5);
+      font-family: var(--pm-mono); font-size: 0.56rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--pm-gold);
+    }
+
+    /* HALLOWEEN: a door-hanger in plum card stock, hung through its punched
+       hole on a red pin, rounded at the head, and the doorstep seen through an
+       arched window cut into it, the dusk glowing low behind the house */
+    .hanger {
+      padding: 3.4em 1.05em 1.2em; border-radius: 48% 48% 8px 8px / 6.5em 6.5em 8px 8px;
+      background: linear-gradient(180deg, #65517f, #433554 46%, #3a2d48);
+      color: #efe3c8;
+      box-shadow: inset 0 0 0 2px rgba(201, 130, 61, 0.55), 0 12px 24px rgba(0, 0, 0, 0.55);
+    }
+    .hanger-hole {
+      position: absolute; top: 0.9em; left: 50%; margin-left: -0.85em; width: 1.7em; height: 1.7em; border-radius: 50%;
+      background: radial-gradient(circle at 50% 40%, #443c30, #2d271f);
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.7), 0 0 0 2px rgba(201, 130, 61, 0.55);
+    }
+    .hanger-hole .tack { top: 0.45em; left: 50%; }
+    .hanger-window {
+      border-radius: 50% 50% 3px 3px / 3.4em 3.4em 3px 3px;
+      padding-top: 2.2em;
+      background:
+        radial-gradient(ellipse at 50% 100%, rgba(201, 130, 61, 0.6), transparent 64%),
+        linear-gradient(180deg, var(--pm-harbor-2) 0%, #433554 60%, #6d4220 100%);
+      box-shadow: inset 0 0 0 3px #2a2036, 0 0 0 2px rgba(201, 130, 61, 0.5);
+    }
+    .hanger-kick {
+      margin-top: 0.75em; text-align: center;
+      font-family: var(--pm-mono); font-size: 0.58rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase;
+      color: #c9823d;
+    }
+    .hanger-title { text-align: center; font-weight: 700; font-size: 1.15rem; line-height: 1.2; color: var(--pm-gold-bright); }
+    .hanger-steps { margin: 0.2em 0 0; padding-left: 1.2em; font-size: 0.82rem; line-height: 1.45; }
+    .hanger-steps :global(strong), .hanger-line :global(strong) { color: var(--pm-gold-bright); }
+    .hanger-line { font-size: 0.82rem; line-height: 1.45; font-style: italic; color: #d8c7ef; }
+    .hanger-foot {
+      align-self: center; margin-top: 0.4em; padding: 0.3em 0.8em; border-radius: 999px;
+      font-family: var(--pm-mono); font-size: 0.56rem; letter-spacing: 0.14em; text-transform: uppercase;
+      color: #2a1a08; background: #c9823d;
+    }
 
     /* the stickers: die-cut, slapped on at a lean; a stamp's perforated edge
        or a blob of wax, in the style guide's inks, never a platform's tile */
@@ -1061,7 +1131,8 @@ const views = JSON.stringify({
         grid-template-areas: "cal" "news" "notes" "meeps" "card" "harbor" "pins" "stick";
         gap: 2.4em; padding: 2.2em 0.9em 2.4em; border-width: 8px; border-bottom-width: 0;
       }
-      .pins { grid-template-columns: minmax(0, 1fr); gap: 2.4em; }
+      .pins { flex-direction: column; align-items: center; gap: 2.6em; }
+      .pin-hanger { margin-top: 0; }
       .piece, .piece:hover, .piece:focus-visible { transform: none; }
       .notes { height: 15em; }
       .hand-name { font-size: 0.5rem; }

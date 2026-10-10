@@ -123,16 +123,23 @@ export function tendedText(ymd) {
 // "the main town page needs to have a couple more corkboard items … Dom
 // Pidgey's chapbook as a corkboard item on the main corkboard, outside of the
 // town bulletin. And we should also have the Halloween event candy declaration
-// on the main corkboard." Each is a pinned card on the board itself, under a
-// red pin, and neither is a piece: no view of its own, so nothing here is in
-// BOARD_PIECES.
+// on the main corkboard." Each is pinned on the board itself, and neither is
+// a piece: no view of its own, so nothing here is in BOARD_PIECES.
 //
-// ILLUSTRATED (Darko, 19:21: "artistically represent each of the two new main
-// corkboard items instead of just having the raw text"). Each card is built
-// as the postcard and the harbor chart are: a picture, then a title and a
-// short line. `art` names two of civic-art.mjs's BOARD_ART maps, drawn side by
-// side on the quay; `scene` is the sky behind them (the lamp-flower's night,
-// the doorstep's dusk).
+// ILLUSTRATED, AND EACH ITS OWN OBJECT (Darko, 19:21: "artistically represent
+// each of the two new main corkboard items instead of just having the raw
+// text"; and keep to the board's DIVERSITY: neither may look like a card
+// already there, or like the other). The board is a collage (a calendar, a
+// torn newspaper, a postcard, a staff strip, stamps, a sea chart), so `form`
+// names what each one is:
+//
+//   book     the chapbook: a little cloth-bound book, stitched at the spine,
+//            its page edges showing, a gold-framed plate on the cover
+//   hanger   Halloween: a door-hanger in plum card stock, hung through its
+//            punched hole, the doorstep seen through an arched window cut in it
+//
+// `art` names the two civic-art.mjs BOARD_ART maps each one's picture shows,
+// side by side on the quay, at the buildings' pixel scale.
 //
 // The words are the town's, never new prose: the chapbook's line is its
 // bulletin item's teaser, cut to its first and last clauses
@@ -149,7 +156,7 @@ export const BOARD_PINS = Object.freeze([
   Object.freeze({
     key: "chapbook",
     art: Object.freeze(["pigeon", "lampflower"]),
-    scene: "night",
+    form: "book",
     kind: null,
     title: "The Lamp-Flower Chapbook",
     by: "resident pigeon Dom Pidgey",
@@ -161,7 +168,7 @@ export const BOARD_PINS = Object.freeze([
   Object.freeze({
     key: "halloween",
     art: Object.freeze(["door", "pumpkin"]),
-    scene: "dusk",
+    form: "hanger",
     kind: "Saturday, October 31st, all day",
     title: "Halloween: what's on the doorsteps",
     by: null,

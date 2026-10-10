@@ -362,7 +362,7 @@ test("THE PINS: the chapbook credits Dom Pidgey in its bulletin teaser's words; 
   // each card is illustrated: two of the board's own pictures, on a sky
   assert.deepEqual(by.chapbook.art, ["pigeon", "lampflower"]);
   assert.deepEqual(by.halloween.art, ["door", "pumpkin"]);
-  assert.deepEqual(BOARD_PINS.map((p) => p.scene), ["night", "dusk"]);
+  assert.deepEqual(BOARD_PINS.map((p) => p.form), ["book", "hanger"]);
   // neither is a piece: no view, no address of the board's own
   for (const p of BOARD_PINS) assert.equal(BOARD_PIECES.some((x) => x.key === p.key), false, `${p.key} is a piece`);
   assert.equal(boardIds().includes("halloween"), false);
@@ -389,9 +389,11 @@ test("THE PINS are on the built board: the chapbook a new-tab link crediting Dom
   assert.match(chap[0], /target="_blank"/);
   assert.match(chap[1], /by resident pigeon Dom Pidgey/);
   assert.ok(chap[1].replace(/&#39;/g, "'").includes("The pigeon's compendium of postmark.town, for old residents and new arrivals alike."));
-  // each card carries its scene: two pixel pictures on the quay, drawn as the postcard's buildings are
-  for (const [key, m] of [["chapbook", chap], ["halloween", pin("halloween")]]) {
-    const pic = /<span class="pic pin-pic"[^>]*>([\s\S]*?)<\/span>/.exec(m[1])?.[1] ?? "";
+  // each carries its picture: two pixel maps on the quay, drawn as the postcard's buildings are,
+  // in an object of its own (the book's plate, the hanger's window), neither one a card already there
+  for (const [key, form, m] of [["chapbook", "book", chap], ["halloween", "hanger", pin("halloween")]]) {
+    assert.match(m[0], new RegExp(`<a class="piece ${form}"`), `the ${key} pin is not a ${form}`);
+    const pic = new RegExp(`<span class="pic pin-pic ${form}-[a-z]+"[^>]*>([\\s\\S]*?)</span>`).exec(m[1])?.[1] ?? "";
     assert.equal((pic.match(/<svg class="px"/g) ?? []).length, 2, `the ${key} card has no scene`);
     assert.ok((pic.match(/<rect\b/g) ?? []).length > 40, `the ${key} card's scene is empty`);
   }
