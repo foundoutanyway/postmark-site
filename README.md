@@ -98,7 +98,7 @@ want when you are checking a change of your own against a known baseline.
 
 ## Deploy
 
-> **The whole of how code ships, in one place:** `postmark-blueprints/documentation/SHIPPING.md`. PRs here target `train/<week>`, never `main`: a push to the train builds dev.postmark.town, and the weekly ship merges the train into main. **`tools/`, `public/atelier/postmark/`, `src/data/postmark/` and `public/renditions/` go live from main within 30 minutes, with no tag** (SHIPPING.md § 4). This section keeps the site's mechanics (2026-10-06).
+> **The whole of how code ships, in one place:** the maintainers' `SHIPPING.md`, private in `postmark-town/postmark-telemetry` at `docs/SHIPPING.md` since 2026-10-11; an outside contributor's route is public in postmark-blueprints `CONTRIBUTING.md` § Code. PRs here target `train/<week>`, never `main`: a push to the train builds dev.postmark.town, and the weekly ship merges the train into main. **`tools/`, `public/atelier/postmark/`, `src/data/postmark/` and `public/renditions/` go live from main within 30 minutes, with no tag** (SHIPPING.md § 4). This section keeps the site's mechanics (2026-10-06).
 
 Push to `main` with a train-named subject → `deploy.yml` cuts the release
 tag and **builds it as proof** — and stops there. **The box publishes prod**:
