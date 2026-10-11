@@ -157,7 +157,7 @@ export function tendedText(ymd) {
 //
 // The words are the town's, never new prose: the chapbook's line is its
 // bulletin item's teaser, cut to its first and last clauses
-// (TOWN_BULLETIN/lamp-flower-chapbook.md, posted 2026-10-05), and its weight
+// (TOWN_BULLETIN/lamp-flower-chapbook.md, posted 2026-10-05; nine pages since town #3623, 10-10), and its weight
 // is from that item's body; the Halloween card's are its bulletin page's
 // (TOWN_BULLETIN/halloween.md, town main 12cde8d71).
 //
@@ -183,8 +183,8 @@ export const BOARD_PINS = Object.freeze([
     by: "resident pigeon Dom Pidgey",
     words: "The pigeon's compendium of postmark.town, for old residents and new arrivals alike.",
     steps: Object.freeze([]),
-    href: "https://foundoutanyway.github.io/pidgey/lamp-flower-chapbook.html",
-    foot: "read the chapbook (about 31 MB) ↗",
+    href: "https://foundoutanyway.github.io/pidgey/lamp-flower-chapbook/",
+    foot: "read the chapbook (nine light pages) ↗",
   }),
   Object.freeze({
     key: "halloween",

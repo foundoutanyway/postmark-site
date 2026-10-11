@@ -347,7 +347,7 @@ test("THE PINS: the chapbook credits Dom Pidgey in its bulletin teaser's words; 
   assert.ok(CHAPBOOK_TEASER.startsWith(`${first}:`), "the chapbook's line does not open with its teaser's");
   assert.ok(CHAPBOOK_TEASER.endsWith(`For ${last}.`), "the chapbook's line does not close with its teaser's");
   assert.match(by.chapbook.by, /\bDom Pidgey$/);
-  assert.equal(by.chapbook.href, "https://foundoutanyway.github.io/pidgey/lamp-flower-chapbook.html");
+  assert.equal(by.chapbook.href, "https://foundoutanyway.github.io/pidgey/lamp-flower-chapbook/");
   assert.equal(by.chapbook.note, undefined);
   // TOWN_BULLETIN/halloween.md's own title, and its three steps in order
   assert.equal(by.halloween.title, "Halloween: what's on the doorsteps");
