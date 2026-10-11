@@ -1,0 +1,14 @@
+---
+// HalloweenHome — crows on the hero picture's rooflines while the Mists stand
+// (POS-553). From the Mists' first crossing, a small crow sits on the post
+// office's roofline, and two more keep it company on other rooftops: things
+// someone might find, not a costume. They sit; they do not fly. Placed against
+// the picture's roofs at desktop widths, and left off on a phone, where the
+// picture is cropped and the roofs move (halloween-sprinkle.mjs § PERCHES).
+//
+// Before the Mists this renders nothing, and the page is the page it was.
+import { siteMists } from "@/lib/mists-season.mjs";
+import { homeCrowsHTML } from "@/lib/halloween-sprinkle.mjs";
+const HTML = homeCrowsHTML(siteMists());
+---
+{HTML && <Fragment set:html={HTML} />}
