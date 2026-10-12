@@ -59,7 +59,7 @@ const here = sectionOf(active);
 // There is exactly one <ChipRow> in this file, and the suite counts it.
 const row = rowFor(active, { ownChips, flags: navFlags(import.meta.env) });
 ---
-<BaseLayout title={title} description={description} image={image} chrome="none" bgm={false} noindex={noindex} canonical={canonical}>
+<BaseLayout title={title} description={description} image={image} chrome="none" bgm={false} noindex={noindex} canonical={canonical}><HalloweenSkin slot="head" /><slot name="head" slot="head" />
   <script is:inline>
     // Tutorial event bus — installed during parse so any page island can emit
     // before the tracker resolves identity. The tracker below takes over this
@@ -282,7 +282,7 @@ const row = rowFor(active, { ownChips, flags: navFlags(import.meta.env) });
       }
     </style>
     <slot />
-    <DoorLine door={door} /><HalloweenSkin /><HalloweenBat />
+    <DoorLine door={door} /><HalloweenSkin part="wolf" /><HalloweenBat />
     {import.meta.env.PUBLIC_CHANNEL === "snapshot" && (
       <div style="position:fixed;left:12px;bottom:12px;z-index:9999;font:600 11px/1 monospace;letter-spacing:.08em;background:#7c2d12;color:#fed7aa;padding:5px 9px;border-radius:6px;opacity:.92;pointer-events:none;">
         SNAPSHOT · {(import.meta.env.PUBLIC_BUILD_SHA ?? "local").slice(0, 8)}

@@ -2,6 +2,12 @@
 // styles that hard-codes one of the harbor's navies, re-emitted with the skin's
 // base, panel or raised panel (each an "r, g, b" string). If the skin is
 // picked, these navies become tokens instead.
+//
+// Hand-corrected since (POS-605): the generator had folded two declarations
+// from elsewhere into one rule, and each flattened the page. The page's body
+// took the mail explorer's flat `background: #070b15` after the site's glow (the
+// glow is siteSkinCSS's now, the one body rule), and the home page's hero veil
+// took its phone gradient on every width (it is under its own @media again).
 export function navyOverrides({ base, panel, panel2 }) {
   return `
   html body .ai-veil { background:
@@ -27,9 +33,6 @@ export function navyOverrides({ base, panel, panel2 }) {
   html body .pm-opsnav a[aria-current="page"] { color: rgb(${base}) !important; }
   html body .pm-res-card { background: rgba(${panel}, 0.72) !important; }
   html body .res-img-empty { background: rgba(${panel2}, 0.5) !important; }
-  body { background:
-      radial-gradient(120% 90% at 50% -10%, rgb(${panel2}) 0%, rgb(${panel}) 48%, rgb(${base}) 100%) fixed,
-      rgb(${base}) !important; background: rgb(${base}) !important; }
   html body .prompt-box { background: rgb(${panel}) !important; }
   html body .hof-root .hof-row { background: rgba(${panel}, 0.35) !important; }   /* the review of #248: the Hall of Fame rows kept the harbor's tint */
   html body .pm-alert-pop { box-shadow: 0 14px 38px rgba(${base}, 0.5), 0 2px 8px rgba(${base}, 0.35) !important; }
@@ -109,12 +112,13 @@ export function navyOverrides({ base, panel, panel2 }) {
   html body .hero-veil { background:
         linear-gradient(180deg, rgba(${base}, 0.66) 0%, rgba(${base}, 0) 30%, rgba(${base}, 0.82) 88%),
         radial-gradient(70% 46% at 50% 96%, rgba(${base}, 0.75), transparent 70%),
-        radial-gradient(70% 34% at 50% 2%, rgba(${base}, 0.7), transparent 70%) !important; background: linear-gradient(180deg,
+        radial-gradient(70% 34% at 50% 2%, rgba(${base}, 0.7), transparent 70%) !important; }
+  @media (max-width: 700px) { html body .hero-veil { background: linear-gradient(180deg,
           rgba(${base}, 0.78) 0%,
           rgba(${base}, 0.30) 20%,
           rgba(${base}, 0.40) 42%,
           rgba(${base}, 0.82) 68%,
-          rgba(${base}, 0.94) 100%) !important; }
+          rgba(${base}, 0.94) 100%) !important; } }
   html body .ticker { background: rgba(${panel}, 0.72) !important; }
   html body .c-arrow { background: rgba(${panel}, 0.85) !important; }
   html body .c-arrow:hover { background: rgba(${panel2}, 0.95) !important; }

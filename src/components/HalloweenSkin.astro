@@ -7,22 +7,31 @@
 // frame too, the wax seal on the header's mark and the wolf against the moon
 // at the foot of every page. The bat is HalloweenBat's. Before the Mists this
 // renders nothing, and the page is the page it was.
+//
+// Two parts (POS-605): the style goes in the page's <head> (PostmarkLayout hands
+// it to BaseLayout's head slot), so the first paint is already in the skin; at
+// the foot of the page, after the whole document, the browser had painted a
+// frame of the site's navy first (Darko 2026-10-12: "a weird flash of blue effect
+// when loading the Town page"). The wolf stays at the foot (part="wolf"). Every
+// rule here outranks the site's own by its selector or by !important, so it wins
+// from the head as it did from the foot, ahead of the site's stylesheets.
 import { siteMists } from "@/lib/mists-season.mjs";
-import { VARIANTS, siteSkinCSS, mix, skinStrength } from "@/lib/halloween-skin.mjs";
+import { VARIANTS, siteSkinCSS, mix, skinStrength, litOf } from "@/lib/halloween-skin.mjs";
 import { navyOverrides } from "@/lib/halloween-navy.mjs";
 import { WOLF_MOON, WAX_SEAL } from "@/lib/halloween-motifs.mjs";
+const { part = "style" } = Astro.props;
 const mists = siteMists();
 const v = VARIANTS[2];
 const k = skinStrength(mists);
 const rgbOf = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)).join(", ");
 const panelK = mix("#0d1426", v.panel, k);
-const HTML = !mists ? "" : [
-  // the wolf against the moon, at the foot of every page
-  `<div class="pm-hw-wolf" aria-hidden="true" style="--moon:${v.ink}">${WOLF_MOON}</div>`,
-  `<style>${siteSkinCSS(v, k)}${navyOverrides({ base: rgbOf(mix("#070b15", v.base, k)), panel: rgbOf(panelK), panel2: rgbOf(mix("#1c2c4f", mix(v.panel, v.violet, 0.25), k)) })}
+// the wolf against the moon, at the foot of every page
+const WOLF = !mists ? "" : `<div class="pm-hw-wolf" aria-hidden="true" style="--moon:${v.ink}">${WOLF_MOON}</div>`;
+const STYLE = !mists ? "" : [
+  `<style>${siteSkinCSS(v, k)}${navyOverrides({ base: rgbOf(mix("#070b15", v.base, k)), panel: rgbOf(panelK), panel2: rgbOf(mix("#1c2c4f", litOf(v), k)) })}
   /* the town's seal in the header becomes wax */
-  .pm .pm-townmark .seal { position: relative; display: inline-grid; place-items: center; width: 1.7em; height: 1.7em; color: transparent; }
-  .pm .pm-townmark .seal::before { content: ""; position: absolute; inset: 0; background: center / contain no-repeat; background-image: var(--pm-hw-seal); }
+  html body .pm .pm-townmark .seal { position: relative; display: inline-grid; place-items: center; width: 1.7em; height: 1.7em; color: transparent; }
+  html body .pm .pm-townmark .seal::before { content: ""; position: absolute; inset: 0; background: center / contain no-repeat; background-image: var(--pm-hw-seal); }
   .pm-shell { --pm-hw-seal: url("data:image/svg+xml,${encodeURIComponent(WAX_SEAL.replace("var(--seal, #9b1f2a)", v.blood))}"); }
   .pm-hw-wolf { width: 76px; margin: 6px auto 28px; color: ${mix(v.base, "#000000", 0.35)}; }
   .pm-hw-wolf svg { display: block; width: 100%; }
@@ -41,5 +50,6 @@ const HTML = !mists ? "" : [
   html body .ai-copy p em { color: ${mix(v.orange, v.ink, 0.75)} !important; }
   </style>`,
 ].join("");
+const HTML = part === "wolf" ? WOLF : STYLE;
 ---
 {HTML && <Fragment set:html={HTML} />}
