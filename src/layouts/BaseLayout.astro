@@ -40,7 +40,7 @@ const ogUrl = canonical || new URL(Astro.url.pathname, Astro.site).href;
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
-    <meta name="twitter:image" content={ogImage} />
+    <meta name="twitter:image" content={ogImage} /><slot name="head" />
   </head>
   <body>
     {chrome !== "none" && <header class="site-header">
