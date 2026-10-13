@@ -372,29 +372,33 @@ test("two handles fetched apart carry different stamps — the field is wired to
   assert.match(mdB, /fetched`: 2026-09-09T21:49:46\.000Z/);
 });
 
-test("THE HOIST: the extractor reads the clock inside the resident loop, once per fetch", () => {
+test("THE HOIST: the clock is read once per office answer, never once per run", () => {
   // normalised: this repo checks out CRLF (core.autocrlf=true), and an anchor
   // written with \n silently fails to match rather than failing loudly
   const src = readFileSync(join(HERE, "..", "tools", "extract-town.mjs"), "utf8").replace(/\r\n/g, "\n");
+  // Since 2026-10-13 the doorsteps are read in bulk where the office can (25
+  // to an answer), by tools/lib/doorstep-reads.mjs; the clock lives there.
+  const reads = readFileSync(join(HERE, "..", "tools", "lib", "doorstep-reads.mjs"), "utf8").replace(/\r\n/g, "\n");
 
-  // the fetch returns the moment its own answer arrived
-  assert.match(src, /return \{ body, fetchedAt: new Date\(\)\.toISOString\(\) \};/,
-    "officeDoorstep must stamp the moment its own answer parsed");
+  // each read returns the moment its own answer arrived
+  assert.match(reads, /return \{ body, fetchedAt: now\(\) \};/,
+    "the single read must stamp the moment its own answer parsed");
+  assert.match(reads, /const body = await res\.json\(\);\n\s+const at = now\(\);/,
+    "the bulk read must stamp the moment its own answer parsed, once per answer");
   assert.match(src, /doorstep_fetched_at: fetchedAt,/,
-    "the field must be fed from that per-fetch value");
+    "the field must be fed from that per-answer value");
 
   // the hoisted clock is gone, and cannot come back under its old name
   assert.equal(/const builtAt\s*=\s*new Date\(\)/.test(src), false,
     "a single run-start timestamp stamped on every file is the defect itself");
+  assert.equal(/new Date\(\)/.test(src.slice(src.indexOf("readDoorsteps("), src.indexOf("doorstep_fetched_at: fetchedAt,"))), false,
+    "no clock between the reads and the stamp: the stamp is the answer's, not the loop's");
 
-  // and the clock read sits AFTER the loop opens — the ordering is the law
+  // and the stamp is written inside the per-resident loop
   const loopAt = src.indexOf("for (const r of town.residents) {\n    // A handle whose file we cannot refresh");
   const stampAt = src.indexOf("doorstep_fetched_at: fetchedAt,");
-  const clockAt = src.indexOf("fetchedAt: new Date().toISOString()");
   assert.ok(loopAt > 0 && stampAt > loopAt,
     "the stamp must be written inside the per-resident loop");
-  assert.ok(clockAt > 0 && clockAt < loopAt,
-    "the clock lives in the fetch helper the loop calls — one read per call, not one per run");
 });
 
 test("the page points at the live door it mirrors", () => {
