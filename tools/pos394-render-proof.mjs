@@ -456,7 +456,8 @@ async function child([P, T, denyTopJson]) {
     try {
       // the layout builds og/canonical URLs from Astro.site and Astro.url: give the container both
       const SITE = "https://postmark.town";
-      const container = await experimental_AstroContainer.create({ astroConfig: { site: SITE } });
+      // the container's manifest is where Astro.site comes from; astroConfig alone left it undefined (CI 38355602146)
+      const container = await experimental_AstroContainer.create({ astroConfig: { site: SITE }, manifest: { site: SITE } });
       const at = (p) => new Request(new URL(p, SITE));
       const load = async (id) => (await server.ssrLoadModule(id));
       const Household = (await load("/town/components/Household.astro")).default;
