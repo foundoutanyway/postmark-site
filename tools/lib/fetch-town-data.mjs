@@ -417,7 +417,7 @@ export async function fetchLetterCorpus({ apiBase, fetchImpl, retries, gate = nu
 // exactly the rows asked for. The digests are read FIRST, then the rows: a
 // letter that moves between the two is kept with the older digest, and so is
 // read again next pass, never kept stale under the newer one.
-export const LETTER_DIGEST_PAGE = 1000;
+export const LETTER_DIGEST_PAGE = 5000;
 export const LETTER_IDS_PER_READ = 100;
 
 export function readLetterCache(path) {

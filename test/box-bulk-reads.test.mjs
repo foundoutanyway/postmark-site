@@ -163,7 +163,7 @@ test("the letters since last pass: the first pass reads whole and keeps them; th
   const quiet = office(t);
   const two = await fetchLettersSince({ apiBase: "https://office.test", fetchImpl: quiet.fetchImpl, cachePath });
   assert.deepEqual(two.letters, whole);
-  assert.deepEqual(quiet.requests, ["/letters?digests=1&limit=1000&offset=0"]);
+  assert.deepEqual(quiet.requests, ["/letters?digests=1&limit=5000&offset=0"]);
 
   // The ferry moves l3 outbox → inbox (same date, new path, delivered_at), a new
   // letter lands with an OLDER date than most, and l9 leaves the town.
