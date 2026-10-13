@@ -80,11 +80,22 @@ export const SOURCES = Object.freeze([
   "tools/lib/ids.mjs",
   "town/components/Household.astro", "town/pages/households/[slug].astro",
 ]);
+// Each mutant's exact base..HEAD numstat for its one path. slug-48 is 1/1, not
+// 0/1: the fix rewrote the description line rather than deleting it.
 export const MUTANTS = Object.freeze({
-  "household-299": "town/components/Household.astro",
-  "slug-48": "town/pages/households/[slug].astro",
-  "dashboard-68": "src/components/household-dashboard/HouseDashboard.astro",
+  "household-299": { path: "town/components/Household.astro", added: 0, deleted: 1 },
+  "slug-48": { path: "town/pages/households/[slug].astro", added: 1, deleted: 1 },
+  "dashboard-68": { path: "src/components/household-dashboard/HouseDashboard.astro", added: 0, deleted: 1 },
 });
+export const CASES = Object.freeze({
+  household: ["the input carries the private human (control)", "the HTML never carries it", "invented members rendered (the fixture reached the template)",
+    "hd-sub present", "hd-sub keeps the public count", "hd-sub carries no human", "the plate is the key, title-cased"],
+  resident: ["the input carries the private human (control)", "the HTML never carries it", "invented members rendered (the fixture reached the template)",
+    "the plate is the key, title-cased"],
+  page: ["the input carries the private human (control)", "the HTML never carries it", "invented members rendered (the fixture reached the template)",
+    "title is the plate", "description is plate, public count and agents"],
+});
+export const REFUSAL_CHANNELS = Object.freeze(["fs", "net", "proc"]);
 
 // ── invented fixtures (no real record, row, name or value) ──────────────────
 const SENTINEL = "PRIVATE_SENTINEL_h7rn_human";
@@ -133,12 +144,14 @@ function parent(argv) {
   if (fs.existsSync(path.join(T, "node_modules", "postmark-world"))) die("the toolchain holds postmark-world; it must not");
   if (!fs.existsSync(path.join(T, ESBUILD_BIN))) die(`the toolchain has no ${ESBUILD_BIN}`);
 
+  const HEAD = git("rev-parse", "--verify", "HEAD^{commit}").toString().trim(); // captured ONCE; every blob, diff and the report use it
+  if (!/^[0-9a-f]{40}$/.test(HEAD)) die("could not capture the head");
   const P = fs.mkdtempSync(path.join(os.tmpdir(), "pos394-proj-"));
   const made = { files: [], dirs: new Set(), links: [] };
   const manifest = [];
   try {
     for (const rel of SOURCES) {
-      const ref = mutant && MUTANTS[mutant] === rel ? BASE : "HEAD";
+      const ref = mutant && MUTANTS[mutant].path === rel ? BASE : HEAD;
       const blob = git("rev-parse", `${ref}:${rel}`).toString().trim();
       const bytes = git("cat-file", "blob", blob);
       const dest = path.join(P, rel);
@@ -151,9 +164,16 @@ function parent(argv) {
       manifest.push({ path: rel, ref, blob });
     }
     if (mutant) {
-      const rel = MUTANTS[mutant];
-      const changed = git("diff", "--numstat", BASE, "HEAD", "--", rel).toString().trim().split(/\s+/);
-      if (Number(changed[1]) !== 1) die(`the ${mutant} mutant is not exactly the one old line (${changed.join(" ")})`);
+      const { path: rel, added, deleted } = MUTANTS[mutant];
+      const lines = git("diff", "--numstat", BASE, HEAD, "--", rel).toString().trim().split("\n").filter(Boolean);
+      const [a, d, p] = (lines[0] ?? "").split("\t");
+      if (lines.length !== 1 || p !== rel || Number(a) !== added || Number(d) !== deleted) {
+        die(`the ${mutant} mutant is not exactly +${added}/-${deleted} on ${rel} (${lines.join(" | ")})`);
+      }
+      const body = git("diff", "-U0", BASE, HEAD, "--", rel).toString().split("\n").filter((l) => /^[-+](?![-+])/.test(l));
+      if (!body.some((l) => l.startsWith("-") && l.includes("house.human")) || body.some((l) => l.startsWith("+") && l.includes("human"))) {
+        die(`the ${mutant} mutant's change is not the old private-human clause`);
+      }
     }
     for (const d of ["public-empty", "tmp"]) { fs.mkdirSync(path.join(P, d)); made.dirs.add(path.join(P, d)); }
     fs.writeFileSync(path.join(P, "package.json"), JSON.stringify({ name: "pos394-projection", private: true, type: "module" }), { flag: "wx" });
@@ -169,7 +189,7 @@ function parent(argv) {
     let out = null;
     try { out = JSON.parse(res.stdout.trim().split("\n").at(-1)); } catch { /* judged below */ }
     const verdict = judge(out, res);
-    const report = { mutant: mutant ?? null, head: git("rev-parse", "HEAD").toString().trim(), projection: manifest.length, ...verdict };
+    const report = { mutant: mutant ?? null, head: HEAD, projection: manifest.length, ...verdict };
     console.log(JSON.stringify(report, null, 2));
     process.exitCode = verdict.pass ? 0 : 1;
   } finally {
@@ -177,19 +197,38 @@ function parent(argv) {
     for (const f of made.files) try { fs.unlinkSync(f); } catch { /* reported below */ }
     for (const l of made.links) try { fs.unlinkSync(l); } catch { /* reported below */ }
     for (const d of [...made.dirs].sort((a, b) => b.length - a.length)) try { fs.rmdirSync(d); } catch { /* reported below */ }
-    try { fs.rmdirSync(P); } catch { console.error(`left in place (not removed recursively): ${P} — ${fs.readdirSync(P).join(", ")}`); }
+    try { fs.rmdirSync(P); } catch { console.error(`LEFTOVER (not ours to delete; path only, for Jetto): ${P}`); }
   }
 }
 
-function judge(out, res) {
+/** The verdict, pure. Anything missing, extra, empty or not exactly expected FAILS. */
+export function judge(out, res) {
   const problems = [];
-  if (res.error) problems.push(`child did not run: ${res.error.code ?? res.error.message}`);
-  if (res.signal) problems.push(`child killed by ${res.signal} (180 s bound)`);
-  if (!out) return { pass: false, problems: [...problems, "child printed no result"], stderrTail: String(res.stderr ?? "").split("\n").slice(-5) };
-  if (out.crash) problems.push(`child crashed: ${out.crash.split("\n")[0]}`);
-  for (const [k, list] of Object.entries(out.refusals ?? {})) if (list.length) problems.push(`${k} refusals: ${list.length}`);
-  for (const [name, c] of Object.entries(out.cases ?? {})) for (const [check, ok] of Object.entries(c.checks)) if (!ok) problems.push(`${name}: ${check}`);
-  return { pass: problems.length === 0 && Object.keys(out.cases ?? {}).length === 3, problems, cases: out.cases, refusals: out.refusals, esbuildSpawns: out.esbuildSpawns };
+  if (res?.error) problems.push(`child did not run: ${res.error.code ?? res.error.message}`);
+  if (res?.signal) problems.push(`child killed by ${res.signal} (180 s bound)`);
+  if (res?.status !== 0) problems.push(`child exit status ${res?.status}`);
+  if (!out || typeof out !== "object") {
+    return { pass: false, problems: [...problems, "child printed no result"], stderrTail: String(res?.stderr ?? "").split("\n").slice(-5) };
+  }
+  if (out.crash) problems.push(`child crashed: ${String(out.crash).split("\n")[0]}`);
+  const refusals = out.refusals && typeof out.refusals === "object" ? out.refusals : {};
+  const channels = Object.keys(refusals).sort();
+  if (channels.join() !== [...REFUSAL_CHANNELS].sort().join()) problems.push(`refusal channels ${channels.join(",") || "none"}, expected ${REFUSAL_CHANNELS.join(",")}`);
+  for (const k of REFUSAL_CHANNELS) {
+    if (!Array.isArray(refusals[k])) problems.push(`refusal channel ${k} missing`);
+    else if (refusals[k].length) problems.push(`${k} refusals: ${refusals[k].length}`);
+  }
+  const cases = out.cases && typeof out.cases === "object" ? out.cases : {};
+  const names = Object.keys(cases).sort();
+  if (names.join() !== Object.keys(CASES).sort().join()) problems.push(`cases ${names.join(",") || "none"}, expected ${Object.keys(CASES).join(",")}`);
+  for (const [name, expected] of Object.entries(CASES)) {
+    const checks = cases[name]?.checks;
+    if (!checks || typeof checks !== "object") { problems.push(`${name}: no checks`); continue; }
+    const got = Object.keys(checks).sort();
+    if (got.join("\u0000") !== [...expected].sort().join("\u0000")) problems.push(`${name}: checks ${got.length}, expected exactly ${expected.length} named`);
+    for (const c of expected) if (checks[c] !== true) problems.push(`${name}: ${c}`);
+  }
+  return { pass: problems.length === 0, problems, cases: out.cases, refusals: out.refusals, esbuildSpawns: out.esbuildSpawns };
 }
 
 function die(msg) { console.error(`pos394-render-proof: ${msg}`); process.exit(2); }
