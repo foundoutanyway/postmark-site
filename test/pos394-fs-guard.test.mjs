@@ -12,6 +12,10 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { makeFsGuard, GuardError, GUARDED_APIS } from "./pos394-fs-guard.mjs";
 
+// Native Windows: SKIPPED by name (POS-394 Rivet choice (b)). The guard models POSIX
+// link aliasing; this is not Windows guard support. The privacy proof is Linux CI.
+const WIN32_SKIP = process.platform === "win32" && "the fs-guard models POSIX link aliasing; the privacy proof runs in Linux CI";
+
 const REPO = "/virt/pos394-repo";
 const ROOTS = [`${REPO}/src/data/postmark`, `${REPO}/public/atelier/postmark`, `${REPO}/node_modules/postmark-world`];
 const CWD = `${REPO}/town`;
@@ -104,14 +108,14 @@ const DENIED = [
   ["an fd this guard never opened", 99, true],
 ];
 
-test("the denied set holds each root, its canonical target, and the alias through its parent's link", () => {
+test("the denied set holds each root, its canonical target, and the alias through its parent's link", { skip: WIN32_SKIP }, () => {
   const { guard } = setup();
   for (const r of [...ROOTS, "/virt/store/pw-real", "/virt/elsewhere/public/atelier/postmark"]) {
     assert.ok(guard.deniedRoots.includes(r), r);
   }
 });
 
-test("every denied form is refused by every guarded API, and the trap is never reached", async (t) => {
+test("every denied form is refused by every guarded API, and the trap is never reached", { skip: WIN32_SKIP }, async (t) => {
   const { guard, hits, calls } = setup();
   const cb = () => assert.fail("a refused callback API must not call back");
   let refusals = 0;
@@ -155,7 +159,7 @@ test("every denied form is refused by every guarded API, and the trap is never r
   t.diagnostic(`refusals ${refusals} = ${DENIED.length} forms x ${per} entry points`);
 });
 
-test("allowed paths reach the trap exactly once per call, with the caller's own arguments", async () => {
+test("allowed paths reach the trap exactly once per call, with the caller's own arguments", { skip: WIN32_SKIP }, async () => {
   const { guard, hits } = setup();
   const near = [ALLOWED, "components/Household.astro", `${REPO}/town/../town/components/Household.astro`, `${REPO}/src/data/postmark-other/x.json`, `${REPO}/src/data/postmarks`, `file://${ALLOWED}`, Buffer.from(ALLOWED)];
   const cb = () => {};
@@ -185,7 +189,7 @@ test("allowed paths reach the trap exactly once per call, with the caller's own 
   assert.deepEqual(guard.denials, [], "nothing refused");
 });
 
-test("an fd is allowed only when this guard opened it (or it is listed), and not after close", () => {
+test("an fd is allowed only when this guard opened it (or it is listed), and not after close", { skip: WIN32_SKIP }, () => {
   const { guard, hits } = setup({ allowFds: [2] });
   assert.throws(() => guard.fs.readSync(99, Buffer.alloc(1)), GuardError, "an unknown fd fails closed");
   assert.throws(() => guard.fs.openSync(`${REPO}/src/data/postmark/x`), GuardError);
@@ -207,7 +211,7 @@ test("an fd is allowed only when this guard opened it (or it is listed), and not
   assert.deepEqual(hits.slice(4).map(([n]) => n), ["open", "read", "fstatSync"]);
 });
 
-test("createReadStream's fd option is held to the fd rule: tracked or listed only, never a handle object", () => {
+test("createReadStream's fd option is held to the fd rule: tracked or listed only, never a handle object", { skip: WIN32_SKIP }, () => {
   const { guard, hits } = setup({ allowFds: [2] });
   assert.throws(() => guard.fs.createReadStream(ALLOWED, { fd: 99 }), GuardError, "an unknown fd behind an allowed path");
   assert.throws(() => guard.fs.createReadStream(ALLOWED, { fd: { fd: 41, close() {} } }), GuardError, "a FileHandle-like object");
@@ -226,7 +230,7 @@ test("createReadStream's fd option is held to the fd rule: tracked or listed onl
   assert.deepEqual(hits.map(([n]) => n), ["openSync", "createReadStream", "createReadStream", "createReadStream", "createReadStream", "closeSync"]);
 });
 
-test("a root whose aliases cannot be resolved stops the guard from being built (fails closed)", () => {
+test("a root whose aliases cannot be resolved stops the guard from being built (fails closed)", { skip: WIN32_SKIP }, () => {
   const { trap } = makeTrap();
   for (const [what, failAt, roots] of [
     ["EACCES on the root's parent", { [`${REPO}/src/data`]: "EACCES" }, ROOTS],
@@ -241,7 +245,7 @@ test("a root whose aliases cannot be resolved stops the guard from being built (
   assert.doesNotThrow(() => makeFsGuard({ roots: ROOTS, original: trap, readlink, cwd: CWD }), "CONTROL: the clean world builds");
 });
 
-test("an API the guard does not list is refused, not passed through", () => {
+test("an API the guard does not list is refused, not passed through", { skip: WIN32_SKIP }, () => {
   const { guard, hits } = setup();
   for (const get of [() => guard.fs.globSync, () => guard.fs.symlinkSync, () => guard.fs.chmodSync, () => guard.fs.promises.glob, () => guard.promises.watch, () => guard.fs.openAsBlob]) {
     assert.throws(get, GuardError);
@@ -250,7 +254,7 @@ test("an API the guard does not list is refused, not passed through", () => {
   assert.deepEqual(hits, []);
 });
 
-test("the guard will not build without roots, readlink and an absolute cwd", () => {
+test("the guard will not build without roots, readlink and an absolute cwd", { skip: WIN32_SKIP }, () => {
   const { trap } = makeTrap();
   const { readlink } = fakeWorld();
   assert.throws(() => makeFsGuard({ roots: [], original: trap, readlink, cwd: CWD }));

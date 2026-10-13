@@ -15,6 +15,10 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 
+// Native Windows: SKIPPED by name (POS-394 Rivet choice (b)). The guard models POSIX
+// link aliasing; this is not Windows guard support. The privacy proof is Linux CI.
+const WIN32_SKIP = process.platform === "win32" && "the fs-guard models POSIX link aliasing; the privacy proof runs in Linux CI";
+
 const HELPER = new URL("./pos394-fs-guard.mjs", import.meta.url).href;
 
 // The child. Bindings taken BEFORE the install are part of what it proves.
@@ -102,7 +106,7 @@ process.stdout.write(JSON.stringify(out));
 process.exit(0);
 `;
 
-test("installFsGuard, in a disposable child, reaches every fs binding and leaves the parent alone", () => {
+test("installFsGuard, in a disposable child, reaches every fs binding and leaves the parent alone", { skip: WIN32_SKIP }, () => {
   const parentRead = fs.readFileSync, parentPromisesRead = fs.promises.readFile;
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pos394-bind-"));
   let res;
