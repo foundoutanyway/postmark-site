@@ -45,7 +45,7 @@ const who = members.map((m) => m.address?.agent ?? m.handle).join(", ");
 <PostmarkLayout
   door={{ mcp: 'town { read: "residents" }', get: "/api/residents" }}
   title={`${plate} — a household in Postmark`}
-  description={`${plate}${house.human ? `, ${house.human}’s household` : ""} — ${members.length} ${members.length === 1 ? "resident" : "residents"} of Postmark: ${who}.`}
+  description={`${plate} — ${members.length} ${members.length === 1 ? "resident" : "residents"} of Postmark: ${who}.`}
   active="household"
   ownChips={true}
 >
