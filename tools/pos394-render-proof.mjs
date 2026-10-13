@@ -138,19 +138,22 @@ const EDIT = Object.freeze({
     from: "  description={`${plate} — ${members.length} ${members.length === 1 ? \"resident\" : \"residents\"} of Postmark: ${who}.`}\n", to: OLD.desc },
   fold: { path: "src/lib/houses.mjs", from: "      // no `human` (POS-394): the fold is public, and the private name never enters it\n", to: OLD.fold },
 });
-// Each mutant: its edits and the checks it MUST turn red. Any other red, a red
-// outside PRIVACY, or any crash/refusal/missing page, is not the falsifier
-// working. A built page only sees a human if the fold carries one, so the
-// page emitters are measured with the old fold line restored alongside.
+// Each mutant: its edits and EXACTLY the (case, check) pairs it turns red. A
+// pair that stays green, any extra red (privacy or not), or any crash/refusal/
+// missing page is not the falsifier working. A built page only sees a human if
+// the fold carries one, so the page emitters are measured with the old fold
+// line restored alongside. The house is shared (two members), so Household
+// mounts HouseDashboard on every route (Household.astro:65,79,328-330): the
+// hd-sub emitter reaches the resident wrapper and resident pages too.
 export const MUTANTS = Object.freeze({
   "household-299": { emitter: "Household.astro:299 (chrome), prop path", edits: [EDIT.chrome],
     mustRed: { householdSeat: [C.NEVER], residentWrapper: [C.NEVER] } },
   "dashboard-68": { emitter: "HouseDashboard.astro:68 (hd-sub), prop path", edits: [EDIT.hdsub],
-    mustRed: { householdSeat: [C.NEVER, C.HDHUMAN] } },
+    mustRed: { householdSeat: [C.NEVER, C.HDHUMAN], residentWrapper: [C.NEVER] } },
   "fold+48": { emitter: "houses.mjs fold + households/[slug].astro:48 (description), built page", edits: [EDIT.fold, EDIT.desc],
     mustRed: { householdPage: [C.NEVER, C.DESC] } },
   "fold+68": { emitter: "houses.mjs fold + HouseDashboard.astro:68 (hd-sub), built page", edits: [EDIT.fold, EDIT.hdsub],
-    mustRed: { householdPage: [C.NEVER, C.HDHUMAN] } },
+    mustRed: { householdPage: [C.NEVER, C.HDHUMAN], residentPage: [C.NEVER] } },
   "fold+299": { emitter: "houses.mjs fold + Household.astro:299 (chrome), built pages", edits: [EDIT.fold, EDIT.chrome],
     mustRed: { householdPage: [C.NEVER], residentPage: [C.NEVER] } },
 });
@@ -306,13 +309,18 @@ export function merge(runs) {
   return { out, res };
 }
 
-/** For a mutant run: did exactly the falsifier happen? Returns problems ([] = it did). */
+/** For a mutant run: is the red (case, check) SET exactly the mutant's? Returns problems ([] = it is). */
 export function falsified(report, name) {
   const m = MUTANTS[name];
   const problems = [...(report.structural ?? [])];
-  const red = new Set((report.failed ?? []).map(([c, k]) => `${c}\u0000${k}`));
-  for (const [c, ks] of Object.entries(m.mustRed)) for (const k of ks) if (!red.has(`${c}\u0000${k}`)) problems.push(`${c}: "${k}" stayed green`);
-  for (const [c, k] of report.failed ?? []) if (!PRIVACY.includes(k)) problems.push(`${c}: non-privacy check "${k}" went red`);
+  const key = (c, k) => `${c}\u0000${k}`;
+  const expected = new Set(Object.entries(m.mustRed).flatMap(([c, ks]) => ks.map((k) => key(c, k))));
+  const red = new Set((report.failed ?? []).map(([c, k]) => key(c, k)));
+  for (const [c, ks] of Object.entries(m.mustRed)) for (const k of ks) if (!red.has(key(c, k))) problems.push(`${c}: "${k}" stayed green`);
+  for (const [c, k] of report.failed ?? []) {
+    if (expected.has(key(c, k))) continue;
+    problems.push(PRIVACY.includes(k) ? `${c}: unexpected privacy red "${k}"` : `${c}: non-privacy check "${k}" went red`);
+  }
   if (!red.size) problems.push("nothing went red");
   return problems;
 }

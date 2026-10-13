@@ -71,13 +71,22 @@ const redReport = (name) => {
   return { structural: [], failed };
 };
 
-test("falsified(): the must-red privacy checks red and nothing else is the only pass", () => {
+test("falsified(): exactly the mutant's red (case, check) set is the only pass", () => {
   for (const name of Object.keys(MUTANTS)) {
     assert.deepEqual(falsified(redReport(name), name), [], `${name}: control`);
     const short = redReport(name); short.failed.pop();
     assert.ok(falsified(short, name).length > 0, `${name}: a must-red that stayed green fails`);
     const extra = redReport(name); extra.failed.push(["householdPage", CHECKS.TITLE_H]);
     assert.ok(falsified(extra, name).some((p) => /non-privacy/.test(p)), `${name}: a non-privacy red fails`);
+    const other = Object.keys(CASES).find((c) => !(c in MUTANTS[name].mustRed));
+    const extraNever = redReport(name); extraNever.failed.push([other, CHECKS.NEVER]);
+    assert.ok(falsified(extraNever, name).some((p) => /unexpected privacy red/.test(p)), `${name}: an extra sentinel red on ${other} fails`);
+    const [c0] = Object.keys(MUTANTS[name].mustRed);
+    const spare = CASES[c0].find((k) => PRIVACY.includes(k) && !MUTANTS[name].mustRed[c0].includes(k));
+    if (spare) {
+      const extraPair = redReport(name); extraPair.failed.push([c0, spare]);
+      assert.ok(falsified(extraPair, name).some((p) => /unexpected privacy red/.test(p)), `${name}: an extra privacy red on ${c0} fails`);
+    }
     const crashed = redReport(name); crashed.structural.push("child crashed: x");
     assert.ok(falsified(crashed, name).length > 0, `${name}: a crash is not a falsifier`);
     assert.ok(falsified({ structural: [], failed: [] }, name).length > 0, `${name}: nothing red fails`);

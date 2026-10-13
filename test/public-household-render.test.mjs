@@ -29,7 +29,7 @@ function assertGreen(r) {
   assert.equal(Object.keys(CASES).length, 5);
   const ran = Object.values(r.cases).reduce((n, c) => n + Object.keys(c.checks).length, 0);
   assert.equal(ran, CHECK_TOTAL, `every check ran (${ran})`);
-  assert.ok(CHECK_TOTAL >= 25);
+  assert.equal(CHECK_TOTAL, 28, "7 + 4 + 3 + 9 + 5 checks");
   for (const [name, c] of Object.entries(r.cases)) assert.ok(c.bytes > 0, `${name} rendered HTML`);
   assert.equal(r.cleanup?.ok, true, "the run removed its own temp tree");
   assert.match(r.head ?? "", /^[0-9a-f]{40}$/);
@@ -40,7 +40,7 @@ test("the fixed source: the built pages, fragments and card carry no private hum
 });
 
 for (const [name, m] of Object.entries(MUTANTS)) {
-  test(`falsifier ${name} (${m.emitter}): its privacy assertions go red, and only those`, () => {
+  test(`falsifier ${name} (${m.emitter}): exactly its privacy assertions go red`, () => {
     const r = runProof({ mutant: name });
     assert.deepEqual(falsified(r, name), [], "red for the right reason: the sentinel rendered, no crash, refusal or setup failure");
     assert.equal(r.pass, false);
