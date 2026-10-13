@@ -186,19 +186,19 @@ test("SIMULATED non-Windows platform with no getuid: refused, nothing deleted â€
 });
 
 test("teardown does not depend on the remover: a refused root and a half-removed root are both cleaned exactly", (t) => {
-  // refused: a wrong prefix the remover will not touch
-  const W = mk("pos394-wrong-");
+  // refused: a wrong prefix the remover will not touch (its teardown is registered at creation, so a throw
+  // anywhere below still cleans it; the explicit calls here are what this test proves, the hooks are no-ops after)
+  const W = ownedRoot(t, "pos394-wrong-");
   populated(W, null);
   assert.equal(removeOwnedTree(W, { keepApart: [] }).ok, false);
   teardownOwned(W);
   assert.equal(exists(W), false);
   // half-removed: some fixture files already gone (as if a remover stopped mid-way)
-  const H = mk("pos394-proj-");
+  const H = ownedRoot(t);
   populated(H, null);
   fs.unlinkSync(path.join(H, "package.json"));
   fs.unlinkSync(path.join(H, ".astro/types.d.ts"));
   fs.rmdirSync(path.join(H, ".astro"));
   teardownOwned(H);
   assert.equal(exists(H), false);
-  t.after(() => { teardownOwned(W); teardownOwned(H); }); // no-ops when already gone
 });
