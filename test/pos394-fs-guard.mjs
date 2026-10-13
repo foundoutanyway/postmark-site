@@ -29,7 +29,10 @@
 // Building that set is the ONE place a root itself is readlink'd (metadata).
 //
 // A numeric fd is allowed only if this guard opened it (open/openSync on a
-// permitted path) or it is listed in `allowFds`; close forgets it.
+// permitted path) or it is listed in `allowFds`; close forgets it. The same
+// holds for createReadStream's `fd` option, and any non-number fd option
+// (a FileHandle) is refused. A root whose aliases cannot be resolved (any
+// readlink error but ENOENT/EINVAL) stops the guard from being built.
 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -103,8 +106,15 @@ export function makeFsGuard({ roots, original, readlink, cwd, allowFds = [] }) {
   for (const r of roots) {
     const root = path.resolve(r);
     const aliases = [root];
-    try { aliases.push(path.join(physical(path.dirname(root)), path.basename(root))); } catch { /* lexical only */ }
-    try { aliases.push(physical(root)); } catch { /* lexical only */ }
+    // Incomplete alias discovery fails closed: a guard that could not learn
+    // where a root really lives is not built at all. (physical() already
+    // answers ENOENT/EINVAL as "missing"/"not a link"; anything else lands here.)
+    try {
+      aliases.push(path.join(physical(path.dirname(root)), path.basename(root)));
+      aliases.push(physical(root));
+    } catch (e) {
+      throw new Error(`makeFsGuard: cannot resolve the denied root ${root} (${e?.code ?? e}); refusing to build`);
+    }
     for (const a of aliases) if (!deniedRoots.includes(a)) deniedRoots.push(a);
   }
 
@@ -134,6 +144,16 @@ export function makeFsGuard({ roots, original, readlink, cwd, allowFds = [] }) {
   };
   const firstRefusal = (api, positions, args) => {
     for (const i of positions) { const e = check(api, args[i]); if (e) return e; }
+    // createReadStream(path, { fd }) reads the fd and ignores the path: the
+    // option is held to the same rule as a bare fd (tracked or listed only).
+    if (api === "createReadStream") {
+      const opts = args[1];
+      if (opts && typeof opts === "object" && opts.fd !== undefined && opts.fd !== null) {
+        if (typeof opts.fd !== "number") return refuse(api, "an fd option that is not a plain fd");
+        const e = check(api, opts.fd);
+        if (e) return e;
+      }
+    }
     return null;
   };
 

@@ -31,14 +31,17 @@ const WORLD = {
   [`${REPO}/link-deep`]: { link: "/virt/store" }, // points above a root's canonical target
   [`${REPO}/to-world`]: { link: "/virt/store/pw-real/WORLD" }, // `to-world/..` is the root's target, physically
   [`${REPO}/locked`]: "dir", // readlink under it fails with EACCES
+  "/virt/loop-a": { link: "/virt/loop-b" }, "/virt/loop-b": { link: "/virt/loop-a" }, // a link loop (ELOOP)
 };
 const err = (code) => Object.assign(new Error(code), { code });
 
-function fakeWorld() {
+function fakeWorld(failAt = {}) {
   // readlink as the kernel answers it; the guard only ever hands it physical paths.
+  // `failAt` injects an error code for one exact path.
   const calls = [];
   const readlink = (p) => {
     calls.push(p);
+    if (failAt[p]) throw err(failAt[p]);
     if (p === `${REPO}/locked` || p.startsWith(`${REPO}/locked/`)) throw err("EACCES");
     const e = WORLD[p];
     if (!e) throw err("ENOENT");
@@ -105,7 +108,7 @@ test("the denied set holds each root, its canonical target, and the alias throug
   }
 });
 
-test("every denied form is refused by every guarded API, and the trap is never reached", async () => {
+test("every denied form is refused by every guarded API, and the trap is never reached", async (t) => {
   const { guard, hits, calls } = setup();
   const cb = () => assert.fail("a refused callback API must not call back");
   let refusals = 0;
@@ -117,13 +120,17 @@ test("every denied form is refused by every guarded API, and the trap is never r
       if (name === "copyFileSync" || name === "cpSync") { assert.throws(() => guard.fs[name](ALLOWED, form), GuardError, `${name} dest: ${label}`); refusals++; }
     }
     for (const name of GUARDED_APIS.callback) {
-      const args = (name === "copyFile" || name === "cp") ? [form, ALLOWED, cb] : [form, cb];
-      assert.throws(() => guard.fs[name](...args), GuardError, `${name}: ${label}`); refusals++;
+      const two = name === "copyFile" || name === "cp";
+      for (const args of two ? [[form, ALLOWED, cb], [ALLOWED, form, cb]] : [[form, cb]]) {
+        assert.throws(() => guard.fs[name](...args), GuardError, `${name}: ${label}`); refusals++;
+      }
     }
     for (const name of GUARDED_APIS.promises) {
-      const args = (name === "copyFile" || name === "cp") ? [ALLOWED, form] : [form];
-      await assert.rejects(guard.promises[name](...args), GuardError, `promises.${name}: ${label}`); refusals++;
-      await assert.rejects(guard.fs.promises[name](...args), GuardError, `fs.promises.${name}: ${label}`); refusals++;
+      const two = name === "copyFile" || name === "cp";
+      for (const args of two ? [[form, ALLOWED], [ALLOWED, form]] : [[form]]) {
+        await assert.rejects(guard.promises[name](...args), GuardError, `promises.${name}: ${label}`); refusals++;
+        await assert.rejects(guard.fs.promises[name](...args), GuardError, `fs.promises.${name}: ${label}`); refusals++;
+      }
     }
     assert.throws(() => guard.fs.realpathSync.native(form), GuardError, `realpathSync.native: ${label}`); refusals++;
     assert.equal(guard.fs.existsSync(form), false, `existsSync answers false: ${label}`); refusals++;
@@ -136,7 +143,8 @@ test("every denied form is refused by every guarded API, and the trap is never r
   }
   assert.deepEqual(hits, [], "the trap was never reached");
   assert.equal(guard.denials.length, refusals, "every refusal is recorded, even ones a caller would swallow");
-  assert.ok(refusals > 1000, `coverage: ${refusals} refusals`);
+  assert.equal(refusals, DENIED.length * 77, "24 forms x 77 entry points (sync 21+2 dest, callback 17+2 dest, promises (14+2) x 2 views, native, existsSync, exists)");
+  t.diagnostic(`refusals ${refusals} = ${DENIED.length} forms x 77 entry points`);
 });
 
 test("allowed paths reach the trap exactly once per call, with the caller's own arguments", async () => {
@@ -189,6 +197,40 @@ test("an fd is allowed only when this guard opened it (or it is listed), and not
   guard.fs.read(42, Buffer.alloc(1), 0, 1, 0, () => {});
   guard.fs.fstatSync(2); // listed in allowFds
   assert.deepEqual(hits.slice(4).map(([n]) => n), ["open", "read", "fstatSync"]);
+});
+
+test("createReadStream's fd option is held to the fd rule: tracked or listed only, never a handle object", () => {
+  const { guard, hits } = setup({ allowFds: [2] });
+  assert.throws(() => guard.fs.createReadStream(ALLOWED, { fd: 99 }), GuardError, "an unknown fd behind an allowed path");
+  assert.throws(() => guard.fs.createReadStream(ALLOWED, { fd: { fd: 41, close() {} } }), GuardError, "a FileHandle-like object");
+  assert.throws(() => guard.fs.createReadStream(ALLOWED, { fd: "41" }), GuardError, "a string fd");
+  assert.throws(() => guard.fs.createReadStream(`${REPO}/src/data/postmark/x`, { fd: 2 }), GuardError, "a listed fd does not excuse a denied path");
+  assert.equal(hits.length, 0, "none reached the trap");
+  assert.equal(guard.denials.length, 4);
+
+  const fd = guard.fs.openSync(ALLOWED);
+  guard.fs.createReadStream(ALLOWED, { fd });
+  guard.fs.createReadStream(ALLOWED, { fd: 2 });
+  guard.fs.createReadStream(ALLOWED, { fd: undefined });
+  guard.fs.createReadStream(ALLOWED, "utf8");
+  guard.fs.closeSync(fd);
+  assert.throws(() => guard.fs.createReadStream(ALLOWED, { fd }), GuardError, "a closed fd is forgotten here too");
+  assert.deepEqual(hits.map(([n]) => n), ["openSync", "createReadStream", "createReadStream", "createReadStream", "createReadStream", "closeSync"]);
+});
+
+test("a root whose aliases cannot be resolved stops the guard from being built (fails closed)", () => {
+  const { trap } = makeTrap();
+  for (const [what, failAt, roots] of [
+    ["EACCES on the root's parent", { [`${REPO}/src/data`]: "EACCES" }, ROOTS],
+    ["EIO on the root itself", { [`${REPO}/node_modules/postmark-world`]: "EIO" }, ROOTS],
+    ["EACCES on a root's grandparent", { [`${REPO}/public`]: "EACCES" }, ROOTS],
+  ]) {
+    const { readlink } = fakeWorld(failAt);
+    assert.throws(() => makeFsGuard({ roots, original: trap, readlink, cwd: CWD }), /refusing to build/, what);
+  }
+  const { readlink } = fakeWorld();
+  assert.throws(() => makeFsGuard({ roots: ["/virt/loop-a/postmark"], original: trap, readlink, cwd: CWD }), /ELOOP.*refusing to build|refusing to build/, "a link loop above a root");
+  assert.doesNotThrow(() => makeFsGuard({ roots: ROOTS, original: trap, readlink, cwd: CWD }), "CONTROL: the clean world builds");
 });
 
 test("an API the guard does not list is refused, not passed through", () => {
