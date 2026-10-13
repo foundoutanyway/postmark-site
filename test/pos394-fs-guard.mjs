@@ -34,6 +34,8 @@
 // (a FileHandle) is refused. A root whose aliases cannot be resolved (any
 // readlink error but ENOENT/EINVAL) stops the guard from being built.
 
+import fsModule from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -61,6 +63,7 @@ const PROMISES = {
   readlink: [0], copyFile: [0, 1], cp: [0, 1], writeFile: [0], mkdir: [0], rm: [0],
 };
 const OPENERS = new Set(["openSync", "open"]);
+const FD_OPTION = new Set(["createReadStream", "ReadStream", "WriteStream"]);
 const CLOSERS = new Set(["closeSync", "close"]);
 
 export const GUARDED_APIS = Object.freeze({ sync: Object.keys(SYNC), callback: Object.keys(CALLBACK), promises: Object.keys(PROMISES) });
@@ -146,7 +149,7 @@ export function makeFsGuard({ roots, original, readlink, cwd, allowFds = [] }) {
     for (const i of positions) { const e = check(api, args[i]); if (e) return e; }
     // createReadStream(path, { fd }) reads the fd and ignores the path: the
     // option is held to the same rule as a bare fd (tracked or listed only).
-    if (api === "createReadStream") {
+    if (FD_OPTION.has(api)) {
       const opts = args[1];
       if (opts && typeof opts === "object" && opts.fd !== undefined && opts.fd !== null) {
         if (typeof opts.fd !== "number") return refuse(api, "an fd option that is not a plain fd");
@@ -214,5 +217,70 @@ export function makeFsGuard({ roots, original, readlink, cwd, allowFds = [] }) {
   });
   const guardedPromises = closed(promises, "promises.");
   wrapped.promises = guardedPromises;
-  return { fs: closed(wrapped, ""), promises: guardedPromises, denials, deniedRoots, check: (p) => check("check", p) === null };
+  return {
+    fs: closed(wrapped, ""), promises: guardedPromises, denials, deniedRoots,
+    check: (p) => check("check", p) === null,
+    covers: { fs: new Set(Object.keys(wrapped).filter((k) => k !== "promises")), promises: new Set(Object.keys(promises)) },
+    /** Throws (recorded) unless arg 0 is an allowed path or fd and any `fd` option is too. */
+    assertStream: (api, args) => { const e = firstRefusal(api, [0], args); if (e) throw e; },
+  };
+}
+
+// ── stage 1b: installing the guard over the real node:fs ─────────────────────
+//
+// installFsGuard() is the ONLY function here with an effect, and only when
+// called; importing this module changes nothing. It patches node:fs and its
+// canonical promises object (the one require("fs/promises") returns) IN PLACE,
+// then calls syncBuiltinESMExports() so named ESM bindings — including ones
+// imported before the install — see the guarded functions.
+//
+// Every function export is replaced: a guarded API by its guarded wrapper, the
+// stream classes by subclasses that check the path and fd option before
+// constructing (node's own createReadStream builds through them), and every
+// other function by a refuser that records and throws. Only the data classes
+// below stay native. The real functions are kept in a private snapshot inside
+// this closure and are never returned. Once per process; there is no uninstall.
+export const KEPT_NATIVE = Object.freeze(["Stats", "Dirent", "Dir"]);
+const STREAM_CLASSES = { ReadStream: "ReadStream", FileReadStream: "ReadStream", WriteStream: "WriteStream", FileWriteStream: "WriteStream" };
+let installed = false;
+
+export function installFsGuard({ roots, cwd, allowFds = [] }) {
+  if (installed) throw new Error("installFsGuard: already installed in this process");
+  const fs = fsModule;
+  const fsp = fs.promises;
+  const fnKeys = (o) => Object.keys(o).filter((k) => typeof o[k] === "function");
+
+  const original = { promises: {} };
+  for (const k of fnKeys(fs)) original[k] = fs[k];
+  for (const k of fnKeys(fsp)) original.promises[k] = fsp[k];
+  const probes = [];
+  const readlink = (p) => { probes.push(p); return original.readlinkSync(p); };
+  const guard = makeFsGuard({ roots, original, readlink, cwd, allowFds });
+
+  const refuser = (k) => function refused() { return guard.fs[k]; }; // the closed proxy records and throws
+  // Synchronous, so it refuses an async-iterator API (promises.glob) as surely as a promise one.
+  const asyncRefuser = (k) => function refused() { return guard.promises[k]; };
+  const streams = {};
+  for (const [k, kind] of Object.entries(STREAM_CLASSES)) {
+    const Orig = original[k];
+    if (typeof Orig !== "function") continue;
+    streams[k] = streams[kind] && k !== kind ? streams[kind] : class extends Orig {
+      constructor(...args) { guard.assertStream(kind, args); super(...args); }
+    };
+  }
+
+  const replaced = [];
+  for (const k of fnKeys(fs)) {
+    if (KEPT_NATIVE.includes(k)) continue;
+    fs[k] = streams[k] ?? (guard.covers.fs.has(k) ? guard.fs[k] : refuser(k));
+    replaced.push(k);
+  }
+  fs.realpath.native = refuser("realpath.native");
+  for (const k of fnKeys(fsp)) {
+    fsp[k] = guard.covers.promises.has(k) ? guard.promises[k] : asyncRefuser(k);
+    replaced.push(`promises.${k}`);
+  }
+  syncBuiltinESMExports();
+  installed = true;
+  return { denials: guard.denials, probes, deniedRoots: guard.deniedRoots, replaced, kept: [...KEPT_NATIVE] };
 }
