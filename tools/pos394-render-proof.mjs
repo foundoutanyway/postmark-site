@@ -430,7 +430,8 @@ async function child([P, T, denyTopJson]) {
         return null;
       },
       load(id) {
-        if (id.startsWith("\0pos394:data:")) return `export default ${JSON.stringify(DATA[id.slice("\0pos394:data:".length)])};`;
+        // the id ends in .json, so Vite's own JSON plugin turns this text into the module, as for a real import
+        if (id.startsWith("\0pos394:data:")) return JSON.stringify(DATA[id.slice("\0pos394:data:".length)]);
         if (id === "\0pos394:funding") return FUNDING_STUB;
         if (id === "\0pos394:mists") return MISTS_STUB;
         const bare = id.split("?")[0];
