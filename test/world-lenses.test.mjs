@@ -104,7 +104,22 @@ test("a key the table does not place is mapping DEBT, never quietly bucketed", (
 
 test("the map is a way station and says so, so nobody mistakes it for the destination", () => {
   assert.match(SERIALIZATION_MAP.destination, /class-nodes/);
-  assert.ok(SERIALIZATION_MAP.cites.includes("LOGOS/kinds.md"));
+  assert.ok(SERIALIZATION_MAP.cites.includes("LOGOS/lifetimes.md"));
+});
+
+// WLD-39 (Wright, 2026-10-13T08:57:47.829Z): the World's lifetime doctrine moved
+// from LOGOS/kinds.md to LOGOS/lifetimes.md. The map cites the new home, and
+// nothing else in it moved: every key and value but `cites` is fingerprinted as
+// it stood before the rename.
+test("the map cites the lifetime doctrine at its new home, and is otherwise exactly the map it was", async () => {
+  assert.equal(SERIALIZATION_MAP.cites, "LOGOS/lifetimes.md § the node · LOGOS/the-north-star.md § the placement discipline");
+  assert.doesNotMatch(SERIALIZATION_MAP.cites, /kinds\.md/);
+  const { createHash } = await import("node:crypto");
+  const { cites, ...rest } = SERIALIZATION_MAP;
+  const canon = (v) => Array.isArray(v) ? v.map(canon) : (v && typeof v === "object") ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v;
+  assert.equal(createHash("sha256").update(JSON.stringify(canon(rest))).digest("hex"),
+    "316d6a2aae19f38de365ba281a4a6dd0ca34d6aac0741f947dc2f7ffa118b0e5",
+    "version, entries, keys and classifications unchanged — only the citation moved");
 });
 
 // ── one node, through the law's glasses ──────────────────────────────────────

@@ -39,7 +39,7 @@
 
 // ═══════════════════════════════════════════════════════════════════════════
 // THE SERIALIZATION MAP — the machine-readable form of the trichotomy that
-// LOGOS/kinds.md § the node holds as prose.
+// LOGOS/lifetimes.md § the node holds as prose.
 //
 // PORTED VERBATIM from tools/graph-views.mjs (world repo, branch
 // jetto/graph-views), where it landed as a tracked artifact under founder ruling
@@ -56,11 +56,11 @@
 // literal is deleted and the map is read from the graph like everything else.
 //
 // Read it per class: for each node class, what its frontmatter keys serialize.
-//   identity   — an identity atom (kinds.md: "identity is two atoms, a slug and
+//   identity   — an identity atom (lifetimes.md: "identity is two atoms, a slug and
 //                a class"); the slug is the directory name, so on disk identity
 //                is one key.
 //   relational — NOT a property. Each entry names THE EDGE IT SERIALIZES, as
-//                `[edge-type, what the edge relates]` (kinds.md: "`by:` is the
+//                `[edge-type, what the edge relates]` (lifetimes.md: "`by:` is the
 //                create-edge, not a field").
 //   derived    — belongs NOWHERE (the-north-star.md § the placement discipline).
 //                A key here on disk is TRUE RESIDUE: the map deliberately maps
@@ -76,7 +76,7 @@
 export const SERIALIZATION_MAP = {
   version: "0.1.0",
   authored: "2026-08-12",
-  cites: "LOGOS/kinds.md § the node · LOGOS/the-north-star.md § the placement discipline",
+  cites: "LOGOS/lifetimes.md § the node · LOGOS/the-north-star.md § the placement discipline",
   destination: "payload schemas on class-nodes (LOGOS/classes.md § params)",
 
   // EVERY CLASS
@@ -140,7 +140,7 @@ export const SERIALIZATION_MAP = {
   },
 
   // A PREDICATED MARK — already a predicate. Its (slot, value) pair IS its
-  // identity payload: "predicates are the atoms of authorship" (kinds.md). The
+  // identity payload: "predicates are the atoms of authorship" (lifetimes.md). The
   // only two keys on disk already in lawful shape.
   predicated: {
     predicate: { slot: "the predicate's slot", value: "the predicate's value" },
@@ -209,7 +209,7 @@ export function serializationOf(d) {
   if (!d || d.kind !== "mark" || !Array.isArray(d.keys)) return out;
   out.read = true;
   // A predicated mark's (slot, value) pair is already lawful on disk — it IS a
-  // predicate's identity payload (kinds.md), so it is named as a predicate the
+  // predicate's identity payload (lifetimes.md), so it is named as a predicate the
   // record already keeps rather than one it owes.
   for (const k of d.keys) {
     const s = serializes(d.subkind, k);
