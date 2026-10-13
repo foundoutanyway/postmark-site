@@ -83,7 +83,7 @@ try {
     "fs.statfsSync": code(() => fsNow.statfsSync(tmp)),
     "fs.openAsBlob": code(() => fsNow.openAsBlob(MISSING)),
     "fs.realpath.native": code(() => fsNow.realpath.native(MISSING, () => {})),
-    "fs.createWriteStream": code(() => fsNow.createWriteStream(DENIED)),
+    "fs.chmodSync": code(() => fsNow.chmodSync(tmp, 0o700)),
     "fs/promises glob": code(() => { const it = fsNow.promises.glob; return it; }) === "OK" ? await acode(async () => { for await (const _ of fsNow.promises.glob("*.none", { cwd: tmp })) {} }) : "MISSING",
     "fs/promises statfs": await acode(() => fsNow.promises.statfs(tmp)),
   };

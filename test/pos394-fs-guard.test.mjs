@@ -16,6 +16,9 @@ const REPO = "/virt/pos394-repo";
 const ROOTS = [`${REPO}/src/data/postmark`, `${REPO}/public/atelier/postmark`, `${REPO}/node_modules/postmark-world`];
 const CWD = `${REPO}/town`;
 const ALLOWED = `${REPO}/town/components/Household.astro`;
+// APIs taking two paths, and APIs taking only an fd.
+const TWO = new Set(["copyFileSync", "cpSync", "renameSync", "copyFile", "cp", "rename"]);
+const FD_ONLY = new Set(["fstatSync", "readSync", "closeSync", "writeSync", "fsyncSync", "fstat", "read", "close", "write", "fsync"]);
 const ALLOWED_WALK = new Set(ALLOWED.split("/").slice(1).map((_, i, a) => "/" + a.slice(0, i + 1).join("/")));
 
 // The invented tree (path -> "dir" | "file" | { link }). The protected roots do not exist in it; two are reached through links.
@@ -115,18 +118,18 @@ test("every denied form is refused by every guarded API, and the trap is never r
   for (const [label, form, lexical] of DENIED) {
     const before = calls.length;
     for (const name of GUARDED_APIS.sync) {
-      const args = (name === "copyFileSync" || name === "cpSync") ? [form, ALLOWED] : [form];
+      const args = TWO.has(name) ? [form, ALLOWED] : [form];
       assert.throws(() => guard.fs[name](...args), GuardError, `${name}: ${label}`); refusals++;
-      if (name === "copyFileSync" || name === "cpSync") { assert.throws(() => guard.fs[name](ALLOWED, form), GuardError, `${name} dest: ${label}`); refusals++; }
+      if (TWO.has(name)) { assert.throws(() => guard.fs[name](ALLOWED, form), GuardError, `${name} dest: ${label}`); refusals++; }
     }
     for (const name of GUARDED_APIS.callback) {
-      const two = name === "copyFile" || name === "cp";
+      const two = TWO.has(name);
       for (const args of two ? [[form, ALLOWED, cb], [ALLOWED, form, cb]] : [[form, cb]]) {
         assert.throws(() => guard.fs[name](...args), GuardError, `${name}: ${label}`); refusals++;
       }
     }
     for (const name of GUARDED_APIS.promises) {
-      const two = name === "copyFile" || name === "cp";
+      const two = TWO.has(name);
       for (const args of two ? [[form, ALLOWED], [ALLOWED, form]] : [[form]]) {
         await assert.rejects(guard.promises[name](...args), GuardError, `promises.${name}: ${label}`); refusals++;
         await assert.rejects(guard.fs.promises[name](...args), GuardError, `fs.promises.${name}: ${label}`); refusals++;
@@ -143,8 +146,13 @@ test("every denied form is refused by every guarded API, and the trap is never r
   }
   assert.deepEqual(hits, [], "the trap was never reached");
   assert.equal(guard.denials.length, refusals, "every refusal is recorded, even ones a caller would swallow");
-  assert.equal(refusals, DENIED.length * 77, "24 forms x 77 entry points (sync 21+2 dest, callback 17+2 dest, promises (14+2) x 2 views, native, existsSync, exists)");
-  t.diagnostic(`refusals ${refusals} = ${DENIED.length} forms x 77 entry points`);
+  // sync + its two-path dests, callback + dests, promises + dests in both views, native, existsSync, exists
+  const twoIn = (list) => list.filter((n) => TWO.has(n)).length;
+  const per = GUARDED_APIS.sync.length + twoIn(GUARDED_APIS.sync) + GUARDED_APIS.callback.length + twoIn(GUARDED_APIS.callback)
+    + 2 * (GUARDED_APIS.promises.length + twoIn(GUARDED_APIS.promises)) + 3;
+  assert.equal(per, 113, "the matrix is 113 entry points per form");
+  assert.equal(refusals, DENIED.length * per);
+  t.diagnostic(`refusals ${refusals} = ${DENIED.length} forms x ${per} entry points`);
 });
 
 test("allowed paths reach the trap exactly once per call, with the caller's own arguments", async () => {
@@ -155,19 +163,19 @@ test("allowed paths reach the trap exactly once per call, with the caller's own 
     const start = hits.length;
     let n = 0;
     for (const name of GUARDED_APIS.sync) {
-      if (["fstatSync", "readSync", "closeSync"].includes(name)) continue; // fd-only: below
-      const args = (name === "copyFileSync" || name === "cpSync") ? [form, ALLOWED] : [form];
+      if (FD_ONLY.has(name)) continue; // fd-only: below
+      const args = TWO.has(name) ? [form, ALLOWED] : [form];
       guard.fs[name](...args); n++;
       assert.equal(hits.length, start + n, `${name} reached the trap once`);
       assert.deepEqual(hits.at(-1), [name, args]);
     }
     for (const name of GUARDED_APIS.callback) {
-      if (["fstat", "read", "close"].includes(name)) continue;
-      guard.fs[name](...((name === "copyFile" || name === "cp") ? [form, ALLOWED, cb] : [form, cb])); n++;
+      if (FD_ONLY.has(name)) continue;
+      guard.fs[name](...(TWO.has(name) ? [form, ALLOWED, cb] : [form, cb])); n++;
       assert.equal(hits.length, start + n, `${name} reached the trap once`);
     }
     for (const name of GUARDED_APIS.promises) {
-      assert.equal(await guard.promises[name](...((name === "copyFile" || name === "cp") ? [form, ALLOWED] : [form])), "TRAPPED"); n++;
+      assert.equal(await guard.promises[name](...(TWO.has(name) ? [form, ALLOWED] : [form])), "TRAPPED"); n++;
       assert.equal(hits.length, start + n, `promises.${name} reached the trap once`);
     }
     assert.equal(guard.fs.realpathSync.native(form), "TRAPPED"); n++;
@@ -235,7 +243,7 @@ test("a root whose aliases cannot be resolved stops the guard from being built (
 
 test("an API the guard does not list is refused, not passed through", () => {
   const { guard, hits } = setup();
-  for (const get of [() => guard.fs.globSync, () => guard.fs.symlinkSync, () => guard.fs.createWriteStream, () => guard.fs.promises.glob, () => guard.promises.watch, () => guard.fs.openAsBlob]) {
+  for (const get of [() => guard.fs.globSync, () => guard.fs.symlinkSync, () => guard.fs.chmodSync, () => guard.fs.promises.glob, () => guard.promises.watch, () => guard.fs.openAsBlob]) {
     assert.throws(get, GuardError);
   }
   assert.equal(guard.denials.length, 6);

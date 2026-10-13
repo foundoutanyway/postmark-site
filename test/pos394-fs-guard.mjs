@@ -53,17 +53,22 @@ const SYNC = {
   accessSync: [0], realpathSync: [0], readlinkSync: [0], createReadStream: [0], watch: [0], watchFile: [0],
   unwatchFile: [0], copyFileSync: [0, 1], cpSync: [0, 1], writeFileSync: [0], mkdirSync: [0], rmSync: [0],
   fstatSync: [0], readSync: [0], closeSync: [0],
+  // writes a render's own caches need (Vite/Astro write atomically by rename); each path still checked
+  renameSync: [0, 1], unlinkSync: [0], rmdirSync: [0], mkdtempSync: [0], appendFileSync: [0], utimesSync: [0],
+  truncateSync: [0], createWriteStream: [0], writeSync: [0], fsyncSync: [0],
 };
 const CALLBACK = {
   readFile: [0], open: [0], readdir: [0], opendir: [0], stat: [0], lstat: [0], access: [0], realpath: [0],
   readlink: [0], copyFile: [0, 1], cp: [0, 1], writeFile: [0], mkdir: [0], rm: [0], fstat: [0], read: [0], close: [0],
+  rename: [0, 1], unlink: [0], rmdir: [0], mkdtemp: [0], appendFile: [0], utimes: [0], write: [0], fsync: [0],
 };
 const PROMISES = {
   readFile: [0], open: [0], readdir: [0], opendir: [0], stat: [0], lstat: [0], access: [0], realpath: [0],
   readlink: [0], copyFile: [0, 1], cp: [0, 1], writeFile: [0], mkdir: [0], rm: [0],
+  rename: [0, 1], unlink: [0], rmdir: [0], mkdtemp: [0], appendFile: [0], utimes: [0], truncate: [0],
 };
 const OPENERS = new Set(["openSync", "open"]);
-const FD_OPTION = new Set(["createReadStream", "ReadStream", "WriteStream"]);
+const FD_OPTION = new Set(["createReadStream", "createWriteStream", "ReadStream", "WriteStream"]);
 const CLOSERS = new Set(["closeSync", "close"]);
 
 export const GUARDED_APIS = Object.freeze({ sync: Object.keys(SYNC), callback: Object.keys(CALLBACK), promises: Object.keys(PROMISES) });
