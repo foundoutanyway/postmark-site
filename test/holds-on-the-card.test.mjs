@@ -83,3 +83,16 @@ test("[source pin, not a render] the card painter paints the holds rows for each
   const cards = src.slice(src.indexOf("function paintCards("), src.indexOf("function paintCards(") + 4000);
   assert.match(cards, /paintHolds\(card, reads\.doorsteps\?\.\[h\]\);/);
 });
+
+test("a chest they are carrying shows on their card with whose it is; one they made that someone carries says who", () => {
+  const card = fakeCard();
+  paintHolds(card, { handle: "sbx-cy", holds: { args: { handle: "sbx-cy" }, holds: { count: 0 }, chests: [
+    { chest: "sbx-ana/the-bag", by: "sbx-ana", held_by: "sbx-cy", count: 30, shows: "Test Comets: 30" },
+  ] } });
+  assert.equal(card.els.get("data-hd-chests").textContent, "the bag (sbx-ana's) — Test Comets: 30");
+  const maker = fakeCard();
+  paintHolds(maker, { handle: "sbx-ana", holds: { args: { handle: "sbx-ana" }, holds: { count: 0 }, chests: [
+    { chest: "sbx-ana/the-bag", by: "sbx-ana", held_by: "sbx-cy", count: 30, shows: "3 things" },
+  ] } });
+  assert.equal(maker.els.get("data-hd-chests").textContent, "the bag, carried by sbx-cy — 3 things");
+});

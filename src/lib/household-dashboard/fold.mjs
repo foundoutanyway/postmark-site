@@ -148,10 +148,16 @@ export function holdsOf(doorstep) {
   if (!b || typeof b !== "object" || b.unavailable) return null;
   const count = num(b.holds?.count ?? b.count) ?? 0;
   const holds = count > 0 && typeof b.holds?.shows === "string" ? b.holds.shows : null;
+  const me = b.args?.handle ?? doorstep?.handle ?? null;
+  // A CHEST ON THIS CARD IS ONE THEY MADE OR ONE THEY ARE CARRYING (office:
+  // residentHolds). Whose it is, and who carries it, ride the name.
+  const whose = (c) => leaf(c.chest)
+    + (c.by && me && c.by !== me ? ` (${c.by}'s)` : "")
+    + (c.held_by && me && c.held_by !== me ? `, carried by ${c.held_by}` : "");
   const chests = asArray(b.chests).filter((c) => c && typeof c.chest === "string").map((c) => ({
     chest: c.chest,
-    text: c.count > 0 && typeof c.shows === "string" ? `${leaf(c.chest)} — ${c.shows}`
-      : c.empty_because ? `${leaf(c.chest)} — empty: no candy registered yet` : `${leaf(c.chest)} — empty`,
+    text: c.count > 0 && typeof c.shows === "string" ? `${whose(c)} — ${c.shows}`
+      : c.empty_because ? `${whose(c)} — empty: no candy registered yet` : `${whose(c)} — empty`,
     why: c.empty_because ?? null,
   }));
   return { holds, chests };
