@@ -144,7 +144,9 @@ const EDIT = Object.freeze({
 // the fold carries one, so the page emitters are measured with the old fold
 // line restored alongside. The house is shared (two members), so Household
 // mounts HouseDashboard on every route (Household.astro:65,79,328-330): the
-// hd-sub emitter reaches the resident wrapper and resident pages too.
+// hd-sub emitter reaches the resident wrapper and resident pages too. A fold+
+// mutant also re-inserts its template clause, so the prop-path fragments (handed
+// a house with a human) redden with it (CI 38358098533).
 export const MUTANTS = Object.freeze({
   "household-299": { emitter: "Household.astro:299 (chrome), prop path", edits: [EDIT.chrome],
     mustRed: { householdSeat: [C.NEVER], residentWrapper: [C.NEVER] } },
@@ -153,9 +155,10 @@ export const MUTANTS = Object.freeze({
   "fold+48": { emitter: "houses.mjs fold + households/[slug].astro:48 (description), built page", edits: [EDIT.fold, EDIT.desc],
     mustRed: { householdPage: [C.NEVER, C.DESC] } },
   "fold+68": { emitter: "houses.mjs fold + HouseDashboard.astro:68 (hd-sub), built page", edits: [EDIT.fold, EDIT.hdsub],
-    mustRed: { householdPage: [C.NEVER, C.HDHUMAN], residentPage: [C.NEVER] } },
+    mustRed: { householdPage: [C.NEVER, C.HDHUMAN], residentPage: [C.NEVER],
+      householdSeat: [C.NEVER, C.HDHUMAN], residentWrapper: [C.NEVER] } },
   "fold+299": { emitter: "houses.mjs fold + Household.astro:299 (chrome), built pages", edits: [EDIT.fold, EDIT.chrome],
-    mustRed: { householdPage: [C.NEVER], residentPage: [C.NEVER] } },
+    mustRed: { householdPage: [C.NEVER], residentPage: [C.NEVER], householdSeat: [C.NEVER], residentWrapper: [C.NEVER] } },
 });
 
 // ── invented fixtures (no real record, row, name or value) ──────────────────
