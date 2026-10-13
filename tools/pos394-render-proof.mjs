@@ -42,6 +42,11 @@
 //   slug-48         town/pages/households/[slug].astro    (description clause)
 //   dashboard-68    src/components/household-dashboard/HouseDashboard.astro (hd-sub clause)
 //
+// CLEANUP: the run owns its temp dir, Vite/Astro caches included, and removes
+// it on success and on failure (removeOwnedTree: canonical, owned, links never
+// followed, the toolchain and checkout never targets). If it cannot, the run
+// FAILS; no one else is expected to clean up after it.
+//
 // LIMITS: funding chrome and the Halloween/mists chrome render from invented
 // stubs and are NOT exercised; client <script> code is emitted, not run; zero
 // refusals shows the run stayed inside what the guard sees, not containment of
@@ -147,20 +152,19 @@ function parent(argv) {
   const HEAD = git("rev-parse", "--verify", "HEAD^{commit}").toString().trim(); // captured ONCE; every blob, diff and the report use it
   if (!/^[0-9a-f]{40}$/.test(HEAD)) die("could not capture the head");
   const P = fs.mkdtempSync(path.join(os.tmpdir(), "pos394-proj-"));
-  const made = { files: [], dirs: new Set(), links: [] };
   const manifest = [];
+  const fail = (msg) => { throw new Error(msg); };
+  let verdict;
   try {
     for (const rel of SOURCES) {
       const ref = mutant && MUTANTS[mutant].path === rel ? BASE : HEAD;
       const blob = git("rev-parse", `${ref}:${rel}`).toString().trim();
       const bytes = git("cat-file", "blob", blob);
       const dest = path.join(P, rel);
-      for (let d = path.dirname(dest); under(d, P) && d !== P; d = path.dirname(d)) made.dirs.add(d);
       fs.mkdirSync(path.dirname(dest), { recursive: true });
       fs.writeFileSync(dest, bytes, { flag: "wx" });
-      made.files.push(dest);
       const written = execFileSync("git", ["hash-object", "--no-filters", dest]).toString().trim();
-      if (written !== blob) die(`byte correspondence failed for ${rel}`);
+      if (written !== blob) fail(`byte correspondence failed for ${rel}`);
       manifest.push({ path: rel, ref, blob });
     }
     if (mutant) {
@@ -168,18 +172,16 @@ function parent(argv) {
       const lines = git("diff", "--numstat", BASE, HEAD, "--", rel).toString().trim().split("\n").filter(Boolean);
       const [a, d, p] = (lines[0] ?? "").split("\t");
       if (lines.length !== 1 || p !== rel || Number(a) !== added || Number(d) !== deleted) {
-        die(`the ${mutant} mutant is not exactly +${added}/-${deleted} on ${rel} (${lines.join(" | ")})`);
+        fail(`the ${mutant} mutant is not exactly +${added}/-${deleted} on ${rel} (${lines.join(" | ")})`);
       }
       const body = git("diff", "-U0", BASE, HEAD, "--", rel).toString().split("\n").filter((l) => /^[-+](?![-+])/.test(l));
       if (!body.some((l) => l.startsWith("-") && l.includes("house.human")) || body.some((l) => l.startsWith("+") && l.includes("human"))) {
-        die(`the ${mutant} mutant's change is not the old private-human clause`);
+        fail(`the ${mutant} mutant's change is not the old private-human clause`);
       }
     }
-    for (const d of ["public-empty", "tmp"]) { fs.mkdirSync(path.join(P, d)); made.dirs.add(path.join(P, d)); }
+    for (const d of ["public-empty", "tmp"]) fs.mkdirSync(path.join(P, d));
     fs.writeFileSync(path.join(P, "package.json"), JSON.stringify({ name: "pos394-projection", private: true, type: "module" }), { flag: "wx" });
-    made.files.push(path.join(P, "package.json"));
     fs.symlinkSync(path.join(T, "node_modules"), path.join(P, "node_modules"));
-    made.links.push(path.join(P, "node_modules"));
 
     const env = {
       PATH: "/usr/bin:/bin", HOME: P, TMPDIR: path.join(P, "tmp"), NODE_ENV: "development",
@@ -188,16 +190,59 @@ function parent(argv) {
     const res = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "--child", P, T], { cwd: P, env, encoding: "utf8", timeout: 180_000, maxBuffer: 64 * 1024 * 1024 });
     let out = null;
     try { out = JSON.parse(res.stdout.trim().split("\n").at(-1)); } catch { /* judged below */ }
-    const verdict = judge(out, res);
-    const report = { mutant: mutant ?? null, head: HEAD, projection: manifest.length, ...verdict };
-    console.log(JSON.stringify(report, null, 2));
-    process.exitCode = verdict.pass ? 0 : 1;
-  } finally {
-    // Remove exactly what this run made; anything else is reported and kept.
-    for (const f of made.files) try { fs.unlinkSync(f); } catch { /* reported below */ }
-    for (const l of made.links) try { fs.unlinkSync(l); } catch { /* reported below */ }
-    for (const d of [...made.dirs].sort((a, b) => b.length - a.length)) try { fs.rmdirSync(d); } catch { /* reported below */ }
-    try { fs.rmdirSync(P); } catch { console.error(`LEFTOVER (not ours to delete; path only, for Jetto): ${P}`); }
+    verdict = judge(out, res);
+  } catch (e) {
+    verdict = { pass: false, problems: [`setup: ${e.message}`] };
+  }
+  // The run owns P, caches and all, and removes it whatever happened. A
+  // cleanup that cannot finish FAILS the run; nobody else cleans up after it.
+  const cleanup = removeOwnedTree(P, { keepApart: [T, REPO] });
+  if (!cleanup.ok) { verdict.pass = false; verdict.problems = [...(verdict.problems ?? []), `cleanup: ${cleanup.problem}`]; }
+  const report = { mutant: mutant ?? null, head: HEAD, projection: manifest.length, cleanup, ...verdict };
+  console.log(JSON.stringify(report, null, 2));
+  process.exitCode = verdict.pass ? 0 : 1;
+}
+
+/**
+ * Remove the run's own temp tree, and only it. P must be a real directory (not
+ * a link) directly inside the canonical os.tmpdir(), named pos394-proj-*,
+ * owned by this user, and neither inside nor containing anything in
+ * `keepApart` (the toolchain, the checkout). The tree is listed first with
+ * lstat — links are entries to unlink, never followed — and if any entry is
+ * foreign-owned or escapes P nothing is deleted. Then files and links are
+ * unlinked and directories removed deepest first, one by one.
+ */
+export function removeOwnedTree(P, { keepApart = [] } = {}) {
+  const uid = process.getuid();
+  try {
+    const tmp = fs.realpathSync(os.tmpdir());
+    const st = fs.lstatSync(P);
+    if (!st.isDirectory() || st.isSymbolicLink()) return { ok: false, problem: `${P} is not a plain directory` };
+    if (fs.realpathSync(P) !== P && fs.realpathSync(P) !== path.join(tmp, path.basename(P))) return { ok: false, problem: `${P} does not resolve inside the temp dir` };
+    const root = fs.realpathSync(P);
+    if (path.dirname(root) !== tmp || !path.basename(root).startsWith("pos394-proj-")) return { ok: false, problem: `${root} is not an owned pos394-proj- dir in ${tmp}` };
+    if (st.uid !== uid) return { ok: false, problem: `${root} is not owned by this user` };
+    for (const k of keepApart) {
+      let kc; try { kc = fs.realpathSync(k); } catch { kc = path.resolve(k); }
+      if (under(kc, root) || under(root, kc)) return { ok: false, problem: `${root} overlaps a protected location` };
+    }
+    const entries = []; // [path, isDir], parents before children
+    const walk = (dir) => {
+      for (const name of fs.readdirSync(dir)) {
+        const p = path.join(dir, name);
+        if (!under(p, root) || p === root) throw new Error(`${p} escapes ${root}`);
+        const e = fs.lstatSync(p);
+        if (e.uid !== uid) throw new Error(`${p} is not owned by this user`);
+        entries.push([p, e.isDirectory()]);
+        if (e.isDirectory()) walk(p);
+      }
+    };
+    walk(root);
+    for (const [p, isDir] of [...entries].reverse()) (isDir ? fs.rmdirSync : fs.unlinkSync)(p);
+    fs.rmdirSync(root);
+    return { ok: true, removed: entries.length };
+  } catch (e) {
+    return { ok: false, problem: `${e.code ?? ""} ${e.message}`.trim() };
   }
 }
 
