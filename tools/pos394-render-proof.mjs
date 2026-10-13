@@ -194,7 +194,8 @@ export const toDeed = (x) => x;
 // "no season" answer.
 const MISTS_STUB = `export const siteMists = () => null;\n`;
 
-const under = (p, root) => p === root || p.startsWith(root.endsWith("/") ? root : root + "/");
+// path.sep, not "/": Windows joins entries with a backslash (POS-394 win32 correction); identical on POSIX.
+const under = (p, root) => p === root || p.startsWith(root.endsWith(path.sep) ? root : root + path.sep);
 const git = (...a) => execFileSync("git", ["-C", REPO, ...a], { maxBuffer: 64 * 1024 * 1024 });
 
 /** Apply a mutant's edits to file contents, each anchor exactly once. */
@@ -336,17 +337,31 @@ export function falsified(report, name) {
  * lstat — links are entries to unlink, never followed — and if any entry is
  * foreign-owned or escapes P nothing is deleted. Then files and links are
  * unlinked and directories removed deepest first, one by one.
+ *
+ * OWNERSHIP, PER PLATFORM (POS-394 win32 correction). POSIX: every entry must
+ * be owned by this process's uid, as before. Windows has no getuid and lstat's
+ * uid is always 0 there, so on win32 ownership rests on the other gates (a
+ * plain pos394-proj- directory directly in the canonical temp dir, keepApart,
+ * links never followed, nothing escaping the root). Any OTHER platform without
+ * getuid refuses: a missing ownership primitive never becomes a pass.
  */
+function ownershipCheck() {
+  if (typeof process.getuid === "function") { const uid = process.getuid(); return (st) => st.uid === uid; }
+  if (process.platform === "win32") return () => true;
+  return null;
+}
+
 export function removeOwnedTree(P, { keepApart = [] } = {}) {
-  const uid = process.getuid();
   try {
+    const owns = ownershipCheck();
+    if (!owns) return { ok: false, problem: `cannot check ownership on ${process.platform} (no getuid); nothing deleted` };
     const tmp = fs.realpathSync(os.tmpdir());
     const st = fs.lstatSync(P);
     if (!st.isDirectory() || st.isSymbolicLink()) return { ok: false, problem: `${P} is not a plain directory` };
     if (fs.realpathSync(P) !== P && fs.realpathSync(P) !== path.join(tmp, path.basename(P))) return { ok: false, problem: `${P} does not resolve inside the temp dir` };
     const root = fs.realpathSync(P);
     if (path.dirname(root) !== tmp || !path.basename(root).startsWith("pos394-proj-")) return { ok: false, problem: `${root} is not an owned pos394-proj- dir in ${tmp}` };
-    if (st.uid !== uid) return { ok: false, problem: `${root} is not owned by this user` };
+    if (!owns(st)) return { ok: false, problem: `${root} is not owned by this user` };
     for (const k of keepApart) {
       let kc; try { kc = fs.realpathSync(k); } catch { kc = path.resolve(k); }
       if (under(kc, root) || under(root, kc)) return { ok: false, problem: `${root} overlaps a protected location` };
@@ -357,7 +372,7 @@ export function removeOwnedTree(P, { keepApart = [] } = {}) {
         const p = path.join(dir, name);
         if (!under(p, root) || p === root) throw new Error(`${p} escapes ${root}`);
         const e = fs.lstatSync(p);
-        if (e.uid !== uid) throw new Error(`${p} is not owned by this user`);
+        if (!owns(e)) throw new Error(`${p} is not owned by this user`);
         entries.push([p, e.isDirectory()]);
         if (e.isDirectory()) walk(p);
       }
