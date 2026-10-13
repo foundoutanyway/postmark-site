@@ -7,21 +7,23 @@
 // already made). Importing it does nothing. A direct CLI run stays opt-in:
 //   POS394_RENDER_PROOF=1 node tools/pos394-render-proof.mjs [--mutant <name>]
 //
-// WHAT IT RENDERS: the REAL templates, through Astro's own pipeline, from
-// invented literals —
-//   householdSeat      town/components/Household.astro, route "household" (the
-//                      house seat: HouseDashboard's hd-sub line), FRAGMENT
-//   residentWrapper    town/components/Household.astro, route "resident" (the
-//                      shared chrome), FRAGMENT — not the resident page
-//   householdPage      town/pages/households/[slug].astro, WHOLE page with its
-//                      layout (<title>, description), handed a house that still
-//                      carries the private human: the prop boundary
-//   householdPageBuilt the same page as a build makes it: getStaticPaths() over
-//                      the fold of an invented registry whose house has a human
-//   residentPage       town/pages/residents/[handle].astro, WHOLE page, as a
-//                      build makes it: getStaticPaths() over invented residents,
-//                      its house from the same fold
-//   residentCard       src/components/ResidentCard.astro (the directory card)
+// WHAT IT RENDERS: the REAL templates, from invented literals, two ways —
+//   BUILT (Wright 2026-10-13 06:29, CI-dist): Astro's own public build() of the
+//   projection (site https://postmark.town, so the layout's og/canonical URLs
+//   resolve) emits exactly three pages into the projection's own dist-proof,
+//   from getStaticPaths() over an invented registry whose house HAS a private
+//   human; the child reads only those three files —
+//     householdPage    /households/brass-hollow/ (town/pages/households/[slug].astro,
+//                      layout <title>/description, Household seat + HouseDashboard)
+//     residentPage     /residents/wren-pos394/ and /residents/moss-pos394/
+//                      (town/pages/residents/[handle].astro, Household wrapper)
+//   CONTAINER (experimental_AstroContainer; it cannot carry Astro.site, so it
+//   renders no whole page — astro 6.4.0 dist/container/index.js:17-70) —
+//     householdSeat    town/components/Household.astro, route "household", handed
+//                      a house that STILL CARRIES the private human (the prop
+//                      boundary), with HouseDashboard's hd-sub line; FRAGMENT
+//     residentWrapper  the same, route "resident" (shared chrome); FRAGMENT
+//     residentCard     src/components/ResidentCard.astro (the directory card)
 //
 // HOW IT STAYS AWAY FROM DATA:
 //   - a CODE-ONLY projection: a fresh owned temp dir holding byte-for-byte
@@ -39,8 +41,9 @@
 //     tree); fetch/http/https/net/tls/dns refused; child processes refused but
 //     the exact esbuild binary; workers refused. Every refusal is recorded and
 //     any refusal FAILS the run.
-//   - configFile false, no integrations, empty publicDir, caches inside the
-//     projection, no dep discovery, no watcher, no HMR, controlled env.
+//   - configFile false, no integrations, empty publicDir, caches and dist-proof
+//     inside the projection, no dep discovery, no watcher, no HMR, controlled
+//     env; the build and the container run in separate children.
 //
 // MUTANTS: each re-inserts an old private-human clause into the PROJECTION's
 // copy (exact anchors, each found exactly once); production files are never
@@ -104,7 +107,6 @@ const C = Object.freeze({
   HDHUMAN: "hd-sub carries no human",
   TITLE_H: "title is the plate",
   DESC: "description is plate, public count and agents",
-  BUILT: "the built house carries no human key",
   TITLE_R: "title is the resident's name",
   CARD: "the card shows the resident",
 });
@@ -112,14 +114,15 @@ export const CHECKS = C;
 export const CASES = Object.freeze({
   householdSeat: [C.PROP, C.NEVER, C.MEMBERS, C.HDSUB, C.HDCOUNT, C.HDHUMAN, C.PLATE],
   residentWrapper: [C.PROP, C.NEVER, C.MEMBERS, C.PLATE],
-  householdPage: [C.PROP, C.NEVER, C.MEMBERS, C.TITLE_H, C.DESC, C.HDSUB, C.HDCOUNT, C.HDHUMAN, C.PLATE],
-  householdPageBuilt: [C.REG, C.BUILT, C.NEVER, C.MEMBERS, C.TITLE_H, C.DESC, C.PLATE],
-  residentPage: [C.REG, C.NEVER, C.MEMBERS, C.TITLE_R, C.PLATE],
   residentCard: [C.REG, C.NEVER, C.CARD],
+  householdPage: [C.REG, C.NEVER, C.MEMBERS, C.TITLE_H, C.DESC, C.HDSUB, C.HDCOUNT, C.HDHUMAN, C.PLATE],
+  residentPage: [C.REG, C.NEVER, C.MEMBERS, C.TITLE_R, C.PLATE],
 });
 // The only checks a mutant may turn red: the privacy ones.
-export const PRIVACY = Object.freeze([C.NEVER, C.HDHUMAN, C.DESC, C.BUILT]);
+export const PRIVACY = Object.freeze([C.NEVER, C.HDHUMAN, C.DESC]);
 export const REFUSAL_CHANNELS = Object.freeze(["fs", "net", "proc"]);
+// The pages the build must emit, exactly (format "directory").
+export const BUILT_PAGES = Object.freeze(["households/brass-hollow/index.html", "residents/moss-pos394/index.html", "residents/wren-pos394/index.html"]);
 
 // ── mutants: old private-human clauses, re-inserted into the projection only ─
 const OLD = Object.freeze({
@@ -135,17 +138,21 @@ const EDIT = Object.freeze({
     from: "  description={`${plate} — ${members.length} ${members.length === 1 ? \"resident\" : \"residents\"} of Postmark: ${who}.`}\n", to: OLD.desc },
   fold: { path: "src/lib/houses.mjs", from: "      // no `human` (POS-394): the fold is public, and the private name never enters it\n", to: OLD.fold },
 });
-// Each mutant: its edits and the checks it MUST turn red. Any other red, or a
-// red outside PRIVACY, or any crash/refusal, is not the falsifier working.
+// Each mutant: its edits and the checks it MUST turn red. Any other red, a red
+// outside PRIVACY, or any crash/refusal/missing page, is not the falsifier
+// working. A built page only sees a human if the fold carries one, so the
+// page emitters are measured with the old fold line restored alongside.
 export const MUTANTS = Object.freeze({
-  "household-299": { emitter: "Household.astro:299 (chrome)", edits: [EDIT.chrome],
-    mustRed: { householdSeat: [C.NEVER], residentWrapper: [C.NEVER], householdPage: [C.NEVER] } },
-  "dashboard-68": { emitter: "HouseDashboard.astro:68 (hd-sub)", edits: [EDIT.hdsub],
-    mustRed: { householdSeat: [C.NEVER, C.HDHUMAN], householdPage: [C.NEVER, C.HDHUMAN] } },
-  "slug-48": { emitter: "households/[slug].astro:48 (description)", edits: [EDIT.desc],
+  "household-299": { emitter: "Household.astro:299 (chrome), prop path", edits: [EDIT.chrome],
+    mustRed: { householdSeat: [C.NEVER], residentWrapper: [C.NEVER] } },
+  "dashboard-68": { emitter: "HouseDashboard.astro:68 (hd-sub), prop path", edits: [EDIT.hdsub],
+    mustRed: { householdSeat: [C.NEVER, C.HDHUMAN] } },
+  "fold+48": { emitter: "houses.mjs fold + households/[slug].astro:48 (description), built page", edits: [EDIT.fold, EDIT.desc],
     mustRed: { householdPage: [C.NEVER, C.DESC] } },
-  "fold+299": { emitter: "houses.mjs fold human + Household.astro:299 (the built pages' path)", edits: [EDIT.fold, EDIT.chrome],
-    mustRed: { householdPageBuilt: [C.BUILT, C.NEVER], residentPage: [C.NEVER] } },
+  "fold+68": { emitter: "houses.mjs fold + HouseDashboard.astro:68 (hd-sub), built page", edits: [EDIT.fold, EDIT.hdsub],
+    mustRed: { householdPage: [C.NEVER, C.HDHUMAN] } },
+  "fold+299": { emitter: "houses.mjs fold + Household.astro:299 (chrome), built pages", edits: [EDIT.fold, EDIT.chrome],
+    mustRed: { householdPage: [C.NEVER], residentPage: [C.NEVER] } },
 });
 
 // ── invented fixtures (no real record, row, name or value) ──────────────────
@@ -250,13 +257,18 @@ export function runProof({ mutant = null, toolchain = REPO, timeoutMs = 240_000 
     fs.symlinkSync(path.join(T, "node_modules"), path.join(P, "node_modules"));
 
     const env = {
-      PATH: "/usr/bin:/bin", HOME: P, TMPDIR: path.join(P, "tmp"), NODE_ENV: "development",
+      PATH: "/usr/bin:/bin", HOME: P, TMPDIR: path.join(P, "tmp"),
       POS394_RENDER_PROOF: "1", ESBUILD_BINARY_PATH: path.join(T, ESBUILD_BIN), ASTRO_TELEMETRY_DISABLED: "1",
     };
-    const res = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "--child", P, T, JSON.stringify(denyTop)],
-      { cwd: P, env, encoding: "utf8", timeout: timeoutMs, maxBuffer: 64 * 1024 * 1024 });
-    let out = null;
-    try { out = JSON.parse(res.stdout.trim().split("\n").at(-1)); } catch { /* judged below */ }
+    // Two children: the build (production) and the container (development).
+    const runs = ["build", "container"].map((kind) => {
+      const res = spawnSync(process.execPath, [fileURLToPath(import.meta.url), `--child-${kind}`, P, T, JSON.stringify(denyTop)],
+        { cwd: P, env: { ...env, NODE_ENV: kind === "build" ? "production" : "development" }, encoding: "utf8", timeout: timeoutMs, maxBuffer: 64 * 1024 * 1024 });
+      let out = null;
+      try { out = JSON.parse(res.stdout.trim().split("\n").at(-1)); } catch { /* judged below */ }
+      return { kind, res, out };
+    });
+    const { out, res } = merge(runs);
     verdict = { ...judge(out, res), structural: structural(out, res), failed: failedChecks(out) };
   } catch (e) {
     verdict = { pass: false, problems: [`setup: ${e.message}`], structural: [`setup: ${e.message}`], failed: [] };
@@ -270,6 +282,28 @@ export function runProof({ mutant = null, toolchain = REPO, timeoutMs = 240_000 
     verdict.structural = [...(verdict.structural ?? []), `cleanup: ${cleanup.problem}`];
   }
   return { mutant, head: HEAD, projection: manifest.length, cleanup, ...verdict };
+}
+
+/** One verdict input from the two children: any child's failure is the run's. */
+export function merge(runs) {
+  const res = { status: 0, signal: null, error: undefined };
+  const out = { cases: {}, refusals: Object.fromEntries(REFUSAL_CHANNELS.map((k) => [k, []])), esbuildSpawns: 0 };
+  const crashes = [];
+  for (const { kind, res: r, out: o } of runs) {
+    if (r?.error && !res.error) res.error = r.error;
+    if (r?.signal && !res.signal) res.signal = r.signal;
+    if (r?.status !== 0 && res.status === 0) res.status = r?.status ?? null;
+    if (!o || typeof o !== "object") { crashes.push(`${kind} child printed no result`); continue; }
+    if (o.crash) crashes.push(`${kind}: ${o.crash}`);
+    Object.assign(out.cases, o.cases ?? {});
+    for (const k of REFUSAL_CHANNELS) {
+      if (!Array.isArray(o.refusals?.[k])) out.refusals[k] = null; // a missing channel stays missing
+      else if (Array.isArray(out.refusals[k])) out.refusals[k].push(...o.refusals[k]);
+    }
+    out.esbuildSpawns += o.esbuildSpawns ?? 0;
+  }
+  if (crashes.length) out.crash = crashes.join(" || ");
+  return { out, res };
 }
 
 /** For a mutant run: did exactly the falsifier happen? Returns problems ([] = it did). */
@@ -372,164 +406,90 @@ export function judge(out, res) {
   return { pass: problems.length === 0, problems, cases: out?.cases, refusals: out?.refusals, esbuildSpawns: out?.esbuildSpawns };
 }
 
-// ── child: guard everything, render, report ─────────────────────────────────
-async function child([P, T, denyTopJson]) {
-  const out = { cases: {}, refusals: { fs: [], net: [], proc: [] }, esbuildSpawns: 0 };
-  try {
-    const { installFsGuard } = await import(pathToFileURL(path.join(REPO, "test", "pos394-fs-guard.mjs")).href);
-    const refuse = (kind, what) => { out.refusals[kind].push(what); return Object.assign(new Error(`POS-394 render proof refused ${what}`), { code: "EPOS394GUARD" }); };
+// ── children: guard everything, render, report ──────────────────────────
+const SITE = "https://postmark.town";
 
-    // network: nothing leaves the process
-    globalThis.fetch = (u) => Promise.reject(refuse("net", `fetch ${String(u)}`));
-    const req = createRequire(import.meta.url);
-    for (const [mod, names] of [["http", ["request", "get"]], ["https", ["request", "get"]], ["net", ["connect", "createConnection"]], ["tls", ["connect"]], ["dns", ["lookup", "resolve"]]]) {
-      const m = req(`node:${mod}`);
-      for (const n of names) m[n] = () => { throw refuse("net", `${mod}.${n}`); };
-    }
-    // processes: only the exact esbuild binary
-    const cp = req("node:child_process");
-    const esbuild = path.join(T, ESBUILD_BIN);
-    const realSpawn = cp.spawn;
-    cp.spawn = (cmd, ...rest) => { if (cmd === esbuild) { out.esbuildSpawns++; return realSpawn(cmd, ...rest); } throw refuse("proc", `spawn ${cmd}`); };
-    for (const n of ["exec", "execFile", "execSync", "execFileSync", "spawnSync", "fork"]) cp[n] = (cmd) => { throw refuse("proc", `${n} ${cmd}`); };
-    req("node:worker_threads").Worker = class { constructor(f) { throw refuse("proc", `Worker ${f}`); } };
-    syncBuiltinESMExports();
+/** Network, process and fs refusals, installed BEFORE vite/astro load. */
+async function guardChild(P, T, denyTopJson, out) {
+  const { installFsGuard } = await import(pathToFileURL(path.join(REPO, "test", "pos394-fs-guard.mjs")).href);
+  const refuse = (kind, what) => { out.refusals[kind].push(what); return Object.assign(new Error(`POS-394 render proof refused ${what}`), { code: "EPOS394GUARD" }); };
+  globalThis.fetch = (u) => Promise.reject(refuse("net", `fetch ${String(u)}`));
+  const req = createRequire(import.meta.url);
+  for (const [mod, names] of [["http", ["request", "get"]], ["https", ["request", "get"]], ["net", ["connect", "createConnection"]], ["tls", ["connect"]], ["dns", ["lookup", "resolve"]]]) {
+    const m = req(`node:${mod}`);
+    for (const n of names) m[n] = () => { throw refuse("net", `${mod}.${n}`); };
+  }
+  const cp = req("node:child_process");
+  const esbuild = path.join(T, ESBUILD_BIN);
+  const realSpawn = cp.spawn;
+  cp.spawn = (cmd, ...rest) => { if (cmd === esbuild) { out.esbuildSpawns++; return realSpawn(cmd, ...rest); } throw refuse("proc", `spawn ${cmd}`); };
+  for (const n of ["exec", "execFile", "execSync", "execFileSync", "spawnSync", "fork"]) cp[n] = (cmd) => { throw refuse("proc", `${n} ${cmd}`); };
+  req("node:worker_threads").Worker = class { constructor(f) { throw refuse("proc", `Worker ${f}`); } };
+  syncBuiltinESMExports();
+  const g = installFsGuard({
+    roots: [path.join(P, "src/data/postmark"), path.join(P, "public/atelier/postmark"),
+      path.join(T, "node_modules/postmark-world"), ...JSON.parse(denyTopJson)],
+    cwd: P,
+  });
+  out.refusals.fs = g.denials;
+  return { refuse, fromP: createRequire(path.join(P, "package.json")) };
+}
 
-    const g = installFsGuard({
-      roots: [path.join(P, "src/data/postmark"), path.join(P, "public/atelier/postmark"),
-        path.join(T, "node_modules/postmark-world"), ...JSON.parse(denyTopJson)],
-      cwd: P,
-    });
-    out.refusals.fs = g.denials;
-
-    const fromP = createRequire(path.join(P, "package.json"));
-    const { createServer } = await import(pathToFileURL(fromP.resolve("vite")).href);
-    const { getViteConfig } = await import(pathToFileURL(fromP.resolve("astro/config")).href);
-    const { experimental_AstroContainer } = await import(pathToFileURL(fromP.resolve("astro/container")).href);
-
-    const deny = [path.join(P, "src/data/postmark"), path.join(P, "public/atelier/postmark")];
-    const guardPlugin = {
-      name: "pos394-guard", enforce: "pre",
-      resolveId(source, importer) {
-        if (source === "postmark-world" || source.startsWith("postmark-world/")) throw refuse("fs", `import ${source}`);
-        const bare = source.split("?")[0];
-        let abs = null;
-        if (bare.startsWith("@/")) abs = path.join(P, "src", bare.slice(2));
-        else if (bare.startsWith(".") && importer && !importer.startsWith("\0")) abs = path.resolve(path.dirname(importer.split("?")[0]), bare);
-        else if (bare.startsWith(P)) abs = bare;
-        if (!abs) return null;
-        const dataDir = path.join(P, "src/data/postmark");
-        if (under(abs, dataDir)) {
-          const name = path.relative(dataDir, abs);
-          if (Object.hasOwn(DATA, name)) return `\0pos394:data:${name}`;
-          throw refuse("fs", `import of an unmapped protected id ${name}`);
-        }
-        if (deny.some((r) => under(abs, r))) throw refuse("fs", `import under a denied root: ${path.relative(P, abs)}`);
-        if (abs === path.join(P, "src/lib/funding.mjs") || abs === path.join(P, "src/lib/funding")) return "\0pos394:funding";
-        if (abs === path.join(P, "src/lib/mists-season.mjs") || abs === path.join(P, "src/lib/mists-season")) return "\0pos394:mists";
-        return null;
-      },
-      load(id) {
-        // the id ends in .json, so Vite's own JSON plugin turns this text into the module, as for a real import
-        if (id.startsWith("\0pos394:data:")) return JSON.stringify(DATA[id.slice("\0pos394:data:".length)]);
-        if (id === "\0pos394:funding") return FUNDING_STUB;
-        if (id === "\0pos394:mists") return MISTS_STUB;
-        const bare = id.split("?")[0];
-        if (deny.some((r) => under(bare, r))) throw refuse("fs", `load under a denied root: ${path.relative(P, bare)}`);
-        return null;
-      },
-    };
-
-    const cfg = await getViteConfig({
-      configFile: false, root: P, cacheDir: path.join(P, ".vite-cache"), envDir: path.join(P, "public-empty"),
-      appType: "custom", logLevel: "error", clearScreen: false,
-      server: { middlewareMode: true, hmr: false, watch: null, fs: { strict: true, allow: [P, path.join(T, "node_modules")] } },
-      optimizeDeps: { noDiscovery: true, include: [] },
-      ssr: { optimizeDeps: { noDiscovery: true, include: [] } },
-      resolve: { alias: { "@": path.join(P, "src") } },
-      plugins: [guardPlugin],
-    }, {
-      root: P, configFile: false, srcDir: "./town", publicDir: "./public-empty", outDir: "./dist-proof",
-      cacheDir: "./.astro-cache", integrations: [], site: "https://postmark.town", telemetry: false,
-    })({ mode: "development", command: "serve" });
-    const server = await createServer(cfg);
-    try {
-      // the layout builds og/canonical URLs from Astro.site and Astro.url: give the container both
-      const SITE = "https://postmark.town";
-      // the container's manifest is where Astro.site comes from; astroConfig alone left it undefined (CI 38355602146)
-      const container = await experimental_AstroContainer.create({ astroConfig: { site: SITE }, manifest: { site: SITE } });
-      const at = (p) => new Request(new URL(p, SITE));
-      const load = async (id) => (await server.ssrLoadModule(id));
-      const Household = (await load("/town/components/Household.astro")).default;
-      const HouseholdPage = await load("/town/pages/households/[slug].astro");
-      const ResidentPage = await load("/town/pages/residents/[handle].astro");
-      const Card = (await load("/src/components/ResidentCard.astro")).default;
-
-      const regHasSentinel = JSON.stringify(DATA["households.json"]).includes(SENTINEL);
-      const clean = (html) => !html.includes(SENTINEL);
-      const both = (html) => MEMBERS.every((m) => html.includes(m.address.agent));
-      const title = (html) => /<title>([\s\S]*?)<\/title>/.exec(html)?.[1] ?? null;
-      const desc = (html) => /<meta name="description" content="([^"]*)"/.exec(html)?.[1] ?? null;
-      const hdsub = (html) => /<p class="hd-sub"[^>]*>([\s\S]*?)<\/p>/.exec(html)?.[1] ?? "";
-      const text = (s) => s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      const PAGE_TITLE = "Brass Hollow — a household in Postmark";
-      const PAGE_DESC = "Brass Hollow — 2 residents of Postmark: Wren Fixture, Moss Fixture.";
-      const record = (name, html, checks) => { out.cases[name] = { bytes: html.length, checks }; };
-
-      {
-        const props = { house: HOUSE, members: MEMBERS, active: "__house", route: "household" };
-        const html = await container.renderToString(Household, { props });
-        const sub = hdsub(html);
-        record("householdSeat", html, {
-          [C.PROP]: JSON.stringify(props).includes(SENTINEL), [C.NEVER]: clean(html), [C.MEMBERS]: both(html),
-          [C.HDSUB]: sub.length > 0, [C.HDCOUNT]: /\b2 residents\b/.test(text(sub)), [C.HDHUMAN]: !sub.includes(SENTINEL),
-          [C.PLATE]: html.includes("Brass Hollow"),
-        });
+/** The resolver/loader that keeps data virtual and refuses everything protected. */
+function guardPlugin(P, refuse) {
+  const deny = [path.join(P, "src/data/postmark"), path.join(P, "public/atelier/postmark")];
+  return {
+    name: "pos394-guard", enforce: "pre",
+    resolveId(source, importer) {
+      if (source === "postmark-world" || source.startsWith("postmark-world/")) throw refuse("fs", `import ${source}`);
+      const bare = source.split("?")[0];
+      let abs = null;
+      if (bare.startsWith("@/")) abs = path.join(P, "src", bare.slice(2));
+      else if (bare.startsWith(".") && importer && !importer.startsWith("\0")) abs = path.resolve(path.dirname(importer.split("?")[0]), bare);
+      else if (bare.startsWith(P)) abs = bare;
+      if (!abs) return null;
+      const dataDir = path.join(P, "src/data/postmark");
+      if (under(abs, dataDir)) {
+        const name = path.relative(dataDir, abs);
+        if (Object.hasOwn(DATA, name)) return `\0pos394:data:${name}`;
+        throw refuse("fs", `import of an unmapped protected id ${name}`);
       }
-      {
-        const props = { house: HOUSE, members: MEMBERS, active: MEMBERS[0].handle, route: "resident" };
-        const html = await container.renderToString(Household, { props });
-        record("residentWrapper", html, {
-          [C.PROP]: JSON.stringify(props).includes(SENTINEL), [C.NEVER]: clean(html), [C.MEMBERS]: both(html), [C.PLATE]: html.includes("Brass Hollow"),
-        });
-      }
-      {
-        const props = { house: HOUSE };
-        const html = await container.renderToString(HouseholdPage.default, { props, params: { slug: HOUSE.path }, request: at(`/households/${HOUSE.path}/`) });
-        const sub = hdsub(html);
-        record("householdPage", html, {
-          [C.PROP]: JSON.stringify(props).includes(SENTINEL), [C.NEVER]: clean(html), [C.MEMBERS]: both(html),
-          [C.TITLE_H]: title(html) === PAGE_TITLE, [C.DESC]: desc(html) === PAGE_DESC,
-          [C.HDSUB]: sub.length > 0, [C.HDCOUNT]: /\b2 residents\b/.test(text(sub)), [C.HDHUMAN]: !sub.includes(SENTINEL),
-          [C.PLATE]: html.includes("Brass Hollow"),
-        });
-      }
-      {
-        const paths = await HouseholdPage.getStaticPaths();
-        const built = paths.find((p) => p.params.slug === HOUSE.path);
-        if (!built || paths.length !== 1) throw new Error(`households getStaticPaths gave ${paths.length} paths`);
-        const html = await container.renderToString(HouseholdPage.default, { props: built.props, params: built.params, request: at(`/households/${HOUSE.path}/`) });
-        record("householdPageBuilt", html, {
-          [C.REG]: regHasSentinel, [C.BUILT]: !Object.hasOwn(built.props.house, "human"), [C.NEVER]: clean(html), [C.MEMBERS]: both(html),
-          [C.TITLE_H]: title(html) === PAGE_TITLE, [C.DESC]: desc(html) === PAGE_DESC, [C.PLATE]: html.includes("Brass Hollow"),
-        });
-      }
-      {
-        const paths = await ResidentPage.getStaticPaths();
-        const wren = paths.find((p) => p.params.handle === MEMBERS[0].handle);
-        if (!wren || paths.length !== MEMBERS.length) throw new Error(`residents getStaticPaths gave ${paths.length} paths`);
-        const html = await container.renderToString(ResidentPage.default, { props: wren.props, params: wren.params, request: at(`/residents/${MEMBERS[0].handle}/`) });
-        record("residentPage", html, {
-          [C.REG]: regHasSentinel, [C.NEVER]: clean(html), [C.MEMBERS]: both(html),
-          [C.TITLE_R]: title(html) === "Wren Fixture — resident of Postmark", [C.PLATE]: html.includes("Brass Hollow"),
-        });
-      }
-      {
-        const html = await container.renderToString(Card, { props: { r: MEMBERS[0] } });
-        record("residentCard", html, { [C.REG]: regHasSentinel, [C.NEVER]: clean(html), [C.CARD]: html.includes("Wren Fixture") });
-      }
-    } finally { await server.close(); }
-  } catch (e) {
+      if (deny.some((r) => under(abs, r))) throw refuse("fs", `import under a denied root: ${path.relative(P, abs)}`);
+      if (abs === path.join(P, "src/lib/funding.mjs") || abs === path.join(P, "src/lib/funding")) return "\0pos394:funding";
+      if (abs === path.join(P, "src/lib/mists-season.mjs") || abs === path.join(P, "src/lib/mists-season")) return "\0pos394:mists";
+      return null;
+    },
+    load(id) {
+      // the id ends in .json, so Vite's own JSON plugin turns this text into the module, as for a real import
+      if (id.startsWith("\0pos394:data:")) return JSON.stringify(DATA[id.slice("\0pos394:data:".length)]);
+      if (id === "\0pos394:funding") return FUNDING_STUB;
+      if (id === "\0pos394:mists") return MISTS_STUB;
+      const bare = id.split("?")[0];
+      if (deny.some((r) => under(bare, r))) throw refuse("fs", `load under a denied root: ${path.relative(P, bare)}`);
+      return null;
+    },
+  };
+}
+
+const viteShared = (P, T, plugin) => ({
+  cacheDir: path.join(P, ".vite-cache"), envDir: path.join(P, "public-empty"), logLevel: "error", clearScreen: false,
+  optimizeDeps: { noDiscovery: true, include: [] },
+  ssr: { optimizeDeps: { noDiscovery: true, include: [] } },
+  resolve: { alias: { "@": path.join(P, "src") } },
+  plugins: [plugin],
+});
+
+// the checks a page or fragment shares
+const regHasSentinel = () => JSON.stringify(DATA["households.json"]).includes(SENTINEL);
+const clean = (html) => !html.includes(SENTINEL);
+const both = (html) => MEMBERS.every((m) => html.includes(m.address.agent));
+const titleOf = (html) => /<title>([\s\S]*?)<\/title>/.exec(html)?.[1] ?? null;
+const descOf = (html) => /<meta name="description" content="([^"]*)"/.exec(html)?.[1] ?? null;
+const hdsubOf = (html) => /<p class="hd-sub"[^>]*>([\s\S]*?)<\/p>/.exec(html)?.[1] ?? "";
+const textOf = (s) => s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+
+function report(out, e, P) {
+  if (e) {
     // the message and up to three code locations (projection-relative or package-named), never data
     const frames = String(e?.stack ?? "").split("\n").filter((l) => /^\s+at /.test(l)).slice(0, 3)
       .map((l) => l.replace(P, "<P>").replace(/.*node_modules\//, "node_modules/").trim());
@@ -539,10 +499,99 @@ async function child([P, T, denyTopJson]) {
   process.exit(0);
 }
 
+/** BUILD child: Astro's public build() of the projection; read exactly the three emitted pages. */
+async function childBuild([P, T, denyTopJson]) {
+  const out = { cases: {}, refusals: { fs: [], net: [], proc: [] }, esbuildSpawns: 0 };
+  let err = null;
+  try {
+    const { refuse, fromP } = await guardChild(P, T, denyTopJson, out);
+    const { build } = await import(pathToFileURL(fromP.resolve("astro")).href);
+    await build({
+      root: P, configFile: false, mode: "production", logLevel: "error",
+      srcDir: "./town", publicDir: "./public-empty", outDir: "./dist-proof", cacheDir: "./.astro-cache",
+      site: SITE, integrations: [], output: "static",
+      vite: viteShared(P, T, guardPlugin(P, refuse)),
+    });
+    const dist = path.join(P, "dist-proof");
+    const html = fs.readdirSync(dist, { recursive: true }).map(String).filter((f) => f.endsWith(".html")).sort();
+    if (html.join("\n") !== [...BUILT_PAGES].join("\n")) throw new Error(`the build emitted ${html.length} pages, not exactly the ${BUILT_PAGES.length} expected`);
+    const page = (rel) => fs.readFileSync(path.join(dist, rel), "utf8");
+    {
+      const h = page("households/brass-hollow/index.html");
+      const sub = hdsubOf(h);
+      out.cases.householdPage = { bytes: h.length, checks: {
+        [C.REG]: regHasSentinel(), [C.NEVER]: clean(h), [C.MEMBERS]: both(h),
+        [C.TITLE_H]: titleOf(h) === "Brass Hollow — a household in Postmark",
+        [C.DESC]: descOf(h) === "Brass Hollow — 2 residents of Postmark: Wren Fixture, Moss Fixture.",
+        [C.HDSUB]: sub.length > 0, [C.HDCOUNT]: /\b2 residents\b/.test(textOf(sub)), [C.HDHUMAN]: !sub.includes(SENTINEL),
+        [C.PLATE]: h.includes("Brass Hollow"),
+      } };
+    }
+    {
+      const w = page("residents/wren-pos394/index.html"), m = page("residents/moss-pos394/index.html");
+      out.cases.residentPage = { bytes: w.length + m.length, checks: {
+        [C.REG]: regHasSentinel(), [C.NEVER]: clean(w) && clean(m), [C.MEMBERS]: both(w) && both(m),
+        [C.TITLE_R]: titleOf(w) === "Wren Fixture — resident of Postmark" && titleOf(m) === "Moss Fixture — resident of Postmark",
+        [C.PLATE]: w.includes("Brass Hollow") && m.includes("Brass Hollow"),
+      } };
+    }
+  } catch (e) { err = e; }
+  report(out, err, P);
+}
+
+/** CONTAINER child: the Household fragments (prop boundary) and the resident card. */
+async function childContainer([P, T, denyTopJson]) {
+  const out = { cases: {}, refusals: { fs: [], net: [], proc: [] }, esbuildSpawns: 0 };
+  let err = null;
+  try {
+    const { refuse, fromP } = await guardChild(P, T, denyTopJson, out);
+    const { createServer } = await import(pathToFileURL(fromP.resolve("vite")).href);
+    const { getViteConfig } = await import(pathToFileURL(fromP.resolve("astro/config")).href);
+    const { experimental_AstroContainer } = await import(pathToFileURL(fromP.resolve("astro/container")).href);
+    const cfg = await getViteConfig({
+      configFile: false, root: P, appType: "custom",
+      server: { middlewareMode: true, hmr: false, watch: null, fs: { strict: true, allow: [P, path.join(T, "node_modules")] } },
+      ...viteShared(P, T, guardPlugin(P, refuse)),
+    }, {
+      root: P, configFile: false, srcDir: "./town", publicDir: "./public-empty", outDir: "./dist-proof",
+      cacheDir: "./.astro-cache", integrations: [], site: SITE,
+    })({ mode: "development", command: "serve" });
+    const server = await createServer(cfg);
+    try {
+      const container = await experimental_AstroContainer.create();
+      const Household = (await server.ssrLoadModule("/town/components/Household.astro")).default;
+      const Card = (await server.ssrLoadModule("/src/components/ResidentCard.astro")).default;
+      {
+        const props = { house: HOUSE, members: MEMBERS, active: "__house", route: "household" };
+        const html = await container.renderToString(Household, { props });
+        const sub = hdsubOf(html);
+        out.cases.householdSeat = { bytes: html.length, checks: {
+          [C.PROP]: JSON.stringify(props).includes(SENTINEL), [C.NEVER]: clean(html), [C.MEMBERS]: both(html),
+          [C.HDSUB]: sub.length > 0, [C.HDCOUNT]: /\b2 residents\b/.test(textOf(sub)), [C.HDHUMAN]: !sub.includes(SENTINEL),
+          [C.PLATE]: html.includes("Brass Hollow"),
+        } };
+      }
+      {
+        const props = { house: HOUSE, members: MEMBERS, active: MEMBERS[0].handle, route: "resident" };
+        const html = await container.renderToString(Household, { props });
+        out.cases.residentWrapper = { bytes: html.length, checks: {
+          [C.PROP]: JSON.stringify(props).includes(SENTINEL), [C.NEVER]: clean(html), [C.MEMBERS]: both(html), [C.PLATE]: html.includes("Brass Hollow"),
+        } };
+      }
+      {
+        const html = await container.renderToString(Card, { props: { r: MEMBERS[0] } });
+        out.cases.residentCard = { bytes: html.length, checks: { [C.REG]: regHasSentinel(), [C.NEVER]: clean(html), [C.CARD]: html.includes("Wren Fixture") } };
+      }
+    } finally { await server.close(); }
+  } catch (e) { err = e; }
+  report(out, err, P);
+}
+
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   if (process.env.POS394_RENDER_PROOF !== "1") { console.error("pos394-render-proof: opt-in only: set POS394_RENDER_PROOF=1"); process.exit(2); }
-  if (process.argv[2] === "--child") await child(process.argv.slice(3));
+  if (process.argv[2] === "--child-build") await childBuild(process.argv.slice(3));
+  else if (process.argv[2] === "--child-container") await childContainer(process.argv.slice(3));
   else {
     const i = process.argv.indexOf("--mutant");
     const report = runProof({ mutant: i === -1 ? null : process.argv[i + 1] });

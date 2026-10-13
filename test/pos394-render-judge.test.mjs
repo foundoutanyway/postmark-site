@@ -7,7 +7,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { judge, falsified, applyEdits, CASES, CHECKS, PRIVACY, MUTANTS, REFUSAL_CHANNELS } from "../tools/pos394-render-proof.mjs";
+import { judge, merge, falsified, applyEdits, CASES, CHECKS, PRIVACY, MUTANTS, REFUSAL_CHANNELS } from "../tools/pos394-render-proof.mjs";
 
 const OK_RES = { status: 0, signal: null };
 const good = () => ({
@@ -53,8 +53,8 @@ test("every incompleteness or failure fails the verdict", () => {
   assert.equal(Object.keys(variants).length, 20);
 });
 
-test("the expected cases and channels are exactly the six surfaces and three channels", () => {
-  assert.deepEqual(Object.keys(CASES), ["householdSeat", "residentWrapper", "householdPage", "householdPageBuilt", "residentPage", "residentCard"]);
+test("the expected cases and channels are exactly the five surfaces and three channels", () => {
+  assert.deepEqual(Object.keys(CASES), ["householdSeat", "residentWrapper", "residentCard", "householdPage", "residentPage"]);
   assert.deepEqual([...REFUSAL_CHANNELS], ["fs", "net", "proc"]);
   for (const [n, checks] of Object.entries(CASES)) {
     assert.ok(checks.length >= 3, `${n} has its checks`);
@@ -97,4 +97,25 @@ test("applyEdits(): one anchor exactly once, one old private-human line, or it t
     ["two lines inserted", { path: "a.astro", from: "<p>\n", to: "<p>\n  {house.human}\n  {house.human}\n" }],
     ["a file not projected", { path: "b.astro", from: "<p>\n", to: "<p>\n  {house.human}\n" }],
   ]) assert.throws(() => applyEdits(files, [edit]), Error, what);
+});
+
+test("merge(): either child's failure is the run's", () => {
+  const half = (names) => { const o = good(); for (const n of Object.keys(o.cases)) if (!names.includes(n)) delete o.cases[n]; return o; };
+  const ok = [{ kind: "build", res: { status: 0 }, out: half(["householdPage", "residentPage"]) },
+    { kind: "container", res: { status: 0 }, out: half(["householdSeat", "residentWrapper", "residentCard"]) }];
+  const m = merge(ok);
+  assert.equal(judge(m.out, m.res).pass, true, "control: two clean halves make a clean run");
+  for (const [what, mutate] of [
+    ["a child crashed", (r) => { r[0].out.crash = "Error: x"; }],
+    ["a child printed nothing", (r) => { r[1].out = null; }],
+    ["a child exited non-zero", (r) => { r[1].res = { status: 1 }; }],
+    ["a child was killed", (r) => { r[0].res = { status: null, signal: "SIGTERM" }; }],
+    ["a child lost a refusal channel", (r) => { delete r[0].out.refusals.net; }],
+    ["a child refused something", (r) => { r[1].out.refusals.fs.push({ api: "x" }); }],
+    ["a child's cases are missing", (r) => { r[0].out.cases = {}; }],
+  ]) {
+    const runs = structuredClone(ok); mutate(runs);
+    const mm = merge(runs);
+    assert.equal(judge(mm.out, mm.res).pass, false, what);
+  }
 });
