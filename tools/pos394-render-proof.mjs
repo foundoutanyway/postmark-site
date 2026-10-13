@@ -454,7 +454,10 @@ async function child([P, T, denyTopJson]) {
     })({ mode: "development", command: "serve" });
     const server = await createServer(cfg);
     try {
-      const container = await experimental_AstroContainer.create();
+      // the layout builds og/canonical URLs from Astro.site and Astro.url: give the container both
+      const SITE = "https://postmark.town";
+      const container = await experimental_AstroContainer.create({ astroConfig: { site: SITE } });
+      const at = (p) => new Request(new URL(p, SITE));
       const load = async (id) => (await server.ssrLoadModule(id));
       const Household = (await load("/town/components/Household.astro")).default;
       const HouseholdPage = await load("/town/pages/households/[slug].astro");
@@ -491,7 +494,7 @@ async function child([P, T, denyTopJson]) {
       }
       {
         const props = { house: HOUSE };
-        const html = await container.renderToString(HouseholdPage.default, { props, params: { slug: HOUSE.path } });
+        const html = await container.renderToString(HouseholdPage.default, { props, params: { slug: HOUSE.path }, request: at(`/households/${HOUSE.path}/`) });
         const sub = hdsub(html);
         record("householdPage", html, {
           [C.PROP]: JSON.stringify(props).includes(SENTINEL), [C.NEVER]: clean(html), [C.MEMBERS]: both(html),
@@ -504,7 +507,7 @@ async function child([P, T, denyTopJson]) {
         const paths = await HouseholdPage.getStaticPaths();
         const built = paths.find((p) => p.params.slug === HOUSE.path);
         if (!built || paths.length !== 1) throw new Error(`households getStaticPaths gave ${paths.length} paths`);
-        const html = await container.renderToString(HouseholdPage.default, { props: built.props, params: built.params });
+        const html = await container.renderToString(HouseholdPage.default, { props: built.props, params: built.params, request: at(`/households/${HOUSE.path}/`) });
         record("householdPageBuilt", html, {
           [C.REG]: regHasSentinel, [C.BUILT]: !Object.hasOwn(built.props.house, "human"), [C.NEVER]: clean(html), [C.MEMBERS]: both(html),
           [C.TITLE_H]: title(html) === PAGE_TITLE, [C.DESC]: desc(html) === PAGE_DESC, [C.PLATE]: html.includes("Brass Hollow"),
@@ -514,7 +517,7 @@ async function child([P, T, denyTopJson]) {
         const paths = await ResidentPage.getStaticPaths();
         const wren = paths.find((p) => p.params.handle === MEMBERS[0].handle);
         if (!wren || paths.length !== MEMBERS.length) throw new Error(`residents getStaticPaths gave ${paths.length} paths`);
-        const html = await container.renderToString(ResidentPage.default, { props: wren.props, params: wren.params });
+        const html = await container.renderToString(ResidentPage.default, { props: wren.props, params: wren.params, request: at(`/residents/${MEMBERS[0].handle}/`) });
         record("residentPage", html, {
           [C.REG]: regHasSentinel, [C.NEVER]: clean(html), [C.MEMBERS]: both(html),
           [C.TITLE_R]: title(html) === "Wren Fixture — resident of Postmark", [C.PLATE]: html.includes("Brass Hollow"),
@@ -525,7 +528,12 @@ async function child([P, T, denyTopJson]) {
         record("residentCard", html, { [C.REG]: regHasSentinel, [C.NEVER]: clean(html), [C.CARD]: html.includes("Wren Fixture") });
       }
     } finally { await server.close(); }
-  } catch (e) { out.crash = String(e?.stack ?? e); }
+  } catch (e) {
+    // the message and up to three code locations (projection-relative or package-named), never data
+    const frames = String(e?.stack ?? "").split("\n").filter((l) => /^\s+at /.test(l)).slice(0, 3)
+      .map((l) => l.replace(P, "<P>").replace(/.*node_modules\//, "node_modules/").trim());
+    out.crash = [`${e?.name ?? "Error"}: ${e?.message ?? e}`, ...frames].join(" | ");
+  }
   process.stdout.write("\n" + JSON.stringify(out) + "\n");
   process.exit(0);
 }
