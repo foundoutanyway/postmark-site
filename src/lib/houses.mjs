@@ -71,12 +71,14 @@ export function plateName(name, slug) {
     .join(" ");
 }
 
-// The nameplate the wrapper prints, in the ruled order: the house's own name
-// (or its key) first, the honest generic last. NEVER the household's private
-// human name (POS-394, Darko 2026-10-05): a page prints the display name, and
-// a house handed in with a `human` field still does not print it.
+// The nameplate the wrapper prints, in the ruled order: the house's own name,
+// then its key, then the honest generic. NEVER the household's private human
+// name (POS-394, Darko 2026-10-05; Wright 2026-10-13): a page prints the
+// display name, and a house handed in with a `human` field, declared or not,
+// still plates by its own name or key when it carries one.
 export function nameplate(house) {
-  if (house.declared) return plateName(house.name, house.slug);
+  const own = plateName(house.name, house.slug);
+  if (own) return own;
   if (house.residents.length > 1) return "a shared household";
   return "";
 }
