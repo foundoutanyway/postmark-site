@@ -113,7 +113,7 @@ unchanged: train pushes rsync to dev.postmark.town directly.
 History: the P3 flip (2026-07-27) made this repo the live webroot's one
 writer via Actions; the 08-27 retirement moved that pen to the box. The staging webroot remains for dark
 runs. **The world pin lives HERE now** (`package.json` →
-`github:keeminlee/postmark-world#<sha>`); the ship wording that keeps its two
+`github:postmark-town/postmark-world#<sha>`); the ship wording that keeps its two
 shas apart: "site commit `<sha>` bumps the pin to `postmark-world#<sha>`".
 
 Since POS-55 (2026-08-25) that pin is the **floor**, not the last word: the
