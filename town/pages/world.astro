@@ -487,7 +487,16 @@ const html = rawHtml.replace(/<head>/i,
     font-family: var(--pm-mono, ui-monospace, monospace);
     display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
     max-width: min(20rem, calc(100vw - 28px));
+    /* THE BOX IS NOT A CONTROL (WLD-49, 2026-10-14). On a phone place() pins it
+       left AND right, so it is as wide as its max-width while the pill sits at
+       its end: measured on prod at 390 and 360, a 320×29 box round a 118×29
+       pill, and every tap on the 202 px beside the pill landed on the box
+       instead of the map under it. A desk with the panel open had the same
+       strip beside the pill (188×29). So the box lets taps through, and only
+       what it holds (the pill, the open body) takes them. */
+    pointer-events: none;
   }
+  .pm-tt > * { pointer-events: auto; }
   .pm-tt-open {
     display: inline-flex; align-items: center; gap: 0.5em; cursor: pointer;
     padding: 0.55em 0.9em; border-radius: 999px;
