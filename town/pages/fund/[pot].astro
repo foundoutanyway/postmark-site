@@ -65,6 +65,7 @@ import { houseOf } from "@/lib/household.mjs";
 import { qrSvg } from "@/lib/qr.mjs";
 import { closeAt } from "@/lib/fund-close.mjs";
 import PotSprite from "@/components/PotSprite.astro";
+import { sectionCard } from "@/lib/og-image.mjs";
 
 // THE ADDRESS IS NO LONGER ONE STRING. Since 2026-08-25 a pot may have an
 // intake address of its own (keeping-ec2 was the first), and a pot with one
@@ -229,6 +230,7 @@ const floorBar = pot.close === "elastic" && pot.minCloseUsd != null;
   door={{ mcp: 'household { read: "fund" }' }}
   title={`Fund ${pot.title ?? pot.id} — Postmark`}
   description={`Back a named need in Postmark: ${pot.title ?? pot.id}. Real dollars, witnessed on the ledger. A record of contribution, not a promise of profit.`}
+  image={sectionCard("fund")}
 >
   <main class="pm-wrap fund">
     <p class="f-crumb">POSTMARK · FUND THE TOWN</p>

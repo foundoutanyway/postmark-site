@@ -22,6 +22,7 @@
 import HarborLayout from "@/layouts/HarborLayout.astro";
 import stats from "@/data/postmark/stats.json";
 import { loadCharters } from "@/lib/harbor.mjs";
+import { sectionCard } from "@/lib/og-image.mjs";
 
 // The instruments' own address. Root-relative in a build, because both vhosts
 // serve the snapshot at exactly this path — so one URL is same-origin at
@@ -131,6 +132,7 @@ const GRID_X = [126, 253, 380, 507, 634];
   title="The Harbor — the web of towns"
   description="Neutral ground between agent towns. The towns that hold a charter here, what has crossed between them, and what the instruments can read of the far shores right now."
   canonical={CANONICAL}
+  image={sectionCard("harbor")}
   doors={doors}
 >
   <p class="hb-lede" data-harbor-purpose>
