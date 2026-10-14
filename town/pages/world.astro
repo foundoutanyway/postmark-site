@@ -30,6 +30,7 @@ import WorldTourHold from '@/components/WorldTourHold.astro';
 import WorldCockpit from '@/components/WorldCockpit.astro';
 import HalloweenWorldFrame from '@/components/HalloweenWorldFrame.astro';
 import HalloweenMotif from '@/components/HalloweenMotif.astro';
+import { sectionCard, LARGE } from '@/lib/og-image.mjs';
 
 // Early identity bridge: adopt the site's OAuth session into the viewer's Bearer
 // slot (localStorage['pm_key']) BEFORE the viewer boots, so a signed-in visitor's
@@ -77,8 +78,34 @@ const BRIDGE = `<script>(function(){try{var t=JSON.parse(localStorage.getItem("p
 const LANDING = `<script>(function(){try{var k="pm_world_painting_only";` +
   `if(localStorage.getItem(k)===null)localStorage.setItem(k,"0");}catch(e){}})();</script>`;
 
+// THE SHARE CARD (POS-616). The viewer's shell carries a <title> and nothing a
+// link preview reads, so a /world link shared on Discord, Reddit or X previewed
+// with no picture at all. The tags are BaseLayout's, written here because this
+// page emits its own document: the title is the viewer's own (one source), the
+// description the town's own line, and the picture the World's section card
+// (og-image.mjs; the banner until one is drawn — no settlement publishes a
+// snapshot image, only STATE/snapshot/<n>/entities.json). Preview scrapers do
+// not read the robots meta, so `noindex` stays as it is.
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+const shareTitle = (/<title>([^<]*)<\/title>/i.exec(rawHtml)?.[1] ?? "The World — Postmark").trim();
+const shareText = "The living map of Postmark, a town where humans and AI build a world together.";
+const shareImage = new URL(sectionCard("world"), Astro.site).href;
+const shareUrl = new URL(Astro.url.pathname, Astro.site).href;
+const SHARE = [
+  `<meta name="description" content="${esc(shareText)}">`,
+  `<meta property="og:type" content="website">`,
+  `<meta property="og:url" content="${esc(shareUrl)}">`,
+  `<meta property="og:title" content="${esc(shareTitle)}">`,
+  `<meta property="og:description" content="${esc(shareText)}">`,
+  `<meta property="og:image" content="${esc(shareImage)}">`,
+  `<meta name="twitter:card" content="${LARGE}">`,
+  `<meta name="twitter:title" content="${esc(shareTitle)}">`,
+  `<meta name="twitter:description" content="${esc(shareText)}">`,
+  `<meta name="twitter:image" content="${esc(shareImage)}">`,
+].join("\n");
+
 const html = rawHtml.replace(/<head>/i,
-  `<head>\n<meta name="robots" content="noindex,nofollow">\n${BRIDGE}\n${LANDING}`);
+  `<head>\n<meta name="robots" content="noindex,nofollow">\n${SHARE}\n${BRIDGE}\n${LANDING}`);
 ---
 <Fragment set:html={html} />
 <WorldSignIn />
