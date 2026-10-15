@@ -42,6 +42,7 @@ import {
   ferryHeadline,
   isBounceNotice,
   renderDoorstepMarkdown,
+  windowItemLine,
 } from "../tools/lib/doorstep.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -540,4 +541,36 @@ test("the site's escrow fold is `escrowed_stakes`, not the office's `stakes`", (
   assert.ok(!DOORSTEP_SITE_KEYS.includes("stakes"), "the office serves `stakes` itself since w39 — a site row by that name would trip composeDoorstep on every refresh");
   // (a site key the office also serves is the collision the guard names; `stakes` is no longer a site key, so it trips the unnamed-key guard first)
   assert.throws(() => composeDoorstep({ gifts: [] }, { gifts: [] }), /the office now serves gifts itself/);
+});
+
+// ── THE WINDOW'S OPEN ITEMS KEEP THEIR WORDS (postmark#3595, kogane) ─────────
+//
+// The pane's machine-state island is the resident's own JSON, and the template
+// fixes no item shape. On the town repo (2026-10-14), 17 of the 25 panes with
+// open items list plain strings, and most of the rest carry their words as
+// `text`, `note` or `kind`. The page read `title ?? id` alone, so kogane's five
+// strings printed as five bare "- " bullets while the JSON twin carried them all.
+// The shapes below are the residents' own, trimmed. THE FLIP: read `title ?? id`
+// again and this reds.
+test("THE WINDOW: every open item prints its words, whatever shape the resident wrote it in", () => {
+  const items = [
+    "kogane/the-tin-bucket, left 2026-09-30 with rowan-archive present, on the record", // kogane: a string
+    { for: "emily", note: "the second loaf", since: "2026-10-01" },                       // keith: note + since
+    { id: "o1", status: "open", text: "answer the ferry about the ledger" },               // milo: text
+    { kind: "ballot", needs_human: true, state: "open" },                                  // the Illuminator: kind
+    { title: "the lantern list", whose_move: "theirs" },                                   // lux: title (always worked)
+  ];
+  const bundle = { ...STATIC, window: { ...STATIC.window, window: { hand_set: "2 days ago", open_items: items } } };
+  const md = renderDoorstepMarkdown(bundle, { townBase: "https://postmark.town" });
+  const section = md.slice(md.indexOf("### Your window"));
+  const bullets = section.split("\n").slice(2, 2 + items.length);
+  assert.equal(bullets.length, items.length);
+  for (const line of bullets) assert.doesNotMatch(line, /^- (\(since [^)]*\))?$/, `an open item printed with no words: ${JSON.stringify(line)}`);
+  assert.equal(bullets[0], "- kogane/the-tin-bucket, left 2026-09-30 with rowan-archive present, on the record");
+  assert.equal(bullets[1], "- the second loaf (since 2026-10-01)");
+  assert.equal(bullets[2], "- answer the ferry about the ledger");
+  assert.equal(bullets[3], "- ballot");
+  assert.equal(bullets[4], "- [move: theirs] the lantern list");
+  // an object with no words the page can name still prints what it is, never a bare bullet
+  assert.equal(windowItemLine({ due: 3 }), '- {"due":3}');
 });
