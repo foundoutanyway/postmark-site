@@ -8,11 +8,12 @@
 # the meeps run on the operator's machine). A site PR's build was proven only
 # after it merged (deploy.yml's snapshot lane, on the train push) or by a local
 # `npm run build` in a pool tree, and local heavy runs make the meeps' Letta
-# server late enough to skip whole minutes of rounds. The `built-pages` job
-# below (the `build` job until POS-670) is the snapshot lane's build without
-# the rsync: the same install, the same read of the town from the public API,
-# the same `npm run build`, and nothing deployed, then the full suite against
-# that build. It needs no secret. `workflow_dispatch` grades any branch on demand
+# server late enough to skip whole minutes of rounds. The `build` job below is
+# the snapshot lane's build without the rsync: the same install, the same read
+# of the town from the public API, the same `npm run build`, and nothing
+# deployed. It needs no secret. The `built-pages` job (POS-670) builds again
+# from the committed data and runs the full suite against that build.
+# `workflow_dispatch` grades any branch on demand
 # (`gh workflow run test -R postmark-town/postmark-site --ref <branch>`).
 name: test
 on:
@@ -41,21 +42,10 @@ jobs:
         run: git clone --depth 1 https://github.com/postmark-town/postmark.git .postmark-checkout
       - run: npm test
 
-  # THE BUILT PAGES GET A PULSE (POS-670, 2026-10-17). The `test` job above
-  # never builds, so every test that reads dist-town skips there: push run
-  # 38412720335 passed with 100 skipped. Three built-page tests went red on
-  # 10-09/10-10 and nobody saw them but the Worldkeeper's own runner, which then
-  # held settlement S114 on them. This job is the old `build` job (the snapshot
-  # lane's build without the rsync: the same install, the same read of the town
-  # from the public API, the same `npm run build`, nothing deployed, no secret)
-  # with the full suite run against what it built, on every pull request and on
-  # every push to a train or main. A built-page red fails it.
-  #
-  # Its two halves are the ones the suite reads: the world pin installed
-  # exactly as package-lock.json names it (`npm ci`, never an install over an
-  # old node_modules), and the Town's main checked out beside the site, as the
-  # `test` job does.
-  built-pages:
+  # Pull requests and on-demand runs only: a push to a train already builds in
+  # deploy.yml's snapshot lane, and a push to main in its release lane.
+  build:
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -81,6 +71,42 @@ jobs:
           PUBLIC_CHANNEL: snapshot
           PUBLIC_BUILD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: npm run build
+
+  # THE BUILT PAGES GET A PULSE (POS-670, 2026-10-17). The `test` job above
+  # never builds, so every test that reads dist-town skips there: push run
+  # 38412720335 passed with 100 skipped. Three built-page tests went red on
+  # 10-09/10-10 and nobody saw them but the Worldkeeper's own runner, which then
+  # held settlement S114 on them. This job builds the site and runs the full
+  # suite against what it built, on every pull request and every push to a
+  # train or main. A built-page red fails it.
+  #
+  # It builds from the branch's own committed data, not a fresh read of the
+  # office API as `build` above does. The suite is written against the
+  # committed snapshot (sync-atlas commits it to main every 30 minutes), so a
+  # red here names the branch, never the town's last half hour. The first run
+  # of this job did fetch, and six tests that pin the committed snapshot went
+  # red on live data (PR #276's first run). `build` stays the fresh-data proof.
+  #
+  # The other two halves are the ones the suite reads: the world pin installed
+  # exactly as package-lock.json names it (`npm ci`, never an install over an
+  # old node_modules), and the Town's main checked out beside the site, as the
+  # `test` job does.
+  built-pages:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build (snapshot, from the committed data, nothing deployed)
+        env:
+          PUBLIC_CHANNEL: snapshot
+          PUBLIC_BUILD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: npm run build
       - name: Check the Town out beside the site (the funding seam's other half)
         run: git clone --depth 1 https://github.com/postmark-town/postmark.git .postmark-checkout
       - name: The full suite, against the build
@@ -93,7 +119,7 @@ jobs:
         shell: bash
         run: |
           SKIPPED=$(grep -oE '^# skipped [0-9]+' suite.tap | grep -oE '[0-9]+$')
-          echo "$(grep -E '^# (tests|pass|fail|skipped) ' suite.tap | tr '\n' ' ')"
+          grep -E '^# (tests|pass|fail|skipped) ' suite.tap | tr '\n' ' '; echo
           grep -E '^ *ok [0-9]+ - .*# SKIP' suite.tap || true
           if [ -z "$SKIPPED" ] || [ "$SKIPPED" -gt 5 ]; then
             echo "::error::${SKIPPED:-an unknown number of} tests skipped after a build: the built pages were not tested"
