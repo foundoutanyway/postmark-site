@@ -60,7 +60,7 @@
 // no image service: a strict CSP would block it, and handing a third party the
 // ability to change what an intake QR encodes is handing them the money.
 import PostmarkLayout from "@/layouts/PostmarkLayout.astro";
-import { livePots, loadPots, POT_FIXTURE, HOLO_LINE, HOLO_NAME_LINE, intakeFor, potGist, mintPerDollar, patronLabel, giverLabel } from "@/lib/funding.mjs";
+import { livePots, loadPots, POT_FIXTURE, HOLO_LINE, HOLO_NAME_LINE, intakeFor, potGist, mintPerDollar, patronLabel, giverLabel, fundCapOf } from "@/lib/funding.mjs";
 import { houseOf } from "@/lib/household.mjs";
 import { qrSvg } from "@/lib/qr.mjs";
 import { closeAt } from "@/lib/fund-close.mjs";
@@ -160,6 +160,11 @@ const target = pot.target ?? null;
 const received = pot.received ?? 0;
 const headroom = target == null ? null : Math.max(0, target - received);
 const uncapped = pot.uncapped === true || target == null;
+// THE CAP ON ONE GIFT (POS-661, settled A; src/lib/funding.mjs § fundCapOf):
+// PayPal's amount is held at the headroom, the card and USDC say it, and a
+// capped pot with none left offers no way to pay. An uncapped pot takes
+// whatever arrives, as before. A once pot has no next epoch to promise.
+const { cap, full, once } = fundCapOf(pot);
 // THIS POT'S OWN ADDRESS — and the QR encodes the same string the page
 // prints, because the QR is the path most patrons will actually use and the
 // one they CANNOT proofread.
@@ -339,7 +344,9 @@ const floorBar = pot.close === "elastic" && pot.minCloseUsd != null;
               {!open
                 ? <>Nothing can be sent against this pot while it is a draft.</>
                 : headroom > 0
-                ? <>This pot can still take <strong>{usd(headroom)}</strong> this epoch. Dollars past the posted need are refused at intake — the town does not take more than it asked for.</>
+                ? <>This pot can still take <strong>{usd(headroom)}</strong>{once ? "" : " this epoch"}. Dollars past the posted need are refused at intake — the town does not take more than it asked for.</>
+                : once
+                ? <>This pot has what it asked for, so it takes no more dollars. <a href="/town/#pots">The Town's pots</a> have other needs.</>
                 : <>This pot has what it asked for. Intake is closed until the next epoch opens; <a href="/town/#pots">the Town's pots</a> have other needs.</>}
             </p>
           </>
@@ -390,22 +397,31 @@ const floorBar = pot.close === "elastic" && pot.minCloseUsd != null;
           <span data-ledger-when="outside">Recorded on the town's public ledger as a gift from outside the town; it mints no stamps.</span>
           <a class="f-law-more" href="#fineprint">The fine print ↓</a>
         </p>
+        {full ? (
+          <p class="f-full" data-fund-full>This pot has what it asked for, so there is nothing to send. <a href="/town/#pots">The Town's pots</a> have other needs.</p>
+        ) : (<>
         <div class="f-rails">
           <a class="f-card f-rail-btn" data-card data-pot={pot.pot} href={`${STRIPE}?client_reference_id=${pot.pot}`} target="_blank" rel="noopener">Card ↗</a>
           {PAYPAL_CLIENT_ID && <button type="button" class="f-card f-rail-btn" aria-controls="pay-paypal" aria-expanded="false" data-open="pay-paypal">PayPal</button>}
           <button type="button" class="f-card f-rail-btn" aria-controls="usdc" aria-expanded="false" data-open="usdc">USDC</button>
         </div>
+        {/* The card's amount is typed on Stripe's own page, which this page
+            cannot hold (a Payment Link takes no amount), so the cap is said
+            where the payer chooses the card: a gift past it is refused whole. */}
+        {cap != null && (
+          <p class="f-card-note f-cap" data-fund-cap={cap}>Give at most <strong>{usd(cap)}</strong>: that is what this pot can still take. By card you type the amount on the card's own page, and a gift past {usd(cap)} is refused whole and refunded by hand.</p>
+        )}
 
       {/* THE PANELS open from their buttons, right under the row (Wright's
           review of #213: a button and a disclosure row naming the same rail was
           the page saying it twice). One panel is open at a time. */}
       {PAYPAL_CLIENT_ID && (
-      <div class="f-usdc f-paypal f-panel" id="pay-paypal" data-pp-client={PAYPAL_CLIENT_ID} data-pp-pot={pot.pot} data-pp-title={pot.title ?? pot.pot} hidden>
+      <div class="f-usdc f-paypal f-panel" id="pay-paypal" data-pp-client={PAYPAL_CLIENT_ID} data-pp-pot={pot.pot} data-pp-title={pot.title ?? pot.pot} data-pp-max={cap ?? undefined} hidden>
         <div class="f-rail">
           <p class="f-card-note f-panel-lead">For a giver whose bank balks at a card charge from abroad.</p>
           <div class="f-pp-form">
             <label class="f-pp-field">amount, in whole US dollars
-              <input name="pp-usd" type="number" min="1" step="1" inputmode="numeric" value="10" />
+              <input name="pp-usd" type="number" min="1" max={cap ?? undefined} step="1" inputmode="numeric" value={cap != null ? Math.min(10, cap) : 10} />
             </label>
           </div>
           <button type="button" class="f-card f-pp-go" data-pp-go>Pay with PayPal</button>
@@ -427,6 +443,9 @@ const floorBar = pot.close === "elastic" && pot.minCloseUsd != null;
               <button type="button" class="f-copy" data-copy={intake}>copy the address</button>
             </div>
           </div>
+          {cap != null && (
+            <p class="f-cap" data-usdc-cap={cap}>Send at most <strong>{cap} USDC</strong>: that is exactly what this pot can still take. The chain cannot refuse a larger send, so the town refuses it at intake and refunds it by hand.</p>
+          )}
           <ul class="f-warn">
             <li><strong>Base network, native USDC only.</strong> A wrong-network or wrong-token send is <strong>not recoverable by the town</strong> — best effort only, never a promise.</li>
             <li>The ledger records <strong>whole dollars</strong> — cents are held but priced nothing, and a payment under $1 cannot be witnessed as a receipt.</li>
@@ -467,6 +486,7 @@ const floorBar = pot.close === "elastic" && pot.minCloseUsd != null;
           </div>
         </div>
       </div>
+        </>)}
 
         <p class="f-card-note">Stripe and PayPal take the payment; the town never sees your card or account.</p>
       </div>
