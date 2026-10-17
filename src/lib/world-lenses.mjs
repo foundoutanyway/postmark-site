@@ -43,10 +43,15 @@ import { isClassNode, isPredicate, recordKind } from "./mark-class.mjs"; // S1: 
 // THE SERIALIZATION MAP — the machine-readable form of the trichotomy that
 // LOGOS/lifetimes.md § the node holds as prose.
 //
-// PORTED VERBATIM from tools/graph-views.mjs (world repo, branch
-// jetto/graph-views), where it landed as a tracked artifact under founder ruling
-// 2026-08-12 (WRITE-REGISTRY.md row "the serialization mapping (field →
-// predicate star)").
+// PORTED from tools/graph-views.mjs (world repo, commit 013c0c7e on
+// wright/hub-pin; the jetto/graph-views branch it was written on is gone), where
+// it landed as a tracked artifact under founder ruling 2026-08-12, and RE-HOMED
+// HERE on 2026-08-13 when the tier-gap viewer retired: WRITE-REGISTRY.md row
+// "the serialization mapping (field → predicate star)" names this lens as the
+// map's live home, so this copy is the table and the world file its history.
+// Changed here since: `cites:` names LOGOS/lifetimes.md (the doc's rename), and
+// the `property` scope was added 2026-10-17 for LOGOS v2 part 2 (W1), whose
+// class-side properties are `kind: property` nodes.
 //
 // IT IS A TABLE, NOT A READING, which is why it may live in the site's tree at
 // all: this page bakes no world data, and a founder-authored table of what a
@@ -157,6 +162,20 @@ export const SERIALIZATION_MAP = {
   naming: {
     predicate: { value: "the name given" },
     relational: { parent: ["containment", "the node this names"] },
+  },
+  // A PROPERTY NODE — the class side (LOGOS/classes.md § Property and predicate,
+  // 2026-10-16): "the four fields of a property are fixed … a name, a tier, a
+  // default and a body", the body riding as every node's does. Its fixed fields
+  // are already in lawful shape, as a predicated mark's slot and value are; it
+  // is filed under the class (or the property) it belongs to.
+  property: {
+    predicate: {
+      name: "the property's name, a fixed field",
+      of: "the class it is a property of, a fixed field",
+      default: "the property's default (its locked value at constitution tier), a fixed field",
+      property_tier: "whose word decides the value on an instance, a fixed field",
+    },
+    relational: { parent: ["containment", "the class or property this one is filed under"] },
   },
 };
 

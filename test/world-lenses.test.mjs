@@ -115,11 +115,17 @@ test("the map cites the lifetime doctrine at its new home, and is otherwise exac
   assert.equal(SERIALIZATION_MAP.cites, "LOGOS/lifetimes.md § the node · LOGOS/the-north-star.md § the placement discipline");
   assert.doesNotMatch(SERIALIZATION_MAP.cites, /kinds\.md/);
   const { createHash } = await import("node:crypto");
-  const { cites, ...rest } = SERIALIZATION_MAP;
+  // S1 (2026-10-17) added one scope, `property`, for W1's property nodes; it is
+  // held exactly below, and everything else keeps the fingerprint it had
+  const { cites, property, ...rest } = SERIALIZATION_MAP;
   const canon = (v) => Array.isArray(v) ? v.map(canon) : (v && typeof v === "object") ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v;
   assert.equal(createHash("sha256").update(JSON.stringify(canon(rest))).digest("hex"),
     "316d6a2aae19f38de365ba281a4a6dd0ca34d6aac0741f947dc2f7ffa118b0e5",
-    "version, entries, keys and classifications unchanged — only the citation moved");
+    "version, entries, keys and classifications unchanged — only the citation moved, and the property scope was added");
+  assert.deepEqual(Object.keys(property.predicate), ["name", "of", "default", "property_tier"], "the property's fixed fields");
+  assert.deepEqual(Object.keys(property.relational), ["parent"]);
+  assert.equal(property.relational.parent[0], "containment");
+  assert.deepEqual(Object.keys(property).sort(), ["predicate", "relational"], "and nothing else in the new scope");
 });
 
 // ── one node, through the law's glasses ──────────────────────────────────────

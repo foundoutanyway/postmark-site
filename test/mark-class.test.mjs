@@ -198,3 +198,14 @@ test("M8: W1's property nodes are declarations: the cutover meter counts none of
   const without = classRegistry([cls("thing"), cls("parcel"), cls("resident"), ...instances]);
   assert.deepEqual({ ...without, propertyNodes: 4 }, r);
 });
+
+test("M9: a W1-shaped property row carries no mapping debt: its fixed fields are lawful and its parent is containment", () => {
+  const row = { id: "the-town/thing-portable", kind: "mark", subkind: "property", by: "the-town", tier: "constitution",
+    keys: ["kind", "by", "tier", "date", "name", "of", "default", "property_tier", "parent"] };
+  const r = serializationOf(row);
+  assert.deepEqual(r.debt, [], "no key is the map's debt");
+  assert.deepEqual(r.predicates.map((p) => [p.key, p.lawful]), [["name", true], ["of", true], ["default", true], ["property_tier", true]]);
+  assert.ok(r.edges.some((e) => e.key === "parent" && e.edge === "containment"));
+  assert.equal(fieldCensus([row]).rows.unmapped, 0);
+  assert.equal(lawMeasures([row]).find((x) => x.key === "debt").now, 0, "the law's debt measure stays where it was");
+});
