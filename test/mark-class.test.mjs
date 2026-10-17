@@ -151,3 +151,22 @@ test("M6: harbor's charters, the cockpit's parcel and lawMeasures' count read th
   assert.equal(count("predicated"), 1);
   assert.equal(count("naming"), 0, "a naming is not a slot-and-value record");
 });
+
+test("M7 (WLD-73 G10/G11): every predicate read answers kind: predicated and kind: predicate the same, pen and state alike", () => {
+  const place = "kai/the-shop";
+  const plaque = (kind) => ({ id: "kai/sign", kind, slot: "trade", value: "bread", parent: place });
+  for (const where of ["pen", "state"]) {
+    const feed = (kind) => (where === "pen" ? { pen: { "kai/sign": plaque(kind) } } : { state: { marks: [plaque(kind)] } });
+    const old = predicatesOf(place, feed("predicated"));
+    assert.deepEqual(old, [{ slot: "trade", value: "bread" }], `${where}: the old form reads`);
+    assert.deepEqual(predicatesOf(place, feed("predicate")), old, `${where}: the new form reads the same`);
+  }
+  // the store publishes kind: <class> with no class: (G11 A), as a graph node's subkind
+  for (const subkind of ["predicated", "predicate"]) {
+    const d = { id: "kai/sign", kind: "mark", subkind, keys: ["kind", "by", "date", "slot", "value", "parent"] };
+    assert.ok(isContinuation(d), `${subkind}: a continuation`);
+    assert.equal(mapScopeOf(d), "predicated", `${subkind}: the map's predicated scope`);
+  }
+  assert.deepEqual(serializationOf({ kind: "mark", subkind: "predicate", keys: ["slot", "value", "parent"] }),
+    serializationOf({ kind: "mark", subkind: "predicated", keys: ["slot", "value", "parent"] }), "the slot rows read the same");
+});
