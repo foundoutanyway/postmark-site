@@ -271,3 +271,15 @@ test("M9b: properties expressed as nodes counts W1's property nodes beside the p
   const after = row([pred, W1_PROPERTIES[0]]).now;
   assert.equal(after, before);
 });
+
+test("M10: the predicate and naming class nodes are neither predicates nor continuations: a declaration is never an instance predicate", () => {
+  // as world main's store payload carries them (kind: class, declares, class: predicate / naming)
+  const node = (c) => ({ id: `the-town/${c}`, kind: "mark", subkind: "class", class: c, by: "the-town", tier: "constitution", declares: true });
+  // and as their files spell them (kind: class + class:)
+  const file = (c) => ({ id: `the-town/${c}`, kind: "class", class: c });
+  for (const c of ["predicate", "naming"]) {
+    for (const d of [node(c), file(c)]) assert.ok(!isPredicate(d), `${c} (${d.kind}): not a predicate`);
+    assert.ok(!isContinuation(node(c)), `${c}: not painted as a continuation`);
+  }
+  assert.ok(isPredicate({ kind: "predicate" }) && isPredicate({ kind: "naming" }), "their instances still are");
+});

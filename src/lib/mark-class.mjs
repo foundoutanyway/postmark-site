@@ -93,8 +93,12 @@ export function isA(m, cls, { extendsOf = null } = {}) {
   return (named !== "" && climbs(named)) || climbs(kindClassOf(m));
 }
 
-/** A predicate: `kind: predicated` (old), `kind: predicate` (new), or a naming. */
-export const isPredicate = (m, opts) => isA(m, "predicate", opts);
+/**
+ * A predicate: `kind: predicated` (old), `kind: predicate` (new), or a naming.
+ * A declaration is never an instance predicate: the class nodes the-town/predicate
+ * and the-town/naming name the class without being one (the rule isInstanceOf keeps).
+ */
+export const isPredicate = (m, opts) => !isClassNode(m) && isA(m, "predicate", opts);
 
 /** A declaration, not an instance: a class node or a property node (`kind: class` / `kind: property`), or the store's `declares`. */
 export const isClassNode = (m) => !!m && (m.declares === true || ["class", "property"].includes(recordKind(m)));
