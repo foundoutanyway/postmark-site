@@ -61,27 +61,43 @@ export function classOf(m) {
 // The law's own subclass facts, for a caller with no class tree in hand.
 const KNOWN_PARENT = Object.freeze({ naming: "predicate" });
 
+/** The record kind spelled as the class it names (`predicated` → `predicate`), or null. */
+export function kindClassOf(m) {
+  const k = recordKind(m);
+  return k ? (OLD_KIND[k] ?? k) : null;
+}
+
 /**
  * Is `m` of class `cls`? Exact on its own; up the chain with `extendsOf`
  * (a class name → its parent's name, or null). Stops at a loop.
+ *
+ * EITHER CHAIN ANSWERS. A record of the old form may carry both fields with
+ * two different answers: today's record holds three `kind: predicated` +
+ * `class: idea` marks (review-600 on site #275), which are predicates by their
+ * kind and ideas by their class. So the class field's chain and the record
+ * kind's chain are each asked, and either one is enough.
  */
 export function isA(m, cls, { extendsOf = null } = {}) {
-  let c = classOf(m);
   const want = String(cls);
-  const seen = new Set();
-  while (c && !seen.has(c)) {
-    if (c === want) return true;
-    seen.add(c);
-    c = (extendsOf ? extendsOf(c) : null) ?? KNOWN_PARENT[c] ?? null;
-  }
-  return false;
+  const climbs = (start) => {
+    let c = start;
+    const seen = new Set();
+    while (c && !seen.has(c)) {
+      if (c === want) return true;
+      seen.add(c);
+      c = (extendsOf ? extendsOf(c) : null) ?? KNOWN_PARENT[c] ?? null;
+    }
+    return false;
+  };
+  const named = m?.class == null ? "" : String(m.class).trim();
+  return (named !== "" && climbs(named)) || climbs(kindClassOf(m));
 }
 
 /** A predicate: `kind: predicated` (old), `kind: predicate` (new), or a naming. */
 export const isPredicate = (m, opts) => isA(m, "predicate", opts);
 
-/** A class node — a declaration, not an instance (`kind: class`, or the store's `declares`). */
-export const isClassNode = (m) => !!m && (m.declares === true || recordKind(m) === "class");
+/** A declaration, not an instance: a class node or a property node (`kind: class` / `kind: property`), or the store's `declares`. */
+export const isClassNode = (m) => !!m && (m.declares === true || ["class", "property"].includes(recordKind(m)));
 
 /** An instance of `cls`, never the class node that declares it. */
 export const isInstanceOf = (m, cls, opts) => !isClassNode(m) && isA(m, cls, opts);

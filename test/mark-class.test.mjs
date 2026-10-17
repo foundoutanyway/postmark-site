@@ -7,17 +7,30 @@
 //   M3  a class node is never an instance of the class it declares (the
 //       DEFINITION_KIND ruling in civic.mjs, now one rule for every reader)
 //   M4  the readers routed through it answer the same for the new form as for
-//       the old: predicatesOf, isIdea, isNotice, isContinuation
+//       the old: predicatesOf, isIdea, isNotice, isContinuation; and a mark of
+//       the old form carrying BOTH fields (`kind: predicated` + `class: idea`,
+//       three on world main) is a predicate by its kind and an idea by its class
+//   M5  the serialization map's scope goes through the helper: a `kind: thing`
+//       mark reads as sited and a `kind: predicate` one as predicated, so the
+//       census owes no false debt after W2; a property node is a declaration
+//   M6  the readers whose flips stay green today, held on the new form: harbor's
+//       charters and their predicates, the cockpit's parcel, lawMeasures' count
 //
 // Run: node --test test/mark-class.test.mjs
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { classOf, isA, isClassNode, isInstanceOf, isPredicate, recordKind } from "../src/lib/mark-class.mjs";
+import { loadCharters } from "../src/lib/harbor.mjs";
+import { ownParcelIn } from "../src/lib/world-cockpit.mjs";
 import { predicatesOf, isIdea } from "../src/lib/civic.mjs";
 import { isNotice } from "../src/lib/board.mjs";
-import { isContinuation } from "../src/lib/world-lenses.mjs";
+import { fieldCensus, isContinuation, lawMeasures, mapScopeOf, serializationOf } from "../src/lib/world-lenses.mjs";
 
 // [old form, new form, the class both name]
 const PAIRS = [
@@ -84,4 +97,57 @@ test("M4: the routed readers answer the new form as they answered the old", () =
   assert.ok(isContinuation({ kind: "mark", subkind: "predicated" }));
   assert.ok(isContinuation({ kind: "mark", subkind: "naming" }));
   assert.ok(!isContinuation({ kind: "mark", subkind: "sited" }));
+});
+
+test("M4b: a dual-field record (kind: predicated + class: idea) is a predicate by its kind and an idea by its class", () => {
+  const dual = { id: "let-there-be-light/the-dropped-field", kind: "predicated", class: "idea", slot: "field", value: "dropped", parent: "kai/the-shop" };
+  assert.ok(isPredicate(dual));
+  assert.ok(isIdea(dual), "and still an idea, as it was");
+  assert.ok(isContinuation({ kind: "mark", subkind: "predicated", class: "idea" }));
+  assert.deepEqual(predicatesOf("kai/the-shop", { state: { marks: [dual] } }), [{ slot: "field", value: "dropped" }], "its slot counts on the place it describes");
+  const measured = lawMeasures([{ id: dual.id, kind: "mark", subkind: "predicated", class: "idea", keys: ["kind", "slot", "value"] }]);
+  assert.equal(measured.find((r) => r.key === "predicates").now, 1, "and in the law's predicate count");
+});
+
+test("M5: the serialization map's scope goes through the helper, so the new form owes no false debt", () => {
+  const node = (subkind, keys, extra = {}) => ({ id: `x/${subkind}`, kind: "mark", subkind, keys, ...extra });
+  assert.equal(mapScopeOf(node("sited", [])), "sited");
+  assert.equal(mapScopeOf(node("thing", [])), "sited", "a sited subclass the map does not name reads as sited");
+  assert.equal(mapScopeOf(node("candy", [])), "sited");
+  assert.equal(mapScopeOf(node("predicate", [])), "predicated");
+  assert.equal(mapScopeOf(node("naming", [])), "naming", "a kind the map names is its own scope");
+  assert.equal(mapScopeOf(node("class", [])), "class", "a declaration has no standing scope");
+  assert.equal(mapScopeOf(node("property", [])), "property");
+  const siteKeys = ["kind", "by", "tier", "at", "extent", "date", "points"];
+  const predKeys = ["kind", "by", "tier", "date", "slot", "value"];
+  const strip = (r) => ({ edges: r.edges.map((e) => e.key), predicates: r.predicates.map((p) => p.key), residue: r.residue.map((x) => x.key), debt: r.debt.map((x) => x.key) });
+  assert.deepEqual(strip(serializationOf(node("thing", siteKeys))), strip(serializationOf(node("sited", siteKeys))), "a thing is serialized as the sited mark it was");
+  assert.deepEqual(strip(serializationOf(node("predicate", predKeys))), strip(serializationOf(node("predicated", predKeys))), "a predicate as the predicated mark it was");
+  const census = (subkind, keys) => fieldCensus([node(subkind, keys)]).rows;
+  assert.deepEqual(census("thing", siteKeys), census("sited", siteKeys));
+  assert.deepEqual(census("predicate", predKeys), census("predicated", predKeys));
+  assert.ok(isClassNode({ kind: "property" }) && isClassNode({ kind: "mark", subkind: "property" }), "a property node is a declaration");
+  assert.ok(!isInstanceOf({ kind: "property", class: "idea" }, "idea"));
+});
+
+test("M6: harbor's charters, the cockpit's parcel and lawMeasures' count read the new form as the old", () => {
+  const registry = (kinds) => {
+    const dir = mkdtempSync(join(tmpdir(), "s1-harbor-"));
+    const write = (rel, fm, body) => { mkdirSync(join(dir, rel), { recursive: true }); writeFileSync(join(dir, rel, "mark.md"), `---\n${fm}\n---\n${body}\n`); };
+    write("1f916", `by: the-town\n${kinds.charter}\ntier: constitution\ndate: 2026-10-01`, "the forum");
+    write("1f916/door", `by: the-town\n${kinds.predicate}\nslot: door\nvalue: the forum's gate\ndate: 2026-10-01`, "its door");
+    return dir;
+  };
+  const read = (kinds) => loadCharters({ path: registry(kinds) }).map((t) => ({ slug: t.slug, door: t.door, slots: t.predicates.map((p) => p.slot) }));
+  const old = read({ charter: "kind: sited\nclass: town", predicate: "kind: predicated" });
+  assert.deepEqual(old, [{ slug: "1f916", door: "the forum's gate", slots: ["door"] }], "the old form reads");
+  assert.deepEqual(read({ charter: "kind: town", predicate: "kind: predicate" }), old, "the new form reads the same");
+  const within = (w) => ({ within: [{ id: "the-town/the-town-centre", by: "the-town", kind: "sited" }, w] });
+  for (const w of [{ id: "kai/the-shop-ground", by: "kai", kind: "parcel" }, { id: "kai/the-shop-ground", by: "kai", kind: "sited", class: "parcel" }])
+    assert.equal(ownParcelIn(within(w), ["kai"]), "kai/the-shop-ground", JSON.stringify(w));
+  assert.equal(ownParcelIn(within({ id: "kai/the-shop", by: "kai", kind: "thing" }), ["kai"]), null);
+  const count = (subkind) => lawMeasures([{ id: "x", kind: "mark", subkind, keys: ["kind", "slot", "value"] }]).find((r) => r.key === "predicates").now;
+  assert.equal(count("predicate"), count("predicated"));
+  assert.equal(count("predicated"), 1);
+  assert.equal(count("naming"), 0, "a naming is not a slot-and-value record");
 });

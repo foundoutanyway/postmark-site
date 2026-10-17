@@ -37,7 +37,7 @@
 // point of these readings is to watch figures move; a literal baked in as a
 // comparison would be a claim about a store nobody is looking at.
 
-import { classOf, isPredicate } from "./mark-class.mjs"; // S1: a mark's class from either form
+import { isClassNode, isPredicate, recordKind } from "./mark-class.mjs"; // S1: a mark's class from either form
 
 // ═══════════════════════════════════════════════════════════════════════════
 // THE SERIALIZATION MAP — the machine-readable form of the trichotomy that
@@ -168,6 +168,23 @@ const ROWS = ["identity", "relational", "derived", "log", "predicate", "property
  * `unmapped` is the honest answer for a key the table does not place, and the
  * lens renders it as this table's own debt rather than as a property.
  */
+/**
+ * The map's scope for one node (S1, review-600 on site #275). The map is keyed
+ * on the old standings, and after the kind migration a mark's kind names its
+ * class (`kind: thing`, `kind: predicate`), so the scope is resolved through the
+ * class helper: a kind the map names is its own scope; a predicate the map does
+ * not name reads as `predicated`; any other mark subclass is sited (sited and
+ * predicate are mark's two subclasses, classes.md § Property and predicate). A
+ * declaration (a class or property node) has no standing scope, so only `*`
+ * applies, as before.
+ */
+export function mapScopeOf(d) {
+  const r = recordKind(d);
+  if (r != null && Object.hasOwn(SERIALIZATION_MAP, r)) return r;
+  if (r == null || isClassNode(d)) return r;
+  return isPredicate(d) ? "predicated" : "sited";
+}
+
 export function serializes(kind, key) {
   for (const scope of [SERIALIZATION_MAP[kind], SERIALIZATION_MAP["*"]]) {
     if (!scope) continue;
@@ -214,7 +231,7 @@ export function serializationOf(d) {
   // predicate's identity payload (lifetimes.md), so it is named as a predicate the
   // record already keeps rather than one it owes.
   for (const k of d.keys) {
-    const s = serializes(d.subkind, k);
+    const s = serializes(mapScopeOf(d), k);
     if (s.row === "edge") out.edges.push({ key: k, edge: s.edge, note: s.note });
     else if (s.row === "property") out.predicates.push({ key: k, slot: s.slot, note: s.note, lawful: false });
     else if (s.row === "predicate") out.predicates.push({ key: k, slot: k, note: s.note, lawful: true });
@@ -263,7 +280,7 @@ export function fieldCensus(nodes) {
     if (d.kind !== "mark" || !Array.isArray(d.keys)) continue;
     read++;
     for (const k of d.keys) {
-      const { row } = serializes(d.subkind, k);
+      const { row } = serializes(mapScopeOf(d), k);
       rows[row]++; total++;
       if (row === "unmapped") bump(unmappedKeys, `${d.subkind}.${k}`);
       if (row === "derived") bump(residueKeys, k);
@@ -487,8 +504,8 @@ export function classFilters(nodes) {
 export function lawMeasures(nodes) {
   const reg = classRegistry(nodes);
   const fields = fieldCensus(nodes);
-  // S1: either spelling of the predicate class, never a naming (this counts the slot-and-value records)
-  const predicateNodes = nodes.filter((d) => d.kind === "mark" && classOf(d) === "predicate").length;
+  // S1: either spelling of the predicate's record kind, never a naming (this counts the slot-and-value records)
+  const predicateNodes = nodes.filter((d) => d.kind === "mark" && ["predicated", "predicate"].includes(recordKind(d))).length;
   const denom = fields.rows.property + predicateNodes;
   const top = fields.propertyKeys.slice(0, 5).map(([k, n]) => `${k} (${n})`).join(", ");
   return [
