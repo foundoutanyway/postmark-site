@@ -165,17 +165,21 @@ export const SERIALIZATION_MAP = {
   },
   // A PROPERTY NODE — the class side (LOGOS/classes.md § Property and predicate,
   // 2026-10-16): "the four fields of a property are fixed … a name, a tier, a
-  // default and a body", the body riding as every node's does. Its fixed fields
-  // are already in lawful shape, as a predicated mark's slot and value are; it
-  // is filed under the class (or the property) it belongs to.
+  // default and a body", the body riding as every node's does. Keyed on what W1
+  // (world #235 at 6c301955) actually writes on its 194 property records: every
+  // one carries name and tier, 188 a default, 9 child properties an `of:` (the
+  // property they belong to), 5 a values-tier, 4 a version, 12 a source (`*`).
+  // Here `tier` is the property's own fixed field, whose word decides its value,
+  // never the standing `*` calls residue.
   property: {
     predicate: {
       name: "the property's name, a fixed field",
-      of: "the class it is a property of, a fixed field",
+      tier: "whose word decides the value (constitution or sovereign), a fixed field",
       default: "the property's default (its locked value at constitution tier), a fixed field",
-      property_tier: "whose word decides the value on an instance, a fixed field",
+      "values-tier": "the tier the values under this property take, where it differs from the property's own",
     },
-    relational: { parent: ["containment", "the class or property this one is filed under"] },
+    relational: { of: ["of", "child property → the property it belongs to"] },
+    property: { version: ["version", "the property's revision"] },
   },
 };
 
@@ -325,8 +329,9 @@ const sortedPairs = (m) => [...m].sort((a, b) => b[1] - a[1] || a[0].localeCompa
 // and a node naming no class-node is not addressable at all.
 //
 // A class-node DECLARES a class — it carries `class:`, and with it the version,
-// dials and implements that make a class a class. Every other node NAMES one,
-// today through `kind:`, whose four words are the older vocabulary and only one
+// dials and implements that make a class a class. A property node (W1) declares
+// too: it is the class side's property, filed under its class. Every other node,
+// every instance, NAMES a class, today through `kind:`, whose four words are the older vocabulary and only one
 // of which (`parcel`) has a class-node behind it. The two are counted APART:
 // conflating them would report the registry as its own membership and make the
 // closure look far healthier than it is.
@@ -362,7 +367,24 @@ export function classRegistry(nodes) {
     unaddressable: marks.length - citing.length,
     unregisteredKinds: sortedPairs(unreg),
     citing_ids: citing.map((d) => d.id),
+    // the drill's own set: the marks the meter counts that name no class
+    // (never "every node not citing", which would light the declarations too)
+    unaddressable_ids: marks.filter((d) => !names(d)).map((d) => d.id),
   };
+}
+
+/**
+ * The registry paint for one node: `spine` or `off` for the machinery the
+ * convergence spine runs over (or not), `declares` for a declaration (the same
+ * rule the meter counts by, mark-class § isClassNode: a class-node or a
+ * property node), and for an instance `names` or `unaddressable`, as the meter
+ * counts it. One function, so the page's colours and the meter cannot disagree.
+ */
+export function registryPaintOf(d, registeredSet, convergenceKinds = []) {
+  if (!d) return null;
+  if (d.kind !== "mark") return convergenceKinds.includes(d.kind) ? "spine" : "off";
+  if (isClassNode(d)) return "declares";
+  return d.class != null || registeredSet.has(String(d.subkind ?? "")) ? "names" : "unaddressable";
 }
 
 /** Does this node name a class-node — i.e. can the law address it at all? */
@@ -536,9 +558,14 @@ export function classFilters(nodes) {
 export function lawMeasures(nodes) {
   const reg = classRegistry(nodes);
   const fields = fieldCensus(nodes);
-  // S1: either spelling of the predicate's record kind, never a naming (this counts the slot-and-value records)
+  // S1: properties expressed as NODES, of either shape: a predicate node (either
+  // spelling of its record kind, never a naming: the slot-and-value records) or a
+  // property node (W1's class side, which took 98 of them over). Properties are
+  // nodes by the ruled law, so a row W1 converts stays counted rather than
+  // reading the measure backwards.
   const predicateNodes = nodes.filter((d) => d.kind === "mark" && ["predicated", "predicate"].includes(recordKind(d))).length;
-  const denom = fields.rows.property + predicateNodes;
+  const asNodes = predicateNodes + reg.propertyNodes;
+  const denom = fields.rows.property + asNodes;
   const top = fields.propertyKeys.slice(0, 5).map(([k, n]) => `${k} (${n})`).join(", ");
   return [
     {
@@ -558,7 +585,7 @@ export function lawMeasures(nodes) {
         : "every node names a class-node",
     },
     {
-      key: "predicates", label: "properties expressed as predicate nodes", now: predicateNodes, of: denom, target: denom,
+      key: "predicates", label: "properties expressed as nodes", now: asNodes, of: denom, target: denom,
       note: `${fields.rows.property} genuine properties are still frontmatter fields${top ? ` — commonest: ${top}` : ""}`,
     },
     {

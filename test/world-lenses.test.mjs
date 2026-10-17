@@ -122,10 +122,12 @@ test("the map cites the lifetime doctrine at its new home, and is otherwise exac
   assert.equal(createHash("sha256").update(JSON.stringify(canon(rest))).digest("hex"),
     "316d6a2aae19f38de365ba281a4a6dd0ca34d6aac0741f947dc2f7ffa118b0e5",
     "version, entries, keys and classifications unchanged — only the citation moved, and the property scope was added");
-  assert.deepEqual(Object.keys(property.predicate), ["name", "of", "default", "property_tier"], "the property's fixed fields");
-  assert.deepEqual(Object.keys(property.relational), ["parent"]);
-  assert.equal(property.relational.parent[0], "containment");
-  assert.deepEqual(Object.keys(property).sort(), ["predicate", "relational"], "and nothing else in the new scope");
+  // keyed on the keys W1 (world #235 at 6c301955) actually writes on its 194 property records
+  assert.deepEqual(Object.keys(property.predicate), ["name", "tier", "default", "values-tier"], "the property's fixed fields");
+  assert.deepEqual(Object.keys(property.relational), ["of"]);
+  assert.equal(property.relational.of[0], "of", "a child property's of: is the edge to its parent property");
+  assert.deepEqual(Object.keys(property.property), ["version"]);
+  assert.deepEqual(Object.keys(property).sort(), ["predicate", "property", "relational"], "and nothing else in the new scope");
 });
 
 // ── one node, through the law's glasses ──────────────────────────────────────

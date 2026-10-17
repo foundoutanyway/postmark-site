@@ -30,7 +30,7 @@ import { loadCharters } from "../src/lib/harbor.mjs";
 import { ownParcelIn } from "../src/lib/world-cockpit.mjs";
 import { predicatesOf, isIdea } from "../src/lib/civic.mjs";
 import { isNotice } from "../src/lib/board.mjs";
-import { REGISTRY_OWN, classRegistry, fieldCensus, filterBucketOf, isContinuation, lawMeasures, mapScopeOf, serializationOf } from "../src/lib/world-lenses.mjs";
+import { REGISTRY_OWN, classRegistry, fieldCensus, filterBucketOf, isContinuation, lawMeasures, mapScopeOf, registryPaintOf, serializationOf } from "../src/lib/world-lenses.mjs";
 
 // [old form, new form, the class both name]
 const PAIRS = [
@@ -171,41 +171,103 @@ test("M7 (WLD-73 G10/G11): every predicate read answers kind: predicated and kin
     serializationOf({ kind: "mark", subkind: "predicated", keys: ["slot", "value", "parent"] }), "the slot rows read the same");
 });
 
+// W1's REAL property records (world #235 at 6c301955), as the office's graph
+// payload carries them: node kind "mark", the record's kind as subkind, and the
+// author's own frontmatter keys. Copied from the tree, not invented: the key
+// census over all 194 is name 194, tier 194, default 188, source 12, of 9,
+// values-tier 5, version 4.
+const W1 = "WORLD/marks/let-there-be-light/the-town-centre/the-keeping-works";
+const w1Row = (id, path, tier, keys) => ({ id, kind: "mark", subkind: "property", by: "the-town", tier, path: `${W1}/${path}`, keys });
+const W1_PROPERTIES = [
+  // postmark-node/mark/thing/thing-portable: a sovereign property and its default
+  w1Row("the-town/thing-portable", "postmark-node/mark/thing/thing-portable", "sovereign", ["kind", "by", "tier", "date", "name", "default"]),
+  // postmark-node/entity/resident/resident-capacity: a child property, `of:` its parent property
+  w1Row("the-town/resident-capacity", "postmark-node/entity/resident/resident-capacity", "constitution", ["kind", "by", "tier", "date", "name", "of", "default"]),
+  // postmark-derived/position/exposure-slot: values-tier
+  w1Row("the-town/exposure-slot", "postmark-derived/position/exposure-slot", "constitution", ["kind", "by", "tier", "date", "name", "default", "values-tier"]),
+  // postmark-edge/settle/co-sign-guard: a version
+  w1Row("the-town/co-sign-guard", "postmark-edge/settle/co-sign-guard", "constitution", ["kind", "by", "tier", "date", "name", "default", "version"]),
+  // postmark-derived/position/the-anchor: a source
+  w1Row("the-town/the-anchor", "postmark-derived/position/the-anchor", "constitution", ["kind", "by", "tier", "date", "name", "default", "source"]),
+  // postmark-node/mark/mark-body: one of the six with no default
+  w1Row("the-town/mark-body", "postmark-node/mark/mark-body", "sovereign", ["kind", "by", "tier", "date", "name"]),
+];
+
 test("M8: W1's property nodes are declarations: the cutover meter counts none of them as unaddressable, and says how many on their own line", () => {
   const cls = (name) => ({ id: `the-town/${name}`, kind: "mark", subkind: "class", class: name, by: "the-town", tier: "constitution", declares: true });
-  // the store's rows of kind property, as W1 writes them (name, default, property_tier, parent; no class:)
-  const prop = (parent, name, dflt) => ({ id: `the-town/${parent}-${name}`, kind: "mark", subkind: "property", by: "the-town", tier: "constitution",
-    name, default: dflt, property_tier: "constitution", parent: `the-town/${parent}` });
   const instances = [
     { id: "kai/the-good-lighter", kind: "mark", subkind: "thing", by: "kai" },
     { id: "kai/the-shop-ground", kind: "mark", subkind: "parcel", by: "kai" },
     { id: "kai/a-bench", kind: "mark", subkind: "sited", by: "kai" },
   ];
-  const props = [prop("thing", "portable", true), prop("thing", "holder", false), prop("resident", "capacity", 24), prop("parcel", "extent_m", 25)];
-  const nodes = [cls("thing"), cls("parcel"), cls("resident"), ...props, ...instances];
+  const classes = [cls("thing"), cls("parcel"), cls("resident")];
+  const nodes = [...classes, ...W1_PROPERTIES, ...instances];
   const r = classRegistry(nodes);
   assert.equal(r.marks, 3, "only instances are counted");
   assert.equal(r.citing, 2, "the thing and the parcel name registered classes");
   assert.equal(r.unaddressable, 1, "the plain sited mark, and no property node");
   assert.deepEqual(r.unregisteredKinds, [["sited", 1]], "no 'kind: property' in the older vocabulary");
-  assert.equal(r.propertyNodes, 4);
+  assert.equal(r.propertyNodes, W1_PROPERTIES.length);
   const m = Object.fromEntries(lawMeasures(nodes).map((x) => [x.key, x]));
-  assert.equal(m["property-nodes"].now, 4);
+  assert.equal(m["property-nodes"].now, W1_PROPERTIES.length);
   assert.equal(m.citing.of, 3);
   const set = new Set(r.registered);
-  for (const p of props) assert.equal(filterBucketOf(p, set), REGISTRY_OWN, `${p.id}: the registry's own chip, never the older vocabulary`);
+  for (const p of W1_PROPERTIES) assert.equal(filterBucketOf(p, set), REGISTRY_OWN, `${p.id}: the registry's own chip, never the older vocabulary`);
   // the same world without its property nodes reads the same meter: they add a line, never a debt
-  const without = classRegistry([cls("thing"), cls("parcel"), cls("resident"), ...instances]);
-  assert.deepEqual({ ...without, propertyNodes: 4 }, r);
+  const without = classRegistry([...classes, ...instances]);
+  assert.deepEqual({ ...without, propertyNodes: W1_PROPERTIES.length }, r);
 });
 
-test("M9: a W1-shaped property row carries no mapping debt: its fixed fields are lawful and its parent is containment", () => {
-  const row = { id: "the-town/thing-portable", kind: "mark", subkind: "property", by: "the-town", tier: "constitution",
-    keys: ["kind", "by", "tier", "date", "name", "of", "default", "property_tier", "parent"] };
-  const r = serializationOf(row);
-  assert.deepEqual(r.debt, [], "no key is the map's debt");
-  assert.deepEqual(r.predicates.map((p) => [p.key, p.lawful]), [["name", true], ["of", true], ["default", true], ["property_tier", true]]);
-  assert.ok(r.edges.some((e) => e.key === "parent" && e.edge === "containment"));
-  assert.equal(fieldCensus([row]).rows.unmapped, 0);
-  assert.equal(lawMeasures([row]).find((x) => x.key === "debt").now, 0, "the law's debt measure stays where it was");
+test("M8b: the drill lights exactly the unaddressable marks: never a declaration (review-275 blocker 1)", () => {
+  const cls = (name) => ({ id: `the-town/${name}`, kind: "mark", subkind: "class", class: name, by: "the-town", tier: "constitution", declares: true });
+  const nodes = [cls("thing"), cls("parcel"), ...W1_PROPERTIES,
+    { id: "kai/the-good-lighter", kind: "mark", subkind: "thing", by: "kai" },
+    { id: "kai/a-bench", kind: "mark", subkind: "sited", by: "kai" },
+    { id: "kai/a-stone", kind: "mark", subkind: "sited", by: "kai" },
+    { id: "LOGOS/classes.md", kind: "doctrine" }];
+  const r = classRegistry(nodes);
+  assert.deepEqual(r.unaddressable_ids, ["kai/a-bench", "kai/a-stone"]);
+  assert.equal(r.unaddressable_ids.length, r.unaddressable, "the drill's count is the meter's");
+  for (const id of r.unaddressable_ids) assert.ok(!r.citing_ids.includes(id));
+});
+
+test("M8c: the registry paint agrees with the meter: a declaration paints declares, an instance names or names none", () => {
+  const set = new Set(["thing", "parcel"]);
+  const paint = (d) => registryPaintOf(d, set, ["doctrine", "code"]);
+  assert.equal(paint({ id: "the-town/thing", kind: "mark", subkind: "class", class: "thing", declares: true }), "declares");
+  for (const p of W1_PROPERTIES) assert.equal(paint(p), "declares", p.id);
+  assert.equal(paint({ id: "kai/x", kind: "mark", subkind: "thing" }), "names");
+  assert.equal(paint({ id: "kai/x", kind: "mark", subkind: "sited", class: "thing" }), "names");
+  assert.equal(paint({ id: "kai/x", kind: "mark", subkind: "sited" }), "unaddressable");
+  assert.equal(paint({ id: "LOGOS/classes.md", kind: "doctrine" }), "spine");
+  assert.equal(paint({ id: "x", kind: "edge-type" }), "off");
+  // the meter and the paint, node for node
+  const nodes = [{ id: "the-town/thing", kind: "mark", subkind: "class", class: "thing", declares: true }, ...W1_PROPERTIES,
+    { id: "kai/a", kind: "mark", subkind: "thing" }, { id: "kai/b", kind: "mark", subkind: "sited" }];
+  const r = classRegistry(nodes);
+  assert.deepEqual(nodes.filter((d) => paint(d) === "unaddressable").map((d) => d.id), r.unaddressable_ids);
+});
+
+test("M9: W1's real property rows carry no mapping debt: their fixed fields are lawful, and `of` is the edge", () => {
+  for (const row of W1_PROPERTIES) {
+    const r = serializationOf(row);
+    assert.deepEqual(r.debt, [], `${row.id}: no key is the map's debt`);
+    assert.deepEqual(r.residue, [], `${row.id}: its tier is its own fixed field, not residue`);
+  }
+  const child = serializationOf(W1_PROPERTIES[1]);
+  assert.deepEqual(child.predicates.filter((p) => p.lawful).map((p) => p.key), ["tier", "name", "default"]);
+  assert.ok(child.edges.some((e) => e.key === "of" && e.edge === "of"), "a child property's of: is the edge to its parent property");
+  assert.equal(fieldCensus(W1_PROPERTIES).rows.unmapped, 0);
+  assert.equal(lawMeasures(W1_PROPERTIES).find((x) => x.key === "debt").now, 0, "the law's debt measure stays where it was");
+});
+
+test("M9b: properties expressed as nodes counts W1's property nodes beside the predicate nodes, so W1 never reads it backwards", () => {
+  const pred = { id: "kai/sign", kind: "mark", subkind: "predicated", keys: ["kind", "slot", "value"] };
+  const row = (nodes) => lawMeasures(nodes).find((x) => x.key === "predicates");
+  assert.equal(row([pred]).label, "properties expressed as nodes");
+  assert.equal(row([pred]).now, 1);
+  // a class-side predicate child converted by W1 stays counted: the measure does not move
+  const before = row([pred, { id: "the-town/carry-cap", kind: "mark", subkind: "predicated", keys: ["kind", "slot", "value"] }]).now;
+  const after = row([pred, W1_PROPERTIES[0]]).now;
+  assert.equal(after, before);
 });
