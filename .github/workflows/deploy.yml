@@ -112,10 +112,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    outputs:
-      town_sha: ${{ steps.seam.outputs.town_sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -123,24 +123,39 @@ jobs:
       # test.yml's funding-seam controls (".postmark-checkout").
       - name: Check the Town's main out beside the site
         run: git clone --depth 1 https://github.com/postmark-town/postmark.git .postmark-checkout
-      # extract-seam leaves a file AS IT WAS when it cannot fold (no ledger, no
-      # mint module), and only warns. Here that would ship the committed copy
-      # under a fresh-looking run, the very staleness this job retires, so the
-      # step fails unless every pots.json row was emitted by this run.
+      # extract-seam leaves a file AS IT WAS when it cannot fold, and only
+      # warns: pots.json and deeds.json with no ledger or mint module,
+      # economy.json with no keeping dial or no HEAD date. Here that would ship
+      # the committed copy under a fresh-looking run, the very staleness this
+      # job retires. So the step fails unless every pots.json row was emitted
+      # by this run (deeds.json is written in the same act) and economy.json
+      # is as of the Town HEAD's own date.
+      #
+      # No job output: this job runs town code, and anything it handed the
+      # deploy job as an expression would reach a shell that holds the EC2
+      # key. The Town sha is logged here and nowhere else.
       - name: Fold the funding seam from the Town
-        id: seam
         run: |
           START=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
+          TOWN_DATE=$(git -C .postmark-checkout log -1 --format=%cs)
           node tools/extract-seam.mjs --town .postmark-checkout
-          START="$START" node -e '
-            const rows = JSON.parse(require("node:fs").readFileSync("src/data/postmark/pots.json", "utf8"));
+          START="$START" TOWN_DATE="$TOWN_DATE" node -e '
+            const { readFileSync } = require("node:fs");
+            const read = (name) => JSON.parse(readFileSync("src/data/postmark/" + name, "utf8"));
+            const rows = read("pots.json");
             const fresh = (r) => typeof r?.generated_at === "string" && Date.parse(r.generated_at) >= Date.parse(process.env.START);
-            const stale = !Array.isArray(rows) || rows.length === 0 || !rows.every(fresh);
-            if (stale) { console.error("pots.json was not emitted by this run: dev would show the committed copy"); process.exit(1); }
-            console.log(`pots.json: ${rows.length} pot-epoch rows from this run`);
+            if (!Array.isArray(rows) || rows.length === 0 || !rows.every(fresh)) {
+              console.error("pots.json was not emitted by this run: dev would show the committed copy");
+              process.exit(1);
+            }
+            const asOf = read("economy.json")?.as_of;
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(process.env.TOWN_DATE) || asOf !== process.env.TOWN_DATE) {
+              console.error(`economy.json is as of ${asOf}, the Town HEAD is ${process.env.TOWN_DATE}: dev would show the committed copy`);
+              process.exit(1);
+            }
+            console.log(`pots.json: ${rows.length} pot-epoch rows from this run; economy.json as of ${asOf}`);
           '
-          echo "town_sha=$(git -C .postmark-checkout rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          echo "the seam folded from postmark-town/postmark main at $(git -C .postmark-checkout rev-parse --short HEAD)"
+          echo "the seam folded from postmark-town/postmark main at $(git -C .postmark-checkout rev-parse HEAD)"
       - uses: actions/upload-artifact@v4
         with:
           name: town-seam
@@ -305,15 +320,35 @@ jobs:
 
       # The town-seam job's fold, over the train's committed copy (see that
       # job). Snapshot lane only; the release lane keeps its overlay from main.
-      - name: Take the funding seam the town-seam job folded (snapshot lane)
+      # The artifact was written by a job that ran town code, so it lands
+      # outside the tree, and only the three named files cross into it: each a
+      # regular file (never a link) that parses as JSON, or the deploy stops.
+      - name: Download the funding seam the town-seam job folded (snapshot lane)
         if: steps.lane.outputs.channel == 'snapshot' && steps.pin.outputs.skip != 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: town-seam
-          path: src/data/postmark
-      - name: Say which Town the seam came from (snapshot lane)
+          path: ${{ runner.temp }}/town-seam
+      - name: Take the funding seam into the build (snapshot lane)
         if: steps.lane.outputs.channel == 'snapshot' && steps.pin.outputs.skip != 'true'
-        run: echo "funding seam from postmark-town/postmark main at ${{ needs.town-seam.outputs.town_sha }}"
+        env:
+          SEAM_DIR: ${{ runner.temp }}/town-seam
+        run: |
+          # every file is checked before any is copied, so a refusal leaves the
+          # committed seam whole
+          for f in pots.json deeds.json economy.json; do
+            src="$SEAM_DIR/$f"
+            if [ ! -f "$src" ] || [ -L "$src" ]; then
+              echo "::error::the town-seam artifact has no regular file $f"
+              exit 1
+            fi
+            SRC="$src" node -e 'JSON.parse(require("node:fs").readFileSync(process.env.SRC, "utf8"))' \
+              || { echo "::error::the town-seam artifact's $f is not JSON"; exit 1; }
+          done
+          for f in pots.json deeds.json economy.json; do
+            cp "$SEAM_DIR/$f" "src/data/postmark/$f"
+          done
+          echo "funding seam taken from the town-seam artifact (its log names the Town sha)"
 
       # THE SETTLEMENT NUMBER ONLY EXISTS UP HERE (postmark#2923). The staged
       # world-state export is stamped with the settlement it reflects, and the
