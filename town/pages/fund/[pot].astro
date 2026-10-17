@@ -165,6 +165,8 @@ const uncapped = pot.uncapped === true || target == null;
 // capped pot with none left offers no way to pay. An uncapped pot takes
 // whatever arrives, as before. A once pot has no next epoch to promise.
 const { cap, full, once } = fundCapOf(pot);
+// the cap is the headroom as of the site's last data refresh, said in the town page's own words (town/index.astro § asOfText)
+const capAsOf = pot.generatedAt ? new Date(pot.generatedAt).toISOString().replace("T", " ").slice(0, 16) + " UTC" : null;
 // THIS POT'S OWN ADDRESS — and the QR encodes the same string the page
 // prints, because the QR is the path most patrons will actually use and the
 // one they CANNOT proofread.
@@ -444,7 +446,7 @@ const floorBar = pot.close === "elastic" && pot.minCloseUsd != null;
             </div>
           </div>
           {cap != null && (
-            <p class="f-cap" data-usdc-cap={cap}>Send at most <strong>{cap} USDC</strong>: that is exactly what this pot can still take. The chain cannot refuse a larger send, so the town refuses it at intake and refunds it by hand.</p>
+            <p class="f-cap" data-usdc-cap={cap}>Send at most <strong>{cap} USDC</strong>: that is what this pot can still take{capAsOf ? <>, as of {capAsOf}</> : ""}. The chain cannot refuse a larger send, so the town refuses it at intake and refunds it by hand.</p>
           )}
           <ul class="f-warn">
             <li><strong>Base network, native USDC only.</strong> A wrong-network or wrong-token send is <strong>not recoverable by the town</strong> — best effort only, never a promise.</li>
