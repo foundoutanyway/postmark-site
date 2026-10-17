@@ -37,6 +37,8 @@
 // point of these readings is to watch figures move; a literal baked in as a
 // comparison would be a claim about a store nobody is looking at.
 
+import { classOf, isPredicate } from "./mark-class.mjs"; // S1: a mark's class from either form
+
 // ═══════════════════════════════════════════════════════════════════════════
 // THE SERIALIZATION MAP — the machine-readable form of the trichotomy that
 // LOGOS/lifetimes.md § the node holds as prose.
@@ -417,7 +419,8 @@ export const wearsRegistryBadge = (d) => isDeclaringClassMark(d);
  * parent's extent whole rather than sitting inside it, which is the continuation
  * law this drawing is made of.
  */
-export const isContinuation = (d) => !!d && d.kind === "mark" && (d.subkind === "predicated" || d.subkind === "naming");
+// S1: through the class helper, so `kind: predicate` (v2) continues as `predicated` did.
+export const isContinuation = (d) => !!d && d.kind === "mark" && isPredicate(d);
 
 // ── the filter row, derived from the registry ────────────────────────────────
 //
@@ -484,7 +487,8 @@ export function classFilters(nodes) {
 export function lawMeasures(nodes) {
   const reg = classRegistry(nodes);
   const fields = fieldCensus(nodes);
-  const predicateNodes = nodes.filter((d) => d.kind === "mark" && d.subkind === "predicated").length;
+  // S1: either spelling of the predicate class, never a naming (this counts the slot-and-value records)
+  const predicateNodes = nodes.filter((d) => d.kind === "mark" && classOf(d) === "predicate").length;
   const denom = fields.rows.property + predicateNodes;
   const top = fields.propertyKeys.slice(0, 5).map(([k, n]) => `${k} (${n})`).join(", ");
   return [
