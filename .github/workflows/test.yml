@@ -113,15 +113,29 @@ jobs:
         shell: bash
         run: npm test -- --test-reporter=tap 2>&1 | tee suite.tap
       # A built-page test skips without dist-town, and a skip is green. So a
-      # job that built and still skips them has proven nothing, and says so:
-      # the run fails above a handful of skips (the `test` job's count was 100).
+      # job that built and still skips them has proven nothing, and says so.
+      # One skip is known and allowed BY NAME: test/rsvp.test.mjs's built-event test,
+      # which skips while the committed calendar holds no events. Any other skip
+      # fails the job (the `test` job's count was 100), and so does a count this
+      # step cannot read: it fails closed.
       - name: The built-page tests ran (a skip is not a pass)
         shell: bash
         run: |
-          SKIPPED=$(grep -oE '^# skipped [0-9]+' suite.tap | grep -oE '[0-9]+$')
+          SKIPPED=$(grep -E '^# skipped [0-9]+$' suite.tap | tail -1 | grep -oE '[0-9]+$' || true)
           grep -E '^# (tests|pass|fail|skipped) ' suite.tap | tr '\n' ' '; echo
           grep -E '^ *ok [0-9]+ - .*# SKIP' suite.tap || true
-          if [ -z "$SKIPPED" ] || [ "$SKIPPED" -gt 5 ]; then
-            echo "::error::${SKIPPED:-an unknown number of} tests skipped after a build: the built pages were not tested"
+          if ! [[ "$SKIPPED" =~ ^[0-9]+$ ]]; then
+            echo "::error::the suite's skip count could not be read ('$SKIPPED'): the built pages are not proven tested"
+            exit 1
+          fi
+          KNOWN=$(grep -cE '^ *ok [0-9]+ - BUILT: an open event carries the form; .*# SKIP the committed calendar holds no events$' suite.tap || true)
+          if [ "$SKIPPED" -gt "$KNOWN" ]; then
+            echo "::error::$SKIPPED tests skipped after a build, $KNOWN of them the known calendar skip: the built pages were not all tested"
+            exit 1
+          fi
+          # the skipped tests themselves, not only the count: none but the known one
+          OTHERS=$(grep -E '^ *ok [0-9]+ - .*# SKIP' suite.tap | grep -cvE '^ *ok [0-9]+ - BUILT: an open event carries the form; .*# SKIP the committed calendar holds no events$' || true)
+          if [ "$OTHERS" != "0" ]; then
+            echo "::error::$OTHERS skipped tests besides the known calendar skip: the built pages were not all tested"
             exit 1
           fi

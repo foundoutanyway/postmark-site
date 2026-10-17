@@ -145,6 +145,8 @@ function whoOnCard(card, who, n) {
     assert.ok(existsSync(join(DIST, href, "index.html")), `S${n} links ${who} to ${href}, and no page stands there`);
     assert.ok(card.includes(`<a class="r-who" href="${esc(href)}">${name}</a>`), `S${n} does not link ${who}, whose page stands`);
   } else {
+    // the build is asked, not only the helper the page asks: a page standing for them is a missed link
+    assert.ok(!existsSync(join(DIST, "residents", who, "index.html")), `S${n} prints ${who} as text, and their page stands`);
     assert.ok(card.includes(`<span class="r-who">${name}</span>`), `S${n} does not print ${who} as text`);
     assert.ok(!card.includes(`href="/residents/${encodeURIComponent(who)}/"`), `S${n} links ${who}, who has no page`);
   }
