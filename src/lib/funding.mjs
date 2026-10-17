@@ -184,6 +184,28 @@ export const INTAKE_BY_POT = {
  * decide where a stranger's money went, which is the one judgement this whole
  * lane refuses to make."
  */
+/**
+ * THE CAP ON ONE GIFT (POS-661, settled A): what one gift to this pot may be,
+ * for the fund page. D5 refuses a gift past a capped pot's posted need whole,
+ * and no rail hands a payment back by itself, so the page asks for no more
+ * than the pot can take. Answers `{ cap, full, once }`:
+ *   cap   the headroom in whole dollars for a capped open pot, else null
+ *         (uncapped, targetless, or not open: no cap to hold)
+ *   full  an open capped pot with nothing left: the page offers no way to pay
+ *   once  a pot that closes when it fills (POS-653): it has no next epoch
+ * The headroom is the row's (pots.json, as of the site's last data refresh);
+ * a gift since can only make it smaller, and the office's intake refuses past
+ * the true one either way.
+ */
+export function fundCapOf(pot) {
+  const open = pot?.status === "open";
+  const target = pot?.target ?? null;
+  const uncapped = pot?.uncapped === true || target == null;
+  const headroom = target == null ? null : Math.max(0, target - (pot?.received ?? 0));
+  const cap = open && !uncapped ? headroom : null;
+  return { cap, full: cap === 0, once: pot?.cadence === "once" };
+}
+
 export function intakeFor(pot) {
   return INTAKE_BY_POT[String(pot)] ?? INTAKE;
 }
