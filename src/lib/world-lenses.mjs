@@ -311,6 +311,16 @@ const sortedPairs = (m) => [...m].sort((a, b) => b[1] - a[1] || a[0].localeCompa
 // of which (`parcel`) has a class-node behind it. The two are counted APART:
 // conflating them would report the registry as its own membership and make the
 // closure look far healthier than it is.
+//
+// DECLARATIONS ARE NOT MARKS TO COUNT (S1, 2026-10-17). LOGOS v2 part 2 (W1)
+// writes the class side's properties as `kind: property` nodes under their
+// classes: no `class:`, a kind no class-node registers, and roughly a hundred
+// of them. Counted as marks they would land in the older vocabulary and the
+// meter would read the cutover as going backwards the day it lands. So the
+// meter counts instances only. A declaration (a class-node or a property node,
+// mark-class.mjs § isClassNode) is skipped; class-nodes are already the
+// registry, the meter's own denominator, and property nodes are reported on
+// their own line ("property nodes: N").
 
 export function classRegistry(nodes) {
   // Declarations only (the store's own fact): an instance carrying `class:`
@@ -318,13 +328,15 @@ export function classRegistry(nodes) {
   const classNodes = nodes.filter(isDeclaringClassMark);
   const registered = [...new Set(classNodes.map((d) => String(d.class)))].sort();
   const reg = new Set(registered);
-  const marks = nodes.filter((d) => d.kind === "mark");
+  const marks = nodes.filter((d) => d.kind === "mark" && !isClassNode(d));
+  const propertyNodes = nodes.filter((d) => d.kind === "mark" && recordKind(d) === "property").length;
   const names = (d) => d.class != null || reg.has(String(d.subkind ?? ""));
   const citing = marks.filter(names);
   const unreg = new Map();
   for (const d of marks) if (!names(d)) bump(unreg, d.subkind ?? "(none)");
   return {
     classNodes: classNodes.length,
+    propertyNodes,
     registered,
     marks: marks.length,
     citing: citing.length,
@@ -464,6 +476,7 @@ export function filterBucketOf(d, registeredSet) {
   if (d.unresolved === true || d.kind === "unknown") return UNRESOLVED;   // before machinery; see isMachinery
   if (MACHINERY_KINDS.includes(d.kind)) return MACHINERY;
   if (d.kind !== "mark") return REGISTRY_OWN;    // the synthesized class-nodes the law addresses through
+  if (recordKind(d) === "property") return REGISTRY_OWN;   // S1: a property node is the registry's own, a declaration
   if (d.class != null && registeredSet.has(String(d.class))) return String(d.class);
   if (registeredSet.has(String(d.subkind ?? ""))) return String(d.subkind);
   return OLDER_VOCABULARY;
@@ -498,7 +511,7 @@ export function classFilters(nodes) {
 //
 // The hub's `lawMeasures`: the rows that answer to the law rather than to any
 // single WRITE-REGISTRY row, which is why the hub gave them their own block
-// instead of forcing them into one. Every one of the six is derivable from the
+// instead of forcing them into one. Every one of the seven is derivable from the
 // payload, which is why the ideal view could come across whole.
 
 export function lawMeasures(nodes) {
@@ -512,6 +525,12 @@ export function lawMeasures(nodes) {
     {
       key: "class-nodes", label: "class-nodes in the registry", now: reg.classNodes, of: null, target: null,
       note: reg.registered.length ? `${reg.registered.join(", ")} — these ARE the registry, not citations of it` : "none in this store",
+    },
+    {
+      key: "property-nodes", label: "property nodes", now: reg.propertyNodes, of: null, target: null,
+      note: reg.propertyNodes
+        ? "the class side's properties (kind: property), declarations like the class-nodes, never counted as marks"
+        : "none in this store: the class side's properties are still dials and predicate children",
     },
     {
       key: "citing", label: "nodes naming a registered class", now: reg.citing, of: reg.marks, target: reg.marks,

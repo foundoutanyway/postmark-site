@@ -552,7 +552,7 @@ const REGISTRY = [
           // carrying `class:` NAMES its class — it does not declare it
           cls.push("reg-" + (d.kind !== "mark"
             ? (payload.convergence_kinds.includes(d.kind) ? "spine" : "off")
-            : d.declares === true ? "declares"
+            : d.declares === true || d.subkind === "property" ? "declares"   // S1: a property node is a declaration too
             : d.class != null || reg.has(String(d.subkind ?? "")) ? "names" : "unaddressable"));
           if (isRecordNode(d)) cls.push("rec", d.tier === "constitution" ? "rec-law" : "rec-mechanic");
           // THE THREE WEARINGS. Facts about the node, put on once — the shape

@@ -30,7 +30,7 @@ import { loadCharters } from "../src/lib/harbor.mjs";
 import { ownParcelIn } from "../src/lib/world-cockpit.mjs";
 import { predicatesOf, isIdea } from "../src/lib/civic.mjs";
 import { isNotice } from "../src/lib/board.mjs";
-import { fieldCensus, isContinuation, lawMeasures, mapScopeOf, serializationOf } from "../src/lib/world-lenses.mjs";
+import { REGISTRY_OWN, classRegistry, fieldCensus, filterBucketOf, isContinuation, lawMeasures, mapScopeOf, serializationOf } from "../src/lib/world-lenses.mjs";
 
 // [old form, new form, the class both name]
 const PAIRS = [
@@ -169,4 +169,32 @@ test("M7 (WLD-73 G10/G11): every predicate read answers kind: predicated and kin
   }
   assert.deepEqual(serializationOf({ kind: "mark", subkind: "predicate", keys: ["slot", "value", "parent"] }),
     serializationOf({ kind: "mark", subkind: "predicated", keys: ["slot", "value", "parent"] }), "the slot rows read the same");
+});
+
+test("M8: W1's property nodes are declarations: the cutover meter counts none of them as unaddressable, and says how many on their own line", () => {
+  const cls = (name) => ({ id: `the-town/${name}`, kind: "mark", subkind: "class", class: name, by: "the-town", tier: "constitution", declares: true });
+  // the store's rows of kind property, as W1 writes them (name, default, property_tier, parent; no class:)
+  const prop = (parent, name, dflt) => ({ id: `the-town/${parent}-${name}`, kind: "mark", subkind: "property", by: "the-town", tier: "constitution",
+    name, default: dflt, property_tier: "constitution", parent: `the-town/${parent}` });
+  const instances = [
+    { id: "kai/the-good-lighter", kind: "mark", subkind: "thing", by: "kai" },
+    { id: "kai/the-shop-ground", kind: "mark", subkind: "parcel", by: "kai" },
+    { id: "kai/a-bench", kind: "mark", subkind: "sited", by: "kai" },
+  ];
+  const props = [prop("thing", "portable", true), prop("thing", "holder", false), prop("resident", "capacity", 24), prop("parcel", "extent_m", 25)];
+  const nodes = [cls("thing"), cls("parcel"), cls("resident"), ...props, ...instances];
+  const r = classRegistry(nodes);
+  assert.equal(r.marks, 3, "only instances are counted");
+  assert.equal(r.citing, 2, "the thing and the parcel name registered classes");
+  assert.equal(r.unaddressable, 1, "the plain sited mark, and no property node");
+  assert.deepEqual(r.unregisteredKinds, [["sited", 1]], "no 'kind: property' in the older vocabulary");
+  assert.equal(r.propertyNodes, 4);
+  const m = Object.fromEntries(lawMeasures(nodes).map((x) => [x.key, x]));
+  assert.equal(m["property-nodes"].now, 4);
+  assert.equal(m.citing.of, 3);
+  const set = new Set(r.registered);
+  for (const p of props) assert.equal(filterBucketOf(p, set), REGISTRY_OWN, `${p.id}: the registry's own chip, never the older vocabulary`);
+  // the same world without its property nodes reads the same meter: they add a line, never a debt
+  const without = classRegistry([cls("thing"), cls("parcel"), cls("resident"), ...instances]);
+  assert.deepEqual({ ...without, propertyNodes: 4 }, r);
 });

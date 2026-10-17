@@ -181,10 +181,12 @@ test("declaring a class and naming one are counted APART", () => {
   // one node carries `class:` — it IS the registry, not a citation of it
   assert.equal(r.classNodes, 1);
   assert.deepEqual(r.registered, ["parcel"]);
-  // the parcel names `parcel`, and the class-node itself carries `class:` — two
-  assert.equal(r.citing, 2);
-  assert.equal(r.marks, 6);
+  // the parcel names `parcel`. The class-node itself is a declaration, so it is
+  // the registry and not one of the marks the meter counts (S1, 2026-10-17)
+  assert.equal(r.citing, 1);
+  assert.equal(r.marks, 5);
   assert.equal(r.unaddressable, 4);
+  assert.equal(r.propertyNodes, 0);
   // the rest speak the older four-word vocabulary, named with their counts
   assert.deepEqual(r.unregisteredKinds, [["sited", 3], ["predicated", 1]]);
 });
@@ -199,12 +201,13 @@ test("a store with no class-nodes reports nothing addressable, not everything", 
 
 // ── the law's own measures ───────────────────────────────────────────────────
 
-test("the law's six measures each carry a denominator and a target", () => {
+test("the law's measures each carry a denominator and a target", () => {
   const m = lawMeasures(NODES);
-  assert.deepEqual(m.map((x) => x.key), ["class-nodes", "citing", "predicates", "relations", "residue", "debt"]);
+  assert.deepEqual(m.map((x) => x.key), ["class-nodes", "property-nodes", "citing", "predicates", "relations", "residue", "debt"]);
   const by = Object.fromEntries(m.map((x) => [x.key, x]));
-  assert.equal(by.citing.now, 2);
-  assert.equal(by.citing.of, 6);
+  assert.equal(by.citing.now, 1);
+  assert.equal(by.citing.of, 5);
+  assert.equal(by["property-nodes"].now, 0);
   assert.equal(by.residue.now, 4);
   assert.equal(by.residue.target, 0);
   assert.equal(by.debt.now, 1);
