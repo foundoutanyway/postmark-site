@@ -26,6 +26,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { readResidentProfile } from "../tools/lib/town.mjs";
+import { profilePicture } from "../src/lib/profile-picture.mjs";
 
 const HANDLE = "test-resident";
 const DOOR = "https://media.postmark.town/media/sozlin/7037bcfb63718579a618e7bfc31eef790dd067d7f17d66b00fa07e726ca1fe21.webp";
@@ -40,18 +41,21 @@ function read(frontmatter) {
 }
 
 // ── the component's own derivation, lifted verbatim ────────────────────────
+// Since WLD-83 part 1 (2026-10-19) the line calls the one order,
+// src/lib/profile-picture.mjs, and the component must import it from there:
+// the evaluated line gets the real function, never a stand-in.
 const SOURCE = readFileSync(new URL("../town/components/Household.astro", import.meta.url), "utf8");
-const KEY_LINE = /^\s*(const avatarKey = .+;)\s*$/m.exec(SOURCE);
 const URL_EXPR = /^\s*avatarUrl:\s*(.+),\s*$/m.exec(SOURCE);
-assert.ok(KEY_LINE, "Household.astro still derives an avatarKey on one line");
 assert.ok(URL_EXPR, "Household.astro still derives avatarUrl on one line");
+assert.match(SOURCE, /^import \{ profilePicture \} from "@\/lib\/profile-picture\.mjs";$/m,
+  "Household.astro takes profilePicture from the one module");
 
 // eslint-disable-next-line no-new-func -- the point is to run the component's line, not a copy of it
-const derive = new Function("r", "profile", "media", `${KEY_LINE[1]}\nreturn (${URL_EXPR[1]});`);
+const derive = new Function("r", "profile", "media", "profilePicture", `return (${URL_EXPR[1]});`);
 
 // What the page shows. The component renders the monogram exactly when this is
 // falsy (`t.avatarUrl ? <img …> : <span>{t.monogram}</span>`).
-const avatarUrlFor = (profile, media = {}) => derive({ handle: HANDLE }, profile, media);
+const avatarUrlFor = (profile, media = {}) => derive({ handle: HANDLE }, profile, media, profilePicture);
 
 test("1. a profile carrying only a valid avatar_url bakes that image, not the monogram", () => {
   // The brief: "a profile with only a valid `avatar_url` → `avatarUrl` is that
@@ -76,16 +80,20 @@ test("2. an avatar_url on another host is dropped with one problem line, and the
   assert.equal(avatarUrlFor(profile), null, "monogram");
 });
 
-test("3. a claimed local avatar beside an avatar_url still wins, so today's three masked profiles do not move", () => {
-  // The brief: "a profile with both a claimed local `avatar` and `avatar_url` →
-  // the local file wins". alex-rowan, kai and vespertine carry both today and
-  // render the local file; this fix must not change a pixel of their pages.
+test("3. an avatar_url beside a claimed local avatar wins: it is the picture set last (WLD-83)", () => {
+  // Until 2026-10-19 this asserted the opposite ("the local file wins", so the
+  // then three masked profiles would not move). By 10-19 five profiles carried
+  // both, and the URL was the newer picture: the URL door never clears the
+  // file, and the byte door clears the URL. The office and the dock already
+  // read the URL first; the built page now agrees with them.
   const { profile, problems } = read(`avatar: "avatar.jpg"\navatar_url: "${DOOR}"`);
   assert.equal(profile.avatar, "avatar.jpg");
   assert.equal(profile.avatar_url, DOOR, "both fields survive the read");
   assert.deepEqual(problems, []);
   const claimed = { [`WHITE_PAGES/${HANDLE}/avatar.jpg`]: { card: "/media/local-card.webp" } };
-  assert.equal(avatarUrlFor(profile, claimed), "/media/local-card.webp");
+  assert.equal(avatarUrlFor(profile, claimed), DOOR);
+  assert.equal(avatarUrlFor(read('avatar: "avatar.jpg"').profile, claimed), "/media/local-card.webp",
+    "with no URL, the claimed file is still the picture");
 });
 
 test("4. a profile with no picture at all still falls soft to the monogram", () => {

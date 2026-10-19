@@ -30,6 +30,7 @@
 // set:html (the reading law).
 
 import { residentAvatar } from "./world-cockpit.mjs";
+import { profilePicture } from "./profile-picture.mjs";
 
 /** The town repo, for the rooms and rounds. */
 const TOWN_REPO = "https://github.com/postmark-town/postmark";
@@ -209,12 +210,13 @@ export function profileOf(meep, resident, media = {}) {
   const profile = resident?.profile && typeof resident.profile === "object" ? resident.profile : {};
   const bio = typeof profile.bio === "string" && profile.bio.trim() ? clip(plainMd(profile.bio), 420) : null;
   const words = bio ?? ownWords(resident);
-  const avatar = typeof profile.avatar === "string" ? profile.avatar.trim() : "";
-  const local = avatar ? media?.[`WHITE_PAGES/${meep.handle}/${avatar}`]?.card : null;
+  // The one picture in the one order (profile-picture.mjs, WLD-83): avatar_url
+  // at the town's media door, then the claimed file through the media map.
+  const local = profilePicture(meep.handle, profile, media)?.src ?? null;
   // Else the site's standing fallback (world-cockpit.mjs's residentAvatar):
-  // avatar_url held to the town's media door, then the basename read from the
-  // public town repo. A build whose media map has not claimed the avatar yet
-  // (the ordinary deploy runs no checkout) still shows the meep's face.
+  // the basename read from the public town repo. A build whose media map has
+  // not claimed the avatar yet (the ordinary deploy runs no checkout) still
+  // shows the meep's face.
   const fallback = local ? null : residentAvatar(meep.handle, profile)?.src ?? null;
   return {
     inRoll: Boolean(resident),

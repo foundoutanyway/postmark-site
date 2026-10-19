@@ -19,6 +19,7 @@ import { dirname, join, extname, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { plateName } from "../../src/lib/houses.mjs";
 import { homePicturesOf } from "../../src/lib/home-face.mjs";
+import { profilePicture } from "../../src/lib/profile-picture.mjs";
 import { REPLAY_DIR, replayFiles } from "./replay-record.mjs";
 import { recordsToStage, stagingComplaints, stagingFailure } from "../../tools/lib/world-staging.mjs";
 import {
@@ -152,14 +153,14 @@ export function residentsMeta(projectRoot) {
   const out = {};
   for (const r of residents) {
     if (!r?.handle) continue;
-    const avatarKey = r.profile?.avatar ? `WHITE_PAGES/${r.handle}/${r.profile.avatar}` : null;
-    // The claimed local file first (the older road, three profiles still carry
-    // it), then the settled `avatar_url` the office profile road writes — already
-    // admitted only at the town's media door by the town reader (postmark#2950),
-    // and the viewer's own whitelist admits that one host (postmark-world #111).
+    // The one picture in the one order (src/lib/profile-picture.mjs, WLD-83):
+    // the settled `avatar_url` at the town's media door first (the viewer's own
+    // whitelist admits that one host, postmark-world #111), then the claimed
+    // local file. Until 2026-10-19 the file came first, and the map drew the
+    // faces amia-semper and kai had replaced.
     const entry = {
       name: r.address?.agent ?? r.handle,
-      avatar: (avatarKey && media[avatarKey]?.card) || r.profile?.avatar_url || null,
+      avatar: profilePicture(r.handle, r.profile, media)?.src ?? null,
       color: r.profile?.color ?? null,
       household: houseOf.get(r.handle) ?? null,
       // the house's picture, as the household's record keeps it (POS-219) — the

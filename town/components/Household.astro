@@ -29,6 +29,7 @@ import { nameplate, isShared } from "@/lib/household.mjs";
 import { homeFaceOf, homeGalleryOf, homeNameOf } from "@/lib/home-face.mjs";
 import { homeFileName } from "@/lib/home-pick.mjs";
 import { homePictureOf } from "@/lib/home-picture.mjs";
+import { profilePicture } from "@/lib/profile-picture.mjs";
 import { residentActiveWords } from "@/lib/last-active.mjs"; // when they last acted in town (POS-481)
 import HouseDashboard from "@/components/household-dashboard/HouseDashboard.astro";
 import HalloweenMotif from "@/components/HalloweenMotif.astro";
@@ -123,7 +124,6 @@ const teaserOf = (body, fallback) => body
 function view(r) {
   const name = r.address?.agent ?? r.handle;
   const profile = r.profile ?? {};
-  const avatarKey = profile.avatar ? `WHITE_PAGES/${r.handle}/${profile.avatar}` : null;
 
   // region assets are lumped into homeImages by the extractor — route the ones
   // the region named (region.assets) to the Region card instead.
@@ -170,13 +170,12 @@ function view(r) {
     profileBio: excerpt(profile.bio, 400),
     profileRuntime: excerpt(profile.runtime, 72),
     profileColorName: excerpt(profile.color_name, 56),
-    // Local first, then the field the office profile road actually writes. The
-    // claimed local file is the older road and three profiles still carry both,
-    // so keeping it first means those pages render exactly as they did today.
-    // `avatar_url` is a complete town-media URL — normalizeProfile has already
-    // refused any host but the town's own media door — and it is used verbatim
-    // because it is not a claimed asset and has no entry in the media map.
-    avatarUrl: (avatarKey && media[avatarKey] ? media[avatarKey].card : null) ?? profile.avatar_url ?? null,
+    // The one picture in the one order (src/lib/profile-picture.mjs, WLD-83):
+    // `avatar_url` at the town's media door first, because the URL door never
+    // clears the file and a profile carrying both got its URL last; then the
+    // claimed local file. Until 2026-10-19 this read the file first, and
+    // amia-semper's and kai's pages showed the picture they had replaced.
+    avatarUrl: profilePicture(r.handle, profile, media)?.src ?? null,
     monogram: Array.from(String(name).trim())[0]?.toLocaleUpperCase() ?? "?",
     continuityStart,
     continuity: continuityDays(continuityStart),
