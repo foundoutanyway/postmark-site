@@ -3,8 +3,9 @@
 //
 // The map's viewer admits the town's media door since postmark-world #111; the
 // site's island builds `residents-meta.json`, the record the viewer reads. This
-// asserts the island EMITS the settled `avatar_url` — local claimed file first
-// (the older road), then the media-door URL, then nothing.
+// asserts the island EMITS the settled `avatar_url` — the media-door URL first
+// (since WLD-83, 2026-10-19; it was the claimed local file first until then),
+// then the claimed local file, then nothing.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
@@ -55,9 +56,19 @@ test("ORDER SAFETY (POS-219): a household with no home_images gives the map no `
     "every field the map read before this change is unchanged");
 });
 
-test("a claimed local avatar still wins over avatar_url (the older road, unchanged)", () => {
+test("avatar_url wins over a claimed local avatar: the URL is the picture set last (WLD-83)", () => {
+  // Until 2026-10-19 this asserted the claimed file won ("the older road,
+  // unchanged"), and the map drew the face kai had replaced on 09-14.
   const root = projectWith({
     residents: [{ handle: "kai", address: { agent: "Kai" }, profile: { avatar: "kai.jpg", avatar_url: SOLIN } }],
+    media: { "WHITE_PAGES/kai/kai.jpg": { card: "/media/kai-avatar-card.jpg" } },
+  });
+  assert.equal(residentsMeta(root).residents.kai.avatar, SOLIN);
+});
+
+test("a claimed local avatar with no avatar_url is still the map's face", () => {
+  const root = projectWith({
+    residents: [{ handle: "kai", address: { agent: "Kai" }, profile: { avatar: "kai.jpg" } }],
     media: { "WHITE_PAGES/kai/kai.jpg": { card: "/media/kai-avatar-card.jpg" } },
   });
   assert.equal(residentsMeta(root).residents.kai.avatar, "/media/kai-avatar-card.jpg");

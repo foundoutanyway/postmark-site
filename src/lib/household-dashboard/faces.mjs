@@ -12,10 +12,11 @@
 //   accent      PROFILE.md `color:`              residents.json profile.color
 //   colorName   PROFILE.md `color_name:`         residents.json profile.color_name
 //   bioLine     PROFILE.md `bio:`, first line    residents.json profile.bio
-//   avatar      PROFILE.md `avatar:` (a claimed file in media.json), else
-//               `avatar_url:` at the town's media door, else the basename in
-//               the public town repo — world-cockpit.mjs residentAvatar, the
-//               site's one fallback, shared rather than copied
+//   avatar      PROFILE.md `avatar_url:` at the town's media door, else
+//               `avatar:` (a claimed file in media.json) — profile-picture.mjs,
+//               the one order (WLD-83) — else the basename in the public town
+//               repo — world-cockpit.mjs residentAvatar, the site's one
+//               fallback, shared rather than copied
 //   homeName    HOME.md `title:`, else a heading  home-face.mjs homeNameOf (POS-224)
 //   homeFace    HOME.md `assets:`, first entry   home-face.mjs homeFaceOf
 //   homeImages  the rest of what HOME.md chose  home-face.mjs homeGalleryOf (POS-321)
@@ -31,6 +32,7 @@
 
 import { homeFaceOf, homeGalleryOf, homeNameOf } from "../home-face.mjs";
 import { residentAvatar } from "../world-cockpit.mjs";
+import { profilePicture } from "../profile-picture.mjs";
 import { SPRITES, paint, SPRITE_W, SPRITE_H } from "../civic-art.mjs";
 import { MEEPS } from "../meeps-quarter.mjs";
 
@@ -83,9 +85,7 @@ export function residentFace(r, media = {}, homePicture = null) {
   const handle = r.handle;
   const name = (typeof r.address?.agent === "string" && r.address.agent.trim()) || handle;
 
-  const avatarKey = typeof profile.avatar === "string" && profile.avatar
-    ? `WHITE_PAGES/${handle}/${profile.avatar}` : null;
-  const avatar = (avatarKey && media[avatarKey]?.card) || residentAvatar(handle, profile)?.src || null;
+  const avatar = profilePicture(handle, profile, media)?.src || residentAvatar(handle, profile)?.src || null;
 
   // HOME/ images the page can show: claimed in media, and not the region's
   // (the region names its own under region.assets, as on the resident page).
