@@ -148,37 +148,37 @@ const sections = [
   <svg class="hb-sprite" aria-hidden="true" focusable="false">
     <defs>
       <radialGradient id="hb-g-lamp" cx="50%" cy="50%" r="50%">
-        <stop offset="0" stop-color="#ffe3a3" stop-opacity=".95" />
-        <stop offset=".35" stop-color="#f39a3d" stop-opacity=".45" />
-        <stop offset="1" stop-color="#f39a3d" stop-opacity="0" />
+        <stop offset="0" stop-color="var(--pm-gold-bright)" stop-opacity=".95" />
+        <stop offset=".35" stop-color="var(--pm-gold)" stop-opacity=".45" />
+        <stop offset="1" stop-color="var(--pm-gold)" stop-opacity="0" />
       </radialGradient>
       <radialGradient id="hb-g-halo" cx="50%" cy="50%" r="50%">
-        <stop offset="0" stop-color="#ffd98a" stop-opacity=".55" />
-        <stop offset=".45" stop-color="#f39a3d" stop-opacity=".18" />
-        <stop offset="1" stop-color="#f39a3d" stop-opacity="0" />
+        <stop offset="0" stop-color="var(--pm-gold-bright)" stop-opacity=".55" />
+        <stop offset=".45" stop-color="var(--pm-gold)" stop-opacity=".18" />
+        <stop offset="1" stop-color="var(--pm-gold)" stop-opacity="0" />
       </radialGradient>
       <radialGradient id="hb-g-trail" cx="50%" cy="50%" r="50%">
-        <stop offset="0" stop-color="#ffe3a3" stop-opacity=".9" />
-        <stop offset=".4" stop-color="#f39a3d" stop-opacity=".35" />
-        <stop offset="1" stop-color="#f39a3d" stop-opacity="0" />
+        <stop offset="0" stop-color="var(--pm-gold-bright)" stop-opacity=".9" />
+        <stop offset=".4" stop-color="var(--pm-gold)" stop-opacity=".35" />
+        <stop offset="1" stop-color="var(--pm-gold)" stop-opacity="0" />
       </radialGradient>
       <linearGradient id="hb-g-stampsky" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#26235a" />
-        <stop offset=".65" stop-color="#4a2a5c" />
-        <stop offset="1" stop-color="#6a3a5e" />
+        <stop offset="0" stop-color="var(--pm-harbor)" />
+        <stop offset=".65" stop-color="var(--pm-harbor-2)" />
+        <stop offset="1" stop-color="var(--hb-dusk)" />
       </linearGradient>
       <linearGradient id="hb-g-balloon" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#e2768f" />
-        <stop offset="1" stop-color="#b44a6c" />
+        <stop offset="0" stop-color="var(--pm-gold-bright)" />
+        <stop offset="1" stop-color="var(--pm-gold)" />
       </linearGradient>
       <linearGradient id="hb-g-moon" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="#fbf3e6" />
-        <stop offset="1" stop-color="#e7d6bd" />
+        <stop offset="0" stop-color="var(--pm-paper)" />
+        <stop offset="1" stop-color="var(--pm-paper-deep)" />
       </linearGradient>
-      <linearGradient id="hb-g-plum" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0" stop-color="#7a2588" />
-        <stop offset=".55" stop-color="#651a72" />
-        <stop offset="1" stop-color="#4a1254" />
+      <linearGradient id="hb-g-pillar" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="var(--hb-pillar-lit)" />
+        <stop offset=".55" stop-color="var(--hb-pillar-mid)" />
+        <stop offset="1" stop-color="var(--pm-harbor-2)" />
       </linearGradient>
       <mask id="hb-m-perf" maskUnits="userSpaceOnUse" x="-10" y="-10" width="164" height="212">
         <rect x="-10" y="-10" width="164" height="212" fill="#fff" />
@@ -193,10 +193,10 @@ const sections = [
 
     <!-- Postmark's wax seal (the seal path from postmark.town) -->
     <symbol id="hb-i-seal" viewBox="0 0 48 48">
-      <path fill="#a3222a" d="M24 3c3 0 4.4 2.6 7 3.2 2.8.6 5.2-.6 7 1.4 1.8 2-.2 4.6.8 7.2 1 2.6 3.8 3.6 4 6.4.2 2.8-2.4 4-3 6.6-.6 2.8 1 5.4-.8 7.6-2 2.2-4.8.6-7.4 1.6-2.6 1-3.8 3.8-6.8 4s-4.4-2.4-7-3c-2.8-.6-5.4.8-7.2-1.2-1.8-2 .2-4.6-.8-7.2-1-2.6-3.8-3.6-4-6.6-.2-2.8 2.6-4 3.2-6.6.6-2.8-1-5.2.8-7.4C11 6 13.6 7.4 16.2 6.6 19 5.8 21 3 24 3z" />
+      <path fill="var(--pm-wax)" d="M24 3c3 0 4.4 2.6 7 3.2 2.8.6 5.2-.6 7 1.4 1.8 2-.2 4.6.8 7.2 1 2.6 3.8 3.6 4 6.4.2 2.8-2.4 4-3 6.6-.6 2.8 1 5.4-.8 7.6-2 2.2-4.8.6-7.4 1.6-2.6 1-3.8 3.8-6.8 4s-4.4-2.4-7-3c-2.8-.6-5.4.8-7.2-1.2-1.8-2 .2-4.6-.8-7.2-1-2.6-3.8-3.6-4-6.6-.2-2.8 2.6-4 3.2-6.6.6-2.8-1-5.2.8-7.4C11 6 13.6 7.4 16.2 6.6 19 5.8 21 3 24 3z" />
       <circle cx="24" cy="24" r="12.5" fill="none" stroke="#000" stroke-opacity=".28" stroke-width="1.6" />
-      <path d="M18.4 19.6h11.2v8.8H18.4z" fill="none" stroke="#f2bc82" stroke-opacity=".85" stroke-width="1.4" stroke-linejoin="round" />
-      <path d="M18.8 20.2 24 24.2l5.2-4" fill="none" stroke="#f2bc82" stroke-opacity=".85" stroke-width="1.4" stroke-linejoin="round" />
+      <path d="M18.4 19.6h11.2v8.8H18.4z" fill="none" stroke="var(--pm-gold-bright)" stroke-opacity=".85" stroke-width="1.4" stroke-linejoin="round" />
+      <path d="M18.8 20.2 24 24.2l5.2-4" fill="none" stroke="var(--pm-gold-bright)" stroke-opacity=".85" stroke-width="1.4" stroke-linejoin="round" />
       <ellipse cx="18" cy="13" rx="5" ry="2" fill="#fff" opacity=".18" transform="rotate(-25 18 13)" />
     </symbol>
 
@@ -217,28 +217,28 @@ const sections = [
     <!-- a mooring tower on its cloud; colours by CSS variables on the <use> -->
     <symbol id="hb-tower" viewBox="0 0 120 180">
       <circle class="hb-flicker" cx="60" cy="52" r="52" fill="url(#hb-g-halo)" />
-      <ellipse cx="60" cy="168" rx="50" ry="10" fill="#3d2a52" />
-      <circle cx="28" cy="160" r="14" fill="#5b4270" />
-      <circle cx="58" cy="154" r="19" fill="#634a78" />
-      <circle cx="90" cy="160" r="14" fill="#5b4270" />
-      <path d="M18 160 a14 14 0 0 1 12 -13 M44 147 a19 19 0 0 1 24 -9" fill="none" stroke="#8a6c9a" stroke-width="2" stroke-linecap="round" opacity=".7" />
-      <path d="M40 150 L46 74 H74 L80 150 Z" fill="#efe3d0" />
-      <path d="M43.95 100 L76.05 100 L77 112 L43 112 Z" style="fill: var(--band, #a3222a)" />
-      <path d="M41.74 128 L78.26 128 L79.21 140 L40.79 140 Z" style="fill: var(--band, #a3222a)" />
+      <ellipse cx="60" cy="168" rx="50" ry="10" fill="var(--hb-cloud-shade)" />
+      <circle cx="28" cy="160" r="14" fill="var(--hb-cloud)" />
+      <circle cx="58" cy="154" r="19" fill="var(--hb-cloud-lit)" />
+      <circle cx="90" cy="160" r="14" fill="var(--hb-cloud)" />
+      <path d="M18 160 a14 14 0 0 1 12 -13 M44 147 a19 19 0 0 1 24 -9" fill="none" stroke="var(--hb-cloud-rim)" stroke-width="2" stroke-linecap="round" opacity=".7" />
+      <path d="M40 150 L46 74 H74 L80 150 Z" fill="var(--pm-paper-deep)" />
+      <path d="M43.95 100 L76.05 100 L77 112 L43 112 Z" style="fill: var(--band, var(--pm-wax))" />
+      <path d="M41.74 128 L78.26 128 L79.21 140 L40.79 140 Z" style="fill: var(--band, var(--pm-wax))" />
       <path d="M60 74 V150" stroke="#000" stroke-opacity=".07" stroke-width="16" />
-      <path d="M55 150 V142 a5 5 0 0 1 10 0 V150 Z" fill="#4a2f3c" />
-      <circle class="hb-flicker hb-f2" cx="60" cy="88" r="4.2" fill="#ffd98a" />
-      <rect x="39" y="68" width="42" height="6.5" rx="2.5" fill="#3b2733" />
-      <path d="M43 68 V62 M50 68 V62 M57 68 V62 M63 68 V62 M70 68 V62 M77 68 V62 M41 62 H79" stroke="#3b2733" stroke-width="1.6" stroke-linecap="round" />
-      <rect class="hb-flicker" x="47" y="40" width="26" height="24" rx="4" fill="#ffd98a" />
-      <path d="M56 40 V64 M64 40 V64" stroke="#b07a4f" stroke-width="1.6" />
-      <path d="M42 42 Q60 15 78 42 Z" style="fill: var(--roof, #651a72)" />
+      <path d="M55 150 V142 a5 5 0 0 1 10 0 V150 Z" fill="var(--pm-night)" />
+      <circle class="hb-flicker hb-f2" cx="60" cy="88" r="4.2" fill="var(--pm-gold-bright)" />
+      <rect x="39" y="68" width="42" height="6.5" rx="2.5" fill="var(--pm-night)" />
+      <path d="M43 68 V62 M50 68 V62 M57 68 V62 M63 68 V62 M70 68 V62 M77 68 V62 M41 62 H79" stroke="var(--pm-night)" stroke-width="1.6" stroke-linecap="round" />
+      <rect class="hb-flicker" x="47" y="40" width="26" height="24" rx="4" fill="var(--pm-gold-bright)" />
+      <path d="M56 40 V64 M64 40 V64" stroke="var(--hb-wood)" stroke-width="1.6" />
+      <path d="M42 42 Q60 15 78 42 Z" style="fill: var(--roof, var(--pm-accent))" />
       <path d="M48 36 Q60 22 66 24" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="2" stroke-linecap="round" />
-      <circle cx="60" cy="20" r="3.2" fill="#f39a3d" />
-      <path d="M60 20 V5" stroke="#3b2733" stroke-width="1.6" />
-      <path d="M60 5 L77 9 L60 13 Z" style="fill: var(--flag, #f39a3d)" />
-      <path d="M78 54 L99 48" stroke="#3b2733" stroke-width="2.2" stroke-linecap="round" />
-      <circle cx="101.5" cy="47.3" r="3.2" fill="none" stroke="#f39a3d" stroke-width="1.8" />
+      <circle cx="60" cy="20" r="3.2" fill="var(--pm-gold)" />
+      <path d="M60 20 V5" stroke="var(--pm-night)" stroke-width="1.6" />
+      <path d="M60 5 L77 9 L60 13 Z" style="fill: var(--flag, var(--pm-gold))" />
+      <path d="M78 54 L99 48" stroke="var(--pm-night)" stroke-width="2.2" stroke-linecap="round" />
+      <circle cx="101.5" cy="47.3" r="3.2" fill="none" stroke="var(--pm-gold)" stroke-width="1.8" />
     </symbol>
 
     <!-- POSTMARK, trued to its postbox (Darko, 2026-10-22: "postmark can be
@@ -247,27 +247,27 @@ const sections = [
          lamp in its cap, the slot, and the wax seal for a plate. -->
     <symbol id="hb-postbox" viewBox="0 0 120 180">
       <circle class="hb-flicker" cx="60" cy="40" r="46" fill="url(#hb-g-halo)" />
-      <ellipse cx="60" cy="168" rx="50" ry="10" fill="#3d2a52" />
-      <circle cx="28" cy="160" r="14" fill="#5b4270" />
-      <circle cx="58" cy="154" r="19" fill="#634a78" />
-      <circle cx="90" cy="160" r="14" fill="#5b4270" />
-      <path d="M18 160 a14 14 0 0 1 12 -13 M44 147 a19 19 0 0 1 24 -9" fill="none" stroke="#8a6c9a" stroke-width="2" stroke-linecap="round" opacity=".7" />
+      <ellipse cx="60" cy="168" rx="50" ry="10" fill="var(--hb-cloud-shade)" />
+      <circle cx="28" cy="160" r="14" fill="var(--hb-cloud)" />
+      <circle cx="58" cy="154" r="19" fill="var(--hb-cloud-lit)" />
+      <circle cx="90" cy="160" r="14" fill="var(--hb-cloud)" />
+      <path d="M18 160 a14 14 0 0 1 12 -13 M44 147 a19 19 0 0 1 24 -9" fill="none" stroke="var(--hb-cloud-rim)" stroke-width="2" stroke-linecap="round" opacity=".7" />
       <!-- plinth -->
-      <rect x="28" y="140" width="64" height="11" rx="3" fill="#3b2733" />
+      <rect x="28" y="140" width="64" height="11" rx="3" fill="var(--pm-night)" />
       <!-- the pillar -->
-      <path d="M33 141 V78 Q33 70 41 70 H79 Q87 70 87 78 V141 Z" fill="url(#hb-g-plum)" />
+      <path d="M33 141 V78 Q33 70 41 70 H79 Q87 70 87 78 V141 Z" fill="url(#hb-g-pillar)" />
       <path d="M41 78 V136" stroke="#fff" stroke-opacity=".14" stroke-width="5" stroke-linecap="round" />
       <!-- the cap: a dome over a rim -->
-      <rect x="28" y="63" width="64" height="9" rx="3.5" fill="#3b2733" />
-      <path d="M31 64 Q60 26 89 64 Z" fill="#4a1254" />
+      <rect x="28" y="63" width="64" height="9" rx="3.5" fill="var(--pm-night)" />
+      <path d="M31 64 Q60 26 89 64 Z" fill="var(--hb-pillar-cap)" />
       <path d="M41 56 Q53 41 66 41" fill="none" stroke="#fff" stroke-opacity=".2" stroke-width="2.4" stroke-linecap="round" />
       <!-- the lamp in the cap -->
-      <rect class="hb-flicker" x="53" y="24" width="14" height="16" rx="3.5" fill="#ffd98a" />
-      <path d="M49 27 Q60 16 71 27 Z" fill="#3b2733" />
-      <circle cx="60" cy="14" r="3" fill="#f39a3d" />
+      <rect class="hb-flicker" x="53" y="24" width="14" height="16" rx="3.5" fill="var(--pm-gold-bright)" />
+      <path d="M49 27 Q60 16 71 27 Z" fill="var(--pm-night)" />
+      <circle cx="60" cy="14" r="3" fill="var(--pm-gold)" />
       <!-- the slot and its lip -->
-      <rect x="44" y="83" width="32" height="6" rx="3" fill="#22121f" />
-      <path d="M43 82 H77" stroke="#f2bc82" stroke-width="1.6" stroke-linecap="round" />
+      <rect x="44" y="83" width="32" height="6" rx="3" fill="var(--pm-night)" />
+      <path d="M43 82 H77" stroke="var(--pm-gold-bright)" stroke-width="1.6" stroke-linecap="round" />
       <!-- the plate: Postmark's wax seal -->
       <use href="#hb-i-seal" x="44" y="96" width="32" height="32" />
       <!-- the door's edge -->
@@ -277,93 +277,93 @@ const sections = [
     <!-- the harbor: a floating dock with a lamp and a mail sign -->
     <symbol id="hb-dock" viewBox="0 0 160 100">
       <ellipse class="hb-flicker hb-f3" cx="80" cy="66" rx="78" ry="30" fill="url(#hb-g-halo)" />
-      <circle cx="44" cy="74" r="13" fill="#5b4270" />
-      <circle cx="80" cy="78" r="16" fill="#634a78" />
-      <circle cx="116" cy="74" r="13" fill="#5b4270" />
-      <ellipse cx="80" cy="66" rx="64" ry="15" fill="#7a4f37" />
-      <ellipse cx="80" cy="61" rx="64" ry="15" fill="#b07a4f" />
-      <path d="M30 56 Q80 50 130 56 M24 63 Q80 57 136 63 M34 70 Q80 66 126 70" fill="none" stroke="#8a5a3c" stroke-width="1.2" />
-      <path d="M28 58 V50 M48 52 V44 M112 52 V44 M132 58 V50 M28 50 Q38 45 48 44 M112 44 Q122 45 132 50" fill="none" stroke="#3b2733" stroke-width="1.8" stroke-linecap="round" />
-      <circle cx="30" cy="66" r="3" fill="#3b2733" /><circle cx="130" cy="66" r="3" fill="#3b2733" />
-      <path d="M80 60 V22" stroke="#3b2733" stroke-width="3.2" stroke-linecap="round" />
+      <circle cx="44" cy="74" r="13" fill="var(--hb-cloud)" />
+      <circle cx="80" cy="78" r="16" fill="var(--hb-cloud-lit)" />
+      <circle cx="116" cy="74" r="13" fill="var(--hb-cloud)" />
+      <ellipse cx="80" cy="66" rx="64" ry="15" fill="var(--hb-wood-deep)" />
+      <ellipse cx="80" cy="61" rx="64" ry="15" fill="var(--hb-wood)" />
+      <path d="M30 56 Q80 50 130 56 M24 63 Q80 57 136 63 M34 70 Q80 66 126 70" fill="none" stroke="var(--hb-wood-mid)" stroke-width="1.2" />
+      <path d="M28 58 V50 M48 52 V44 M112 52 V44 M132 58 V50 M28 50 Q38 45 48 44 M112 44 Q122 45 132 50" fill="none" stroke="var(--pm-night)" stroke-width="1.8" stroke-linecap="round" />
+      <circle cx="30" cy="66" r="3" fill="var(--pm-night)" /><circle cx="130" cy="66" r="3" fill="var(--pm-night)" />
+      <path d="M80 60 V22" stroke="var(--pm-night)" stroke-width="3.2" stroke-linecap="round" />
       <circle class="hb-flicker" cx="80" cy="16" r="16" fill="url(#hb-g-lamp)" />
-      <rect class="hb-flicker" x="74" y="9" width="12" height="14" rx="3" fill="#ffd98a" />
-      <path d="M72 10 Q80 2 88 10 Z" fill="#651a72" />
-      <path d="M80 30 H86" stroke="#3b2733" stroke-width="2" />
-      <rect x="86" y="25" width="24" height="16" rx="2.5" fill="#ece2d4" stroke="#3b2733" stroke-width="1.4" />
-      <path d="M86.8 26 98 34 109.2 26" fill="none" stroke="#a3222a" stroke-width="1.6" stroke-linejoin="round" />
-      <rect x="52" y="48" width="14" height="10" rx="1.5" fill="#d9b98c" stroke="#7a4f37" stroke-width="1" />
-      <rect x="55" y="40" width="10" height="8" rx="1.5" fill="#ecd3a8" stroke="#7a4f37" stroke-width="1" />
-      <path d="M59 48 V58 M52 53 H66" stroke="#a3222a" stroke-width="1" />
+      <rect class="hb-flicker" x="74" y="9" width="12" height="14" rx="3" fill="var(--pm-gold-bright)" />
+      <path d="M72 10 Q80 2 88 10 Z" fill="var(--pm-accent)" />
+      <path d="M80 30 H86" stroke="var(--pm-night)" stroke-width="2" />
+      <rect x="86" y="25" width="24" height="16" rx="2.5" fill="var(--pm-paper)" stroke="var(--pm-night)" stroke-width="1.4" />
+      <path d="M86.8 26 98 34 109.2 26" fill="none" stroke="var(--pm-wax)" stroke-width="1.6" stroke-linejoin="round" />
+      <rect x="52" y="48" width="14" height="10" rx="1.5" fill="var(--hb-crate)" stroke="var(--hb-wood-deep)" stroke-width="1" />
+      <rect x="55" y="40" width="10" height="8" rx="1.5" fill="var(--pm-paper-deep)" stroke="var(--hb-wood-deep)" stroke-width="1" />
+      <path d="M59 48 V58 M52 53 H66" stroke="var(--pm-wax)" stroke-width="1" />
     </symbol>
 
     <!-- THE NIGHT MAIL: a skyship drawn as a 2¢ postage stamp -->
     <symbol id="hb-ship" viewBox="-8 -26 176 230">
-      <rect x="0" y="0" width="144" height="192" fill="#f6ecdc" mask="url(#hb-m-perf)" />
+      <rect x="0" y="0" width="144" height="192" fill="var(--pm-paper)" mask="url(#hb-m-perf)" />
       <rect x="10" y="10" width="124" height="148" rx="3" fill="url(#hb-g-stampsky)" />
-      <rect x="10" y="10" width="124" height="148" rx="3" fill="none" stroke="#f2bc82" stroke-width="1.2" opacity=".8" />
-      <circle cx="26" cy="40" r="1.2" fill="#f0e6d6" /><circle cx="118" cy="98" r="1" fill="#f0e6d6" />
-      <circle cx="108" cy="30" r="1.1" fill="#f2bc82" /><circle cx="22" cy="104" r="1" fill="#f0e6d6" />
-      <path d="M118 120 l1.6 3.4 3.4 1.6 -3.4 1.6 -1.6 3.4 -1.6 -3.4 -3.4 -1.6 3.4 -1.6z" fill="#f2bc82" opacity=".9" />
-      <g fill="#f0e6d6" opacity=".16">
+      <rect x="10" y="10" width="124" height="148" rx="3" fill="none" stroke="var(--pm-gold-bright)" stroke-width="1.2" opacity=".8" />
+      <circle cx="26" cy="40" r="1.2" fill="var(--pm-paper)" /><circle cx="118" cy="98" r="1" fill="var(--pm-paper)" />
+      <circle cx="108" cy="30" r="1.1" fill="var(--pm-gold-bright)" /><circle cx="22" cy="104" r="1" fill="var(--pm-paper)" />
+      <path d="M118 120 l1.6 3.4 3.4 1.6 -3.4 1.6 -1.6 3.4 -1.6 -3.4 -3.4 -1.6 3.4 -1.6z" fill="var(--pm-gold-bright)" opacity=".9" />
+      <g fill="var(--pm-paper)" opacity=".16">
         <circle cx="30" cy="150" r="10" /><circle cx="46" cy="146" r="13" /><circle cx="62" cy="152" r="9" />
         <circle cx="104" cy="150" r="9" /><circle cx="118" cy="146" r="11" />
       </g>
-      <path d="M30 62 L12 47 L17 62 L12 77 Z" fill="#8f3a5a" />
+      <path d="M30 62 L12 47 L17 62 L12 77 Z" fill="var(--pm-wax)" />
       <ellipse cx="74" cy="62" rx="50" ry="28" fill="url(#hb-g-balloon)" />
-      <path d="M52 36 Q44 62 52 88 M74 34 V90 M96 36 Q104 62 96 88" fill="none" stroke="#f2bc82" stroke-width="2.2" opacity=".9" />
+      <path d="M52 36 Q44 62 52 88 M74 34 V90 M96 36 Q104 62 96 88" fill="none" stroke="var(--pm-gold-bright)" stroke-width="2.2" opacity=".9" />
       <ellipse cx="60" cy="49" rx="20" ry="6.5" fill="#fff" opacity=".26" transform="rotate(-8 60 49)" />
-      <circle cx="124" cy="62" r="4.2" fill="#f39a3d" />
-      <path d="M36 70 Q74 80 112 70" fill="none" stroke="#ece2d4" stroke-width="6" opacity=".9" />
-      <path d="M36 70 Q74 80 112 70" fill="none" stroke="#a3222a" stroke-width="6" stroke-dasharray="6 6" opacity=".75" />
-      <path d="M50 86 L46 105 M98 86 L102 105 M74 90 V105" stroke="#f2bc82" stroke-width="1.3" />
-      <path d="M34 104 H114 Q117 104 115 110 L106 128 Q103 133 97 133 H51 Q45 133 42 128 L33 110 Q31 104 34 104 Z" fill="#8a5a3c" />
-      <rect x="33" y="103" width="82" height="5.5" rx="2.5" fill="#f39a3d" />
+      <circle cx="124" cy="62" r="4.2" fill="var(--pm-gold)" />
+      <path d="M36 70 Q74 80 112 70" fill="none" stroke="var(--pm-paper)" stroke-width="6" opacity=".9" />
+      <path d="M36 70 Q74 80 112 70" fill="none" stroke="var(--pm-wax)" stroke-width="6" stroke-dasharray="6 6" opacity=".75" />
+      <path d="M50 86 L46 105 M98 86 L102 105 M74 90 V105" stroke="var(--pm-gold-bright)" stroke-width="1.3" />
+      <path d="M34 104 H114 Q117 104 115 110 L106 128 Q103 133 97 133 H51 Q45 133 42 128 L33 110 Q31 104 34 104 Z" fill="var(--hb-wood-mid)" />
+      <rect x="33" y="103" width="82" height="5.5" rx="2.5" fill="var(--pm-gold)" />
       <g>
-        <circle cx="55" cy="119" r="7.5" fill="#ffd98a" stroke="#f39a3d" stroke-width="1.6" />
-        <circle cx="52.7" cy="118" r="1.15" fill="#2e2328" /><circle cx="57.3" cy="118" r="1.15" fill="#2e2328" />
-        <path d="M52.6 121 Q55 123.4 57.4 121" fill="none" stroke="#2e2328" stroke-width="1.1" stroke-linecap="round" />
-        <circle cx="51.2" cy="121" r="1.2" fill="#e2768f" opacity=".7" /><circle cx="58.8" cy="121" r="1.2" fill="#e2768f" opacity=".7" />
+        <circle cx="55" cy="119" r="7.5" fill="var(--pm-gold-bright)" stroke="var(--pm-gold)" stroke-width="1.6" />
+        <circle cx="52.7" cy="118" r="1.15" fill="var(--pm-ink)" /><circle cx="57.3" cy="118" r="1.15" fill="var(--pm-ink)" />
+        <path d="M52.6 121 Q55 123.4 57.4 121" fill="none" stroke="var(--pm-ink)" stroke-width="1.1" stroke-linecap="round" />
+        <circle cx="51.2" cy="121" r="1.2" fill="var(--pm-gold-bright)" opacity=".7" /><circle cx="58.8" cy="121" r="1.2" fill="var(--pm-gold-bright)" opacity=".7" />
       </g>
       <g>
-        <circle cx="74" cy="119" r="7.5" fill="#ffd98a" stroke="#f39a3d" stroke-width="1.6" />
-        <path d="M70.8 118.2 q1.4 -1.4 2.8 0 M75.2 118.2 q1.4 -1.4 2.8 0" fill="none" stroke="#2e2328" stroke-width="1.1" stroke-linecap="round" />
-        <path d="M71.8 120.8 Q74 123.6 76.2 120.8" fill="#2e2328" />
-        <circle cx="70.2" cy="121" r="1.2" fill="#e2768f" opacity=".7" /><circle cx="77.8" cy="121" r="1.2" fill="#e2768f" opacity=".7" />
+        <circle cx="74" cy="119" r="7.5" fill="var(--pm-gold-bright)" stroke="var(--pm-gold)" stroke-width="1.6" />
+        <path d="M70.8 118.2 q1.4 -1.4 2.8 0 M75.2 118.2 q1.4 -1.4 2.8 0" fill="none" stroke="var(--pm-ink)" stroke-width="1.1" stroke-linecap="round" />
+        <path d="M71.8 120.8 Q74 123.6 76.2 120.8" fill="var(--pm-ink)" />
+        <circle cx="70.2" cy="121" r="1.2" fill="var(--pm-gold-bright)" opacity=".7" /><circle cx="77.8" cy="121" r="1.2" fill="var(--pm-gold-bright)" opacity=".7" />
       </g>
       <g>
-        <circle cx="93" cy="119" r="7.5" fill="#ffd98a" stroke="#f39a3d" stroke-width="1.6" />
-        <circle cx="90.7" cy="118" r="1.15" fill="#2e2328" /><circle cx="95.3" cy="118" r="1.15" fill="#2e2328" />
-        <circle cx="93" cy="121.6" r="1.3" fill="#2e2328" />
-        <circle cx="89.2" cy="121" r="1.2" fill="#e2768f" opacity=".7" /><circle cx="96.8" cy="121" r="1.2" fill="#e2768f" opacity=".7" />
+        <circle cx="93" cy="119" r="7.5" fill="var(--pm-gold-bright)" stroke="var(--pm-gold)" stroke-width="1.6" />
+        <circle cx="90.7" cy="118" r="1.15" fill="var(--pm-ink)" /><circle cx="95.3" cy="118" r="1.15" fill="var(--pm-ink)" />
+        <circle cx="93" cy="121.6" r="1.3" fill="var(--pm-ink)" />
+        <circle cx="89.2" cy="121" r="1.2" fill="var(--pm-gold-bright)" opacity=".7" /><circle cx="96.8" cy="121" r="1.2" fill="var(--pm-gold-bright)" opacity=".7" />
       </g>
-      <path d="M33 117 H27" stroke="#3b2733" stroke-width="2" />
+      <path d="M33 117 H27" stroke="var(--pm-night)" stroke-width="2" />
       <g class="hb-prop">
-        <ellipse cx="25" cy="117" rx="2.4" ry="9" fill="#ece2d4" opacity=".9" />
-        <circle cx="25" cy="117" r="2" fill="#f39a3d" />
+        <ellipse cx="25" cy="117" rx="2.4" ry="9" fill="var(--pm-paper)" opacity=".9" />
+        <circle cx="25" cy="117" r="2" fill="var(--pm-gold)" />
       </g>
-      <path d="M44 131 V138 M104 131 V138" stroke="#f2bc82" stroke-width="1" />
+      <path d="M44 131 V138 M104 131 V138" stroke="var(--pm-gold-bright)" stroke-width="1" />
       <circle class="hb-flicker" cx="44" cy="144" r="13" fill="url(#hb-g-lamp)" />
       <circle class="hb-flicker hb-f2" cx="104" cy="144" r="13" fill="url(#hb-g-lamp)" />
-      <rect x="40.5" y="138" width="7" height="10" rx="2" fill="#ffd98a" stroke="#b07a4f" stroke-width="1" />
-      <rect x="100.5" y="138" width="7" height="10" rx="2" fill="#ffd98a" stroke="#b07a4f" stroke-width="1" />
-      <path d="M66 133 V138 M84 133 V138" stroke="#f2bc82" stroke-width="1" />
-      <path d="M60 138 Q57 150 61.5 154.5 Q66 157.5 70.5 154.5 Q75 150 72 138 Q66 141 60 138 Z" fill="#e8d6b5" stroke="#9c7d58" stroke-width="1" />
-      <path d="M78 138 Q75 150 79.5 154.5 Q84 157.5 88.5 154.5 Q93 150 90 138 Q84 141 78 138 Z" fill="#e8d6b5" stroke="#9c7d58" stroke-width="1" />
-      <rect x="62.5" y="144" width="7" height="5" rx=".8" fill="none" stroke="#a3222a" stroke-width=".9" />
-      <path d="M62.8 144.4 66 146.8 69.2 144.4" fill="none" stroke="#a3222a" stroke-width=".9" />
-      <rect x="80.5" y="144" width="7" height="5" rx=".8" fill="none" stroke="#a3222a" stroke-width=".9" />
-      <path d="M80.8 144.4 84 146.8 87.2 144.4" fill="none" stroke="#a3222a" stroke-width=".9" />
-      <text x="17" y="27" style="font-family: var(--hb-display)" font-weight="700" font-size="13" fill="#f2bc82">2¢</text>
-      <text x="72" y="179" text-anchor="middle" style="font-family: var(--hb-display)" font-weight="600" font-size="12.5" letter-spacing="2.2" fill="#2e2328">NIGHT MAIL</text>
-      <g transform="translate(126 6) rotate(-12)" color="#e86a82">
+      <rect x="40.5" y="138" width="7" height="10" rx="2" fill="var(--pm-gold-bright)" stroke="var(--hb-wood)" stroke-width="1" />
+      <rect x="100.5" y="138" width="7" height="10" rx="2" fill="var(--pm-gold-bright)" stroke="var(--hb-wood)" stroke-width="1" />
+      <path d="M66 133 V138 M84 133 V138" stroke="var(--pm-gold-bright)" stroke-width="1" />
+      <path d="M60 138 Q57 150 61.5 154.5 Q66 157.5 70.5 154.5 Q75 150 72 138 Q66 141 60 138 Z" fill="var(--pm-paper-deep)" stroke="var(--pm-ink-soft)" stroke-width="1" />
+      <path d="M78 138 Q75 150 79.5 154.5 Q84 157.5 88.5 154.5 Q93 150 90 138 Q84 141 78 138 Z" fill="var(--pm-paper-deep)" stroke="var(--pm-ink-soft)" stroke-width="1" />
+      <rect x="62.5" y="144" width="7" height="5" rx=".8" fill="none" stroke="var(--pm-wax)" stroke-width=".9" />
+      <path d="M62.8 144.4 66 146.8 69.2 144.4" fill="none" stroke="var(--pm-wax)" stroke-width=".9" />
+      <rect x="80.5" y="144" width="7" height="5" rx=".8" fill="none" stroke="var(--pm-wax)" stroke-width=".9" />
+      <path d="M80.8 144.4 84 146.8 87.2 144.4" fill="none" stroke="var(--pm-wax)" stroke-width=".9" />
+      <text x="17" y="27" style="font-family: var(--hb-display)" font-weight="700" font-size="13" fill="var(--pm-gold-bright)">2¢</text>
+      <text x="72" y="179" text-anchor="middle" style="font-family: var(--hb-display)" font-weight="600" font-size="12.5" letter-spacing="2.2" fill="var(--pm-ink)">NIGHT MAIL</text>
+      <g transform="translate(126 6) rotate(-12)" color="var(--pm-wax)">
         <path d="M-78 -8 q6 -4 12 0 t12 0 t12 0 t12 0 t12 0 M-78 0 q6 -4 12 0 t12 0 t12 0 t12 0 t12 0 M-78 8 q6 -4 12 0 t12 0 t12 0 t12 0 t12 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
         <use href="#hb-i-cancel" x="-24" y="-24" width="48" height="48" />
       </g>
     </symbol>
 
     <symbol id="hb-i-twinkle" viewBox="-10 -10 20 20">
-      <path d="M0 -9 L2 -2 L9 0 L2 2 L0 9 L-2 2 L-9 0 L-2 -2 Z" fill="#f0e6d6" />
+      <path d="M0 -9 L2 -2 L9 0 L2 2 L0 9 L-2 2 L-9 0 L-2 -2 Z" fill="var(--pm-paper)" />
     </symbol>
   </svg>
 
@@ -428,11 +428,11 @@ const sections = [
                 <use class="hb-twinkle hb-t2" href="#hb-i-twinkle" x="1010" y="230" width="10" height="10" />
                 <use class="hb-twinkle" href="#hb-i-twinkle" x="140" y="300" width="10" height="10" />
                 <use class="hb-twinkle hb-t3" href="#hb-i-twinkle" x="455" y="40" width="10" height="10" />
-                <g fill="#513657" opacity=".55">
+                <g fill="var(--pm-harbor-2)" opacity=".55">
                   <ellipse cx="120" cy="628" rx="150" ry="26" /><circle cx="80" cy="612" r="34" /><circle cx="150" cy="606" r="40" />
                   <ellipse cx="1080" cy="630" rx="160" ry="26" /><circle cx="1050" cy="610" r="36" /><circle cx="1120" cy="604" r="42" />
                 </g>
-                <g fill="#513657" opacity=".3">
+                <g fill="var(--pm-harbor-2)" opacity=".3">
                   <ellipse cx="420" cy="214" rx="70" ry="13" /><circle cx="404" cy="204" r="16" /><circle cx="430" cy="200" r="20" />
                   <ellipse cx="830" cy="190" rx="60" ry="11" /><circle cx="844" cy="180" r="17" />
                 </g>
@@ -446,7 +446,7 @@ const sections = [
                 <use class="hb-twinkle" href="#hb-i-twinkle" x="22" y="40" width="12" height="12" />
                 <use class="hb-twinkle hb-t2" href="#hb-i-twinkle" x="300" y="200" width="10" height="10" />
                 <use class="hb-twinkle hb-t3" href="#hb-i-twinkle" x="40" y="250" width="9" height="9" />
-                <g fill="#513657" opacity=".55">
+                <g fill="var(--pm-harbor-2)" opacity=".55">
                   <ellipse cx="40" cy="645" rx="90" ry="18" /><circle cx="20" cy="632" r="22" /><circle cx="66" cy="628" r="24" />
                   <ellipse cx="320" cy="648" rx="90" ry="18" /><circle cx="300" cy="632" r="22" /><circle cx="344" cy="628" r="24" />
                 </g>
@@ -573,12 +573,12 @@ const sections = [
           </li>
           {listed.length > 0 && (
             <li>
-              <svg width="20" height="20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="#cdbccd" stroke-width="1.4" stroke-dasharray="3 3" /></svg>
+              <svg width="20" height="20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="var(--text-soft)" stroke-width="1.4" stroke-dasharray="3 3" /></svg>
               listed, no charter and no flight path
             </li>
           )}
           <li>
-            <svg width="16" height="20" aria-hidden="true"><rect x="2" y="2" width="12" height="16" rx="1" fill="#f6ecdc" /><rect x="4" y="4" width="8" height="10" fill="#4a2a5c" /></svg>
+            <svg width="16" height="20" aria-hidden="true"><rect x="2" y="2" width="12" height="16" rx="1" fill="var(--pm-paper)" /><rect x="4" y="4" width="8" height="10" fill="var(--pm-harbor-2)" /></svg>
             the night mail (drawn as a stamp)
           </li>
           <li class="hb-hint">click a town for its card</li>

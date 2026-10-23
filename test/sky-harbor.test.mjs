@@ -68,7 +68,8 @@ test("S4 · Postmark is its postbox, never the red-and-white lighthouse", () => 
   assert.match(PAGE, /<symbol id="hb-postbox"/);
   assert.match(PAGE, /<use href="#hb-postbox" x=\{d\.frame\.host\.x\}/, "the chart draws Postmark as a tower");
   const postbox = /<symbol id="hb-postbox"[\s\S]*?<\/symbol>/.exec(PAGE)[0];
-  assert.match(postbox, /hb-g-plum/, "the postbox is not in Postmark's plum");
+  assert.match(postbox, /hb-g-pillar/, "the postbox lost its pillar");
+  assert.doesNotMatch(postbox, /hb-g-plum/, "the postbox is back in the season's plum");
   assert.doesNotMatch(postbox, /--band/, "the postbox wears a lighthouse's bands");
 });
 
@@ -157,4 +158,73 @@ test("S11 · the far water's date comes from the marks' own dates: one when they
   assert.equal(readSpan(["2025-12-31", "2026-01-01"]), "2025-12-31–2026-01-01");
   assert.match(PAGE, /const farRead = readSpan\(listed\.flatMap\(\(t\) => \[t\.count\?\.read, t\.activity\?\.measured\]\)\)/);
   assert.doesNotMatch(PAGE, /read 2026-\d\d-\d\d/, "a read date is typed into the page");
+});
+
+
+// ── L · the harbor wears Postmark's DEFAULT palette, in every season (POS-769
+//    follow-up; Darko 2026-10-23: "just utilize the default non-seasonal
+//    postmark aesthetic for representing it in the harbor") ─────────────────
+import { SITE, VARIANTS, mix, contrast } from "../src/lib/halloween-skin.mjs";
+import { towerInks as towerInksL } from "../src/lib/harbor-sky.mjs";
+
+const POSTMARK_CSS = read("src/styles/postmark.css");
+const BULLETIN = read("town/pages/bulletin/index.astro");
+const SKY = read("src/lib/harbor-sky.mjs");
+const hexToken = (css, name) => new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6})`).exec(css)?.[1].toLowerCase();
+
+test("L1 · the harbor takes the site's tokens from postmark.css and redeclares none of them", () => {
+  assert.match(LAYOUT, /<html lang="en" class="pm">/, "the harbor's root does not carry the site's token class");
+  const order = [...LAYOUT.matchAll(/import "\.\.\/styles\/([\w.-]+\.css)";/g)].map((m) => m[1]);
+  assert.deepEqual(order, ["postmark.css", "harbor.css"], "the site's tokens must load before the harbor's rules");
+  const own = [...CSS.matchAll(/(--pm-[a-z0-9-]+)\s*:/g)].map((m) => m[1]);
+  assert.deepEqual(own, [], `harbor.css redeclares the site's tokens: ${own.join(", ")}`);
+  // and the site's tokens ARE the default (k = 0) the skin walks from
+  for (const [css, key] of [["pm-night", "night"], ["pm-harbor", "harbor"], ["pm-harbor-2", "harbor2"], ["pm-gold", "gold"], ["pm-gold-bright", "goldBright"],
+    ["pm-paper", "paper"], ["pm-paper-deep", "paperDeep"], ["pm-ink", "ink"], ["pm-ink-soft", "inkSoft"], ["pm-accent", "accent"], ["pm-wax", "wax"]]) {
+    assert.equal(hexToken(POSTMARK_CSS, css), SITE[key], `--${css} is not the site's default`);
+  }
+});
+
+test("L2 · the harbor reads no season: no skin, no mists, none of the skin's colours", () => {
+  for (const [name, src] of [["layout", LAYOUT], ["page", PAGE], ["css", CSS], ["sky", SKY]]) {
+    assert.doesNotMatch(src, /import[^;\n]*(halloween|mists-season)|<Halloween|siteMists\(|skinStrength\(|process\.env\.BUILD_CROSSING/i, `the ${name} reaches for the season`);
+  }
+  // every colour the skin's variants wear, and the plums and candle orange the page once typed in
+  const skin = new Set(Object.values(VARIANTS).flatMap((v) => Object.values(v).filter((x) => /^#/.test(x))));
+  for (const h of ["#1f1420", "#2a1b2a", "#513657", "#651a72", "#f39a3d", "#f2bc82", "#ffd98a", "#110b22", "#1b1336", "#251a3d", "#34224a", "#3b2733", "#4a1254", "#7a2588", "#e2768f", "#b44a6c", "#26235a", "#4a2a5c", "#6a3a5e", "#5b4270", "#634a78", "#3d2a52", "#8a6c9a"]) skin.add(h);
+  const chart = /\.chart \{[\s\S]*?\.beyond \{[\s\S]*?\}/.exec(BULLETIN)?.[0] ?? "";
+  assert.ok(chart.includes("var(--pm-harbor"), "the corkboard's harbor piece block was not found");
+  for (const [name, src] of [["layout", LAYOUT], ["page", PAGE], ["css", CSS], ["sky", SKY], ["corkboard piece", chart]]) {
+    const worn = (src.match(/#[0-9a-fA-F]{6}\b/g) || []).map((h) => h.toLowerCase()).filter((h) => skin.has(h));
+    assert.deepEqual(worn, [], `the ${name} wears the season's colours: ${worn.join(", ")}`);
+  }
+});
+
+test("L3 · a town's tower is coloured from the site's tokens, never a hex of its own", () => {
+  for (const [slug, i] of [["1f3d9", 0], ["1f916", 0], ["later-a", 0], ["later-b", 1]]) {
+    for (const v of Object.values(towerInksL(slug, i))) assert.doesNotMatch(v, /#[0-9a-f]{3,6}/i, `${slug} types a colour: ${v}`);
+  }
+});
+
+test("L4 · WCAG AA (4.5:1) on every text pair the harbor sets, measured from the site's own tokens", () => {
+  const T = { night: SITE.night, harbor: SITE.harbor, h2: SITE.harbor2, gold: SITE.gold, goldB: SITE.goldBright, paper: SITE.paper, paperD: SITE.paperDeep, ink: SITE.ink, inkS: SITE.inkSoft, wax: SITE.wax };
+  T.text = hexToken(CSS, "text"); T.textS = hexToken(CSS, "text-soft");
+  assert.ok(T.text && T.textS, "the harbor's text colours are not plain hex");
+  T.muted = mix(T.harbor, T.gold, 0.8);       // --muted: color-mix(gold 80%, harbor)
+  T.sky2 = mix(T.harbor, T.h2, 0.65);         // --sky-2: color-mix(harbor-2 65%, harbor)
+  T.paperLit = mix("#fffcf4", T.paper, 0.55); // --hb-paper-lit
+  assert.match(CSS, /--muted: color-mix\(in srgb, var\(--pm-gold\) 80%, var\(--pm-harbor\)\)/);
+  assert.match(CSS, /--sky-2: color-mix\(in srgb, var\(--pm-harbor-2\) 65%, var\(--pm-harbor\)\)/);
+  assert.match(CSS, /--hb-paper-lit: color-mix\(in srgb, var\(--pm-paper\) 55%, #fffcf4\)/);
+  const pairs = [
+    ["text", "night"], ["text", "sky2"], ["text", "harbor"], ["text", "h2"], ["textS", "sky2"], ["textS", "harbor"], ["textS", "h2"],
+    ["muted", "night"], ["muted", "sky2"], ["muted", "harbor"], ["muted", "h2"],
+    ["goldB", "sky2"], ["goldB", "harbor"], ["goldB", "h2"], ["gold", "sky2"], ["gold", "harbor"], ["paper", "sky2"], ["paper", "night"],
+    ["ink", "paper"], ["ink", "paperD"], ["ink", "paperLit"], ["inkS", "paper"], ["inkS", "paperD"], ["inkS", "paperLit"],
+    ["wax", "paper"], ["wax", "paperD"], ["wax", "paperLit"], ["ink", "gold"], ["ink", "goldB"], ["harbor", "gold"], ["harbor", "goldB"],
+  ];
+  for (const [fg, bg] of pairs) {
+    const r = contrast(T[fg], T[bg]);
+    assert.ok(r >= 4.5, `${fg} on ${bg} is ${r.toFixed(2)}:1`);
+  }
 });
