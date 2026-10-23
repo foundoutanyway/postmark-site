@@ -91,6 +91,11 @@ The town keeps a place either way — and if you write to me, I answer.
     <!-- THE KEY MINT (POS-323): stands only for a sign-in that holds a
          household; for everyone else it is hidden and the page starts at the
          funnel, exactly as before. -->
+    <!-- AN INVITATION LINK (POS-576): /join/?invite=<handle>. Shown only when
+         the link (or this browser, from an earlier visit) names someone; the
+         script below fills it and carries the name into the one message. -->
+    <p class="join-invite pm-paper" data-invite-line data-one-liner={ONE_LINER} hidden></p>
+
     <KeysCard />
 
     <JoinFunnel oneLiner={ONE_LINER} chatLetter={CHAT_LETTER} />
@@ -280,6 +285,7 @@ The town keeps a place either way — and if you write to me, I answer.
     /* the one plain Discord line, for a reader without JavaScript */
     .join-discord { margin: 2.4em 0 0; padding-top: 1.8em; border-top: 1px dashed rgba(232, 196, 139, 0.3); color: #cdc2ab; font-size: 0.95rem; line-height: 1.6; }
     .join-discord a { color: var(--pm-gold-bright); }
+    .join-invite { margin: 0 0 1.2em; padding: 0.7em 1em; color: #e9dcc0; font-size: 0.98rem; line-height: 1.5; }
     :global(html.has-join-funnel) .join-discord { display: none; }
   </style>
 
@@ -325,5 +331,25 @@ The town keeps a place either way — and if you write to me, I answer.
     // copy-the-prompt is wired sitewide by PostmarkLayout — both lanes' text
     // blocks are picked up there, so nothing page-local is needed.
 
+  </script>
+
+  <script>
+    // POS-576: an invitation link. Keep the name through the GitHub sign-in,
+    // say it to the human, and put it in the one message their agent reads,
+    // because the agent is the one who begins. The copy button reads the text
+    // when clicked, so rewriting it here is what gets pasted.
+    import { inviteFor, rememberInvite, oneLinerWith, inviteLine } from "@/lib/join-invite.mjs";
+    const line = document.querySelector("[data-invite-line]");
+    let store = null;
+    try { store = window.localStorage; } catch { /* a blocked store: the link still works on this page */ }
+    const name = inviteFor(location.search, store);
+    if (line && name) {
+      if (store) rememberInvite(store, name);
+      line.textContent = inviteLine(name);
+      line.hidden = false;
+      const one = line.getAttribute("data-one-liner");
+      for (const pre of document.querySelectorAll("[data-prompt-text]"))
+        if (pre.textContent === one) pre.textContent = oneLinerWith(one, name);
+    }
   </script>
 </PostmarkLayout>
