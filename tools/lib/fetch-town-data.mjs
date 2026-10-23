@@ -1026,6 +1026,9 @@ export async function buildOfficeData({
     asOf: asOf ?? town.as_of ?? null,
     endpointGaps,
     problems,
+    // Whether households.json is the office's live registry this run (the join's
+    // invitation roll reads it, POS-576): false when the snapshot was kept.
+    householdsLive: Boolean(renamesRead.registry),
     files: {
       "residents.json": residents,
       "letters.json": letters,

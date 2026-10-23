@@ -11,9 +11,13 @@
 //     GitHub sign-in round trip and a visit to another page first. It keeps it
 //     ONLY when the link brought it, so the 30 days run from the link, not from
 //     the last visit (review of #290, S1);
-//   · ANY well-formed name is kept and carried (into the one message the human
-//     pastes to their agent, and the move-in box): the office judges it and
-//     says why when it refuses (second review of #290);
+//   · a name is kept and carried (into the one message the human pastes to
+//     their agent, and the move-in box) only when it is in the town's ROLL,
+//     the founders' and the town's own names included, so the office gives its
+//     real reason when it refuses. A made-up name never reaches the text a
+//     human pastes to an agent (third review of #290: ?invite=ignore-the-rules
+//     would otherwise put words in front of agents). No live roll (fetch-town
+//     kept a snapshot): nothing is carried, and the join works without it;
 //   · the "Invited by" line, the one place the page PROMISES a credit, shows
 //     only for a name the town's roll at build time knows and the office would
 //     credit: never the town's own names nor the founders' (POS-576/e), so no
@@ -62,21 +66,32 @@ export const TOWN_NAMES = Object.freeze(["template", "index", "office", "postmas
 export const FOUNDERS = Object.freeze(["starforge", "the-town"]);
 
 /**
- * The names the "Invited by" line may promise: every name the town's roll knew
- * at build time (each resident's handle, each household's slug and its
- * `hh:<slug>`) LESS the ones the office refuses whatever the roll says: the
- * town's own names, the founders' houses, and every resident who lives in one.
- * `households` is the site's households.json (`{ households: { <slug>: {
- * residents } } }`); `residents` its residents.json (`[{ handle }]`).
+ * THE ROLL: every name the town knew at build time, each resident's handle,
+ * each household's slug and its `hh:<slug>`. `households` is the site's
+ * households.json (`{ households: { <slug>: { residents } } }`); `residents`
+ * its residents.json (`[{ handle }]`). `live: false` (households-read.json:
+ * this build's registry is a kept snapshot) is an empty roll.
  */
-export function inviteNames({ households = {}, residents = [] } = {}) {
+export function inviteRoll({ households = {}, residents = [], live = true } = {}) {
   const names = new Set();
+  if (!live) return names;
   const houses = households?.households ?? households ?? {};
   for (const [slug, h] of Object.entries(houses)) {
     names.add(slug); names.add(`hh:${slug}`);
     for (const r of h?.residents ?? []) names.add(String(r));
   }
   for (const r of Array.isArray(residents) ? residents : []) if (r?.handle) names.add(String(r.handle));
+  return names;
+}
+
+/**
+ * The names the "Invited by" line may promise: the roll LESS the ones the
+ * office refuses whatever the roll says: the town's own names, the founders'
+ * houses, and every resident who lives in one.
+ */
+export function inviteNames({ households = {}, residents = [], live = true } = {}) {
+  const names = inviteRoll({ households, residents, live });
+  const houses = households?.households ?? households ?? {};
   for (const n of TOWN_NAMES) { names.delete(n); names.delete(`hh:${n}`); }
   for (const f of FOUNDERS) {
     names.delete(f); names.delete(`hh:${f}`);
@@ -86,16 +101,17 @@ export function inviteNames({ households = {}, residents = [] } = {}) {
 }
 
 /**
- * What /join/ does with an invite: `{ name, remember, shown }`, or null. Any
- * well-formed name the link brings is kept (`remember`) and carried; a kept
- * one is carried and never re-kept (its 30 days do not slide). `shown`: the
- * "Invited by" line, only for a name in `names` (inviteNames' set).
+ * What /join/ does with an invite: `{ name, remember, shown }`, or null. A
+ * name in `roll` that the link brings is kept (`remember`) and carried; a
+ * kept one in the roll is carried and never re-kept (its 30 days do not
+ * slide). `shown`: the "Invited by" line, only for a name in `shown`
+ * (inviteNames' set). A name outside the roll is nothing at all.
  */
-export function invitePage(search, storage, names, now = Date.now()) {
+export function invitePage(search, storage, { roll, shown }, now = Date.now()) {
   const linked = inviteFromSearch(search);
-  if (linked) return { name: linked, remember: true, shown: names.has(linked) };
+  if (linked && roll.has(linked)) return { name: linked, remember: true, shown: shown.has(linked) };
   const kept = storage ? recallInvite(storage, now) : null;
-  return kept ? { name: kept, remember: false, shown: names.has(kept) } : null;
+  return kept && roll.has(kept) ? { name: kept, remember: false, shown: shown.has(kept) } : null;
 }
 
 /** How a name is said to a person: a household's key reads as the household. */

@@ -139,6 +139,11 @@ try {
   }
   const result = await buildOfficeData({ apiBase: API, dataDir: DATA_DIR, townRoot: TOWN, letterCachePath: LETTER_CACHE });
   for (const [name, value] of Object.entries(result.files)) writeDataFile(name, value);
+  // ── WHETHER THE INVITATION ROLL IS LIVE (POS-576) ─────────────────────────
+  // A build input, not a public file: the join carries an invite only for a
+  // name in households.json, and only when this run baked it from the office.
+  // A kept snapshot (HOUSEHOLDS_GAP) carries nothing; the join works without one.
+  writeBuildInput("households-read.json", { live: result.householdsLive, as_of: result.asOf ?? null });
   // ── THE DRAWING CHEST (POS-97, 2026-09-15) ────────────────────────────────
   // The Think Tank's "drawn" is a join against the chest's own citation (the
   // `idea:` line in each work's proposal.md), so the chest is read here beside
