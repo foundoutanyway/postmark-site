@@ -375,7 +375,7 @@ const floorBar = pot.close === "elastic" && pot.minCloseUsd != null;
                 so it belongs only to a pot that can actually receive it */}
             <p class="f-room">
               {funded
-                ? <>Funded in full. Every dollar above is on the roll below.</>
+                ? <>Funded in full: every dollar is on the roll below.</>
                 : !open
                 ? <>Nothing can be sent against this pot while it is a draft.</>
                 : headroom > 0
