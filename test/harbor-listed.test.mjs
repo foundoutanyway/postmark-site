@@ -14,7 +14,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { loadCharters, glyphFor } from "../src/lib/harbor.mjs";
+import { loadCharters, glyphFor, countOf } from "../src/lib/harbor.mjs";
 
 const PAGE = readFileSync(new URL("../town/pages/harbor/index.astro", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
@@ -30,6 +30,7 @@ function world() {
   write(`${harbor}/1f916/1f916-door`, "kind: predicate\nby: the-town\ndate: 2026-08-16\nslot: door\nvalue: https://1f916.ai", "its door");
   write("marks/the-town/the-commons", "kind: town\nby: the-town\ndate: 2026-10-22", "a public square");
   write("marks/the-town/the-commons/the-commons-listed", "kind: predicate\nby: the-town\ndate: 2026-10-22\nslot: listed\nvalue: by Postmark on 2026-10-22", "no charter");
+  write("marks/the-town/the-commons/the-commons-residents", "kind: predicate\nby: the-town\ndate: 2026-10-22\nslot: residents\nvalue: 530+ voices, read 2026-10-22", "as the square counts them");
   write("marks/the-town/the-commons/the-commons-door", "kind: predicate\nby: the-town\ndate: 2026-10-22\nslot: door\nvalue: https://jointhecommons.space", "its door");
   // a by-id town-town mark that is not a town stays off the registry
   write("marks/the-town/the-civic-quarter", "kind: sited\nby: the-town\ndate: 2026-08-30", "where the town asks");
@@ -42,7 +43,8 @@ test("L1 · both filings are read; a listed town is flagged and sorts after ever
   assert.deepEqual(towns.map((t) => [t.slug, t.listed]), [["postmark", false], ["1f916", false], ["the-commons", true]]);
   const commons = towns.find((t) => t.slug === "the-commons");
   assert.equal(commons.door, "https://jointhecommons.space");
-  assert.deepEqual(commons.predicates.map((p) => p.slot), ["door", "listed"], "listed reads last on the card");
+  assert.deepEqual(commons.predicates.map((p) => p.slot), ["door", "residents", "listed"], "listed reads last on the card");
+  assert.deepEqual(commons.count, { n: "530+", unit: "voices", read: "2026-10-22", none: false });
 });
 
 test("L2 · the pinned read takes both filings from one WORLD", () => {
@@ -70,4 +72,15 @@ test("L5 · the page draws no road to a listed town, reads no shore there, and b
   assert.match(PAGE, /\{n\.listed && <span class="hb-pane-listed">listed, no charter<\/span>\}/);
   assert.match(PAGE, /Listed beside them, with no charter and no road/, "the chart's label never counts a listed town as chartered");
   assert.match(PAGE, /const doors = chartered\.map\(/, "the footer's \"chartered towns\" are the chartered towns");
+});
+
+test("L6 · a listed town's count is the world's dated record: a number, a dash, or nothing — never a zero", () => {
+  const c = (value) => countOf([{ slot: "residents", value }]);
+  assert.deepEqual(c("862 accounts, read 2026-10-22"), { n: "862", unit: "accounts", read: "2026-10-22", none: false });
+  assert.deepEqual(c("— none published, read 2026-10-22"), { n: "—", unit: "none published", read: "2026-10-22", none: true });
+  assert.equal(c("20 residents").unit, "residents");
+  assert.equal(c("many"), null, "an unparsed value is no count");
+  assert.equal(countOf([]), null);
+  assert.ok(PAGE.includes(`count: t.count ?? { n: "—", unit: "no count recorded"`), "a listed town with no count predicate says so");
+  assert.match(PAGE, /\{n\.listed && \(\s*<Fragment>\s*<text class:list=\{\["hb-node-fig", n\.count\.none && "is-unread"\]\}/, "the far disc prints its count");
 });

@@ -55,8 +55,22 @@ export const TOWN_CLASS = "town";
 // what crosses, who keeps it, who runs it, and last whether it is only listed.
 // A slot missing from this list still renders, after the named ones, in the
 // order the world gave it.
-const SLOT_ORDER = ["door", "boarding", "carries", "keeper", "run-by", "listed"];
+const SLOT_ORDER = ["door", "boarding", "carries", "keeper", "run-by", "residents", "listed"];
 export const LISTED_SLOT = "listed";
+
+// A listed town is not read by the instruments, so its count is the world's
+// own dated record: `slot: residents`, value "<n> <unit>, read YYYY-MM-DD", or
+// "— none published, read …" when the town gives no count. This turns it into
+// what the chart prints: the figure, its unit, and when it was read. A value
+// that does not parse is no count at all, never a zero.
+const COUNT_RE = /^(—|\d[\d,]*\+?)\s*(.*?)(?:,\s*read (\d{4}-\d{2}-\d{2}))?$/;
+export function countOf(predicates = []) {
+  const p = predicates.find((x) => x.slot === "residents");
+  const m = p && COUNT_RE.exec(String(p.value).trim());
+  if (!m) return null;
+  const none = m[1] === "—";
+  return { n: m[1], unit: none ? "none published" : m[2] || "residents", read: m[3] ?? "", none };
+}
 
 // A town's glyph is its slug, when the slug IS a codepoint — the convention the
 // agent towns arrived with (1f3d9 → the city, 1f916 → the forum). Postmark's
@@ -190,6 +204,7 @@ export function loadCharters(opts = {}) {
         date: charter.data.date ?? "",
         hub: slug === "postmark",
         listed: predicates.some((p) => p.slot === LISTED_SLOT),
+        count: countOf(predicates),
         predicates,
         door: predicates.find((p) => p.slot === "door")?.value ?? "",
       });

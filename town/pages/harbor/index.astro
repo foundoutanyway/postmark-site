@@ -68,13 +68,17 @@ const isUrl = (v) => /^https?:\/\//.test(v);
 // it. The ring is an ellipse because a circle in a 760×620 frame wastes the
 // width, and open water reads better wide than tall.
 //
-// A listed town is not on the ring (POS-763). It rides a row on the far water
-// below it, smaller and with no road, its name alone beneath or above its disc
-// (they alternate, so two long names never share a line). The frame grows
-// down to hold the row; the island reads the viewBox, so its tooltips follow.
+// A listed town is not on the ring (POS-763). It rides the far water below
+// it, three to a row, smaller and with no road: its name above the disc, and
+// below it the count the world records for it, dated, never a live read. The
+// frame grows down to hold the rows; the island reads the viewBox, so its
+// tooltips follow.
 const RING_H = 620;
-const FAR = { top: RING_H + 22, discY: RING_H + 136, r: 32 };
-const VB = { w: 760, h: listed.length ? RING_H + 234 : RING_H };
+const FAR = { top: RING_H - 24, discY: RING_H + 118, r: 32, cols: 3, rowH: 186 };
+const farRows = Math.ceil(listed.length / FAR.cols);
+const VB = { w: 760, h: listed.length ? FAR.discY + (farRows - 1) * FAR.rowH + FAR.r + 84 : RING_H };
+// The far counts' read dates, for the caption: one date is said once.
+const farReads = [...new Set(listed.map((t) => t.count?.read).filter(Boolean))].sort();
 const HUB = { x: 380, y: 344, r: 28 };
 const RING = { rx: 268, ry: 162 };
 const NODE_R = 54;
@@ -128,9 +132,11 @@ const ringNodes = chartered.map((t, i) => {
 });
 
 const farNodes = listed.map((t, i) => {
-  const x = (VB.w * (i + 0.5)) / listed.length;
-  const y = FAR.discY;
-  const nameAbove = i % 2 === 1;
+  const row = Math.floor(i / FAR.cols);
+  const col = i % FAR.cols;
+  const inRow = Math.min(FAR.cols, listed.length - row * FAR.cols);
+  const x = VB.w / 2 + (col - (inRow - 1) / 2) * (VB.w / FAR.cols);
+  const y = FAR.discY + row * FAR.rowH;
   return {
     ...t,
     name: nameOf(t.slug),
@@ -139,8 +145,11 @@ const farNodes = listed.map((t, i) => {
     x: r1(x),
     y: r1(y),
     hub: false,
-    flip: nameAbove ? "below" : "above",
-    nameY: r1(nameAbove ? y - FAR.r - 16 : y + FAR.r + 34),
+    count: t.count ?? { n: "—", unit: "no count recorded", read: "", none: true },
+    flip: "above",
+    nameY: r1(y - FAR.r - 16),
+    figY: r1(y + FAR.r + 40),
+    figLY: r1(y + FAR.r + 64),
     keelY: r1(y + FAR.r + 3),
   };
 });
@@ -243,6 +252,9 @@ const GRID_X = [126, 253, 380, 507, 634];
               <g class="hb-far">
                 <line class="hb-far-edge" x1="24" y1={FAR.top} x2={VB.w - 24} y2={FAR.top} />
                 <text class="hb-far-label" x={VB.w / 2} y={FAR.top + 30}>the far water · listed, no charter</text>
+                <text class="hb-far-sub" x={VB.w / 2} y={FAR.top + 56}>
+                  {farReads.length === 1 ? `counts as each town publishes them, read ${farReads[0]}` : "counts as each town publishes them, dated on each card"}
+                </text>
               </g>
             )}
 
@@ -260,7 +272,14 @@ const GRID_X = [126, 253, 380, 507, 634];
                   <text class="hb-node-initial" x={n.x} y={n.y + n.r * 0.26}>{n.initial}</text>
                 )}
                 <text class="hb-node-name" x={n.x} y={n.nameY}>{n.name}</text>
-                {/* A listed town is not read, so it carries no figure at all. */}
+                {/* A listed town is not read by the instruments: its figure is the
+                    world's dated count, printed as recorded, and never repainted. */}
+                {n.listed && (
+                  <Fragment>
+                    <text class:list={["hb-node-fig", n.count.none && "is-unread"]} x={n.x} y={n.figY}>{n.count.n}</text>
+                    <text class="hb-node-figl" x={n.x} y={n.figLY}>{n.count.unit}</text>
+                  </Fragment>
+                )}
                 {!n.listed && (
                   <Fragment>
                     <text
