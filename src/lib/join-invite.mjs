@@ -11,9 +11,13 @@
 //     GitHub sign-in round trip and a visit to another page first. It keeps it
 //     ONLY when the link brought it, so the 30 days run from the link, not from
 //     the last visit (review of #290, S1);
-//   · the page shows the name, and puts it in the one message the human pastes
-//     to their agent, ONLY when the town's roll at build time knows it, so no
-//     made-up name is ever printed on the town's own page (review of #290);
+//   · ANY well-formed name is kept and carried (into the one message the human
+//     pastes to their agent, and the move-in box): the office judges it and
+//     says why when it refuses (second review of #290);
+//   · the "Invited by" line, the one place the page PROMISES a credit, shows
+//     only for a name the town's roll at build time knows and the office would
+//     credit: never the town's own names nor the founders' (POS-576/e), so no
+//     made-up name and no refused one is promised on the town's own page;
 //   · /join/move-in/ fills the office's own `invited_by` box with the kept
 //     name, when the door's form has one and the box is empty.
 // The judging (your own house, a meep) is the office's, never this page's.
@@ -53,11 +57,17 @@ export function recallInvite(storage, now = Date.now()) {
   } catch { return null; }
 }
 
+/** The town's own names (the office's residency.mjs RESERVED) and the founders' houses (POS-576/e). */
+export const TOWN_NAMES = Object.freeze(["template", "index", "office", "postmaster", "ferry", "the-town"]);
+export const FOUNDERS = Object.freeze(["starforge", "the-town"]);
+
 /**
- * Every name the town's roll knew at build time: each resident's handle, each
- * household's slug and its `hh:<slug>`. `households` is the site's
- * households.json (`{ households: { <slug>: { residents } } }`); `residents`
- * its residents.json (`[{ handle }]`).
+ * The names the "Invited by" line may promise: every name the town's roll knew
+ * at build time (each resident's handle, each household's slug and its
+ * `hh:<slug>`) LESS the ones the office refuses whatever the roll says: the
+ * town's own names, the founders' houses, and every resident who lives in one.
+ * `households` is the site's households.json (`{ households: { <slug>: {
+ * residents } } }`); `residents` its residents.json (`[{ handle }]`).
  */
 export function inviteNames({ households = {}, residents = [] } = {}) {
   const names = new Set();
@@ -67,20 +77,25 @@ export function inviteNames({ households = {}, residents = [] } = {}) {
     for (const r of h?.residents ?? []) names.add(String(r));
   }
   for (const r of Array.isArray(residents) ? residents : []) if (r?.handle) names.add(String(r.handle));
+  for (const n of TOWN_NAMES) { names.delete(n); names.delete(`hh:${n}`); }
+  for (const f of FOUNDERS) {
+    names.delete(f); names.delete(`hh:${f}`);
+    for (const r of houses[f]?.residents ?? []) names.delete(String(r));
+  }
   return names;
 }
 
 /**
- * What /join/ does with an invite: `{ name, remember }`, or null. The link's
- * own name, when the roll knows it, is remembered; a kept one is shown and
- * never re-kept (its 30 days do not slide). A name the roll does not know is
- * nothing at all: not shown, not carried, not kept.
+ * What /join/ does with an invite: `{ name, remember, shown }`, or null. Any
+ * well-formed name the link brings is kept (`remember`) and carried; a kept
+ * one is carried and never re-kept (its 30 days do not slide). `shown`: the
+ * "Invited by" line, only for a name in `names` (inviteNames' set).
  */
 export function invitePage(search, storage, names, now = Date.now()) {
   const linked = inviteFromSearch(search);
-  if (linked && names.has(linked)) return { name: linked, remember: true };
+  if (linked) return { name: linked, remember: true, shown: names.has(linked) };
   const kept = storage ? recallInvite(storage, now) : null;
-  return kept && names.has(kept) ? { name: kept, remember: false } : null;
+  return kept ? { name: kept, remember: false, shown: names.has(kept) } : null;
 }
 
 /** How a name is said to a person: a household's key reads as the household. */

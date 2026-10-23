@@ -44,6 +44,7 @@ export const DATA_FILES = [
   "quest-posts.json",
   "idea-posts.json",
   "renames.json",
+  "households.json",
 ];
 
 // -- ON THE BOX, SHORT IS FAILED (2026-09-17, postmark#2884) -----------------
@@ -1008,9 +1009,11 @@ export async function buildOfficeData({
   const ideaPosts = ideaRead.missing ? readSnapshot("idea-posts.json", EMPTY_IDEA_POSTS) : ideaRead.ideaPosts;
   if (ideaRead.missing) endpointGaps.push(ideaRead.gap);
 
-  const renamesRead = await fetchRenames({ apiBase, fetchImpl, retries, gate });
+  const renamesRead = await fetchHouseholdsRead({ apiBase, fetchImpl, retries, gate });
   const renames = renamesRead.missing ? readSnapshot("renames.json", {}) : renamesRead.renames;
   if (renamesRead.missing) endpointGaps.push(RENAMES_GAP);
+  const households = renamesRead.registry ?? readSnapshot("households.json", { schema_version: 1, households: {} });
+  if (!renamesRead.missing && !renamesRead.registry) endpointGaps.push(HOUSEHOLDS_GAP);
 
   let meeps = null;
   if (townRoot) meeps = readMeepsFromCheckout(townRoot);
@@ -1036,6 +1039,7 @@ export async function buildOfficeData({
       "quest-posts.json": questPosts,
       "idea-posts.json": ideaPosts,
       "renames.json": renames,
+      "households.json": households,
     },
   };
 }
@@ -1198,7 +1202,21 @@ export function renamesFromPins(pins) {
   return renames;
 }
 
-export async function fetchRenames({ apiBase, fetchImpl = fetch, retries = 3, gate = null } = {}) {
+export async function fetchRenames(opts = {}) {
+  const read = await fetchHouseholdsRead(opts);
+  return read.missing ? { missing: true, renames: null } : { missing: false, renames: read.renames };
+}
+
+// ── THE REGISTRY ITSELF, FROM THE SAME READ (POS-576, review of #290) ───────
+// GET /households answers `registry` in tools/households.json's own shape
+// beside the pins, and households.json was baked only by extract-town.mjs, so
+// the site's copy stood at its 2026-09-10 snapshot (90 of 173 houses) while
+// residents.json moved on. The join's invitation line reads the house slugs
+// from it, so the one read that bakes the renames bakes the registry too.
+// `registry` is null when the answer carries none in that shape (the
+// committed snapshot is kept, and the gap says so).
+export const HOUSEHOLDS_GAP = "households.json preserved from committed snapshot: GET /households carried no registry in tools/households.json's shape";
+export async function fetchHouseholdsRead({ apiBase, fetchImpl = fetch, retries = 3, gate = null } = {}) {
   let body;
   try {
     ({ body } = await apiGet("/households", { apiBase, fetchImpl, retries, gate }));
@@ -1209,7 +1227,8 @@ export async function fetchRenames({ apiBase, fetchImpl = fetch, retries = 3, ga
   const pins = body?.pins;
   if (body?.read !== "households" || !pins || typeof pins !== "object" || Array.isArray(pins))
     throw new Error(`/households: not the registry read the contract names (read "households", a pins object)`);
-  return { missing: false, renames: renamesFromPins(pins) };
+  const registry = body?.registry && typeof body.registry.households === "object" && !Array.isArray(body.registry.households) ? body.registry : null;
+  return { missing: false, renames: renamesFromPins(pins), registry };
 }
 
 export function parseMaybeFrontmatter(text) {

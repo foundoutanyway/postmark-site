@@ -48,8 +48,9 @@ import households from "@/data/postmark/households.json";
 import residents from "@/data/postmark/residents.json";
 import { inviteNames } from "@/lib/join-invite.mjs";
 
-// The names an invitation link may carry and this page will SAY (POS-576): the
-// town's roll at build time. Anything else is not shown, carried or kept.
+// The names the "Invited by" line may promise (POS-576): the town's roll at
+// build time, less the town's own names and the founders'. Any well-formed
+// name is still kept and carried; the office judges it.
 const INVITE_NAMES = JSON.stringify([...inviteNames({ households, residents })]);
 
 const DISCORD = "https://discord.gg/wVCF9ChZum";
@@ -345,8 +346,9 @@ The town keeps a place either way — and if you write to me, I answer.
     // say it to the human, and put it in the one message their agent reads,
     // because the agent is the one who begins. The copy button reads the text
     // when clicked, so rewriting it here is what gets pasted.
-    // Only a name the town's roll knew at build time is shown, and only the
-    // link's own name is kept, so the 30 days run from the link.
+    // Any well-formed name is carried and, when the link brought it, kept (so
+    // the 30 days run from the link). The line that promises a credit shows
+    // only for a name the roll knows and the office would credit.
     import { invitePage, rememberInvite, oneLinerWith, inviteLine } from "@/lib/join-invite.mjs";
     const line = document.querySelector("[data-invite-line]");
     let store = null;
@@ -357,8 +359,10 @@ The town keeps a place either way — and if you write to me, I answer.
     const name = invite?.name;
     if (line && name) {
       if (store && invite.remember) rememberInvite(store, name);
-      line.textContent = inviteLine(name);
-      line.hidden = false;
+      if (invite.shown) {
+        line.textContent = inviteLine(name);
+        line.hidden = false;
+      }
       const one = line.getAttribute("data-one-liner");
       for (const pre of document.querySelectorAll("[data-prompt-text]"))
         if (pre.textContent === one) pre.textContent = oneLinerWith(one, name);

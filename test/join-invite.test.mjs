@@ -19,14 +19,18 @@ import {
 } from "../src/lib/join-invite.mjs";
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
+const read_ = read;
 const memoryStore = () => {
   const m = new Map();
   return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), m };
 };
 const refusingStore = { getItem() { throw new Error("blocked"); }, setItem() { throw new Error("blocked"); } };
+// The founders' houses carry their real slugs and residents, because the rule names them (POS-576/e).
 const NAMES = inviteNames({
-  households: { households: { "lantern-row": { residents: ["wick"] }, "quill-hall": { residents: ["quill"] }, "cadaeic.space": { residents: ["arky"] } } },
-  residents: [{ handle: "wick" }, { handle: "latecomer" }],
+  households: { households: { "lantern-row": { residents: ["wick"] }, "quill-hall": { residents: ["quill"] }, "cadaeic.space": { residents: ["arky"] },
+    starforge: { residents: ["wright", "rei", "jetto-of-starforge", "postmaster"] }, "the-town": { residents: ["postmark-pen", "bugcatcher"] } } },
+  // "ferry" and "office" as roll rows: a town name that reaches the roll some other way is still never promised
+  residents: [{ handle: "wick" }, { handle: "latecomer" }, { handle: "wright" }, { handle: "postmaster" }, { handle: "ferry" }, { handle: "office" }],
 });
 
 test("the link's name: normalised, a handle, a slug (dots and all) or hh:<slug>, and nothing else", () => {
@@ -60,21 +64,52 @@ test("the roll at build time: every handle, every slug and its hh:<slug>", () =>
   assert.equal(NAMES.has("free-stamps-dm-me"), false);
 });
 
-test("S1: only the LINK's name is kept, so the 30 days never slide; a name the roll does not know is shown, carried and kept nowhere", () => {
+test("the line never promises what the office refuses: the town's own names and the founders (POS-576/e) are not in the shown set", () => {
+  for (const n of ["postmaster", "office", "ferry", "the-town", "hh:the-town", "starforge", "hh:starforge", "wright", "rei", "jetto-of-starforge", "postmark-pen", "bugcatcher"])
+    assert.equal(NAMES.has(n), false, n);
   const s = memoryStore();
   const t0 = Date.parse("2026-10-01T00:00:00Z");
-  assert.deepEqual(invitePage("?invite=wick", s, NAMES, t0), { name: "wick", remember: true }, "the link brought it: keep it");
+  assert.deepEqual(invitePage("?invite=postmaster", s, NAMES, t0), { name: "postmaster", remember: true, shown: false },
+    "still kept and carried, so the office gives the real reason; never promised");
+  assert.deepEqual(invitePage("?invite=wright", s, NAMES, t0), { name: "wright", remember: true, shown: false });
+});
+
+test("S1: only the LINK's name is kept, so the 30 days never slide; ANY well-formed name is kept and carried, and only the roll's is shown", () => {
+  const s = memoryStore();
+  const t0 = Date.parse("2026-10-01T00:00:00Z");
+  assert.deepEqual(invitePage("?invite=wick", s, NAMES, t0), { name: "wick", remember: true, shown: true }, "the link brought it: keep it");
   rememberInvite(s, "wick", t0);
   const later = t0 + 20 * 864e5;
-  assert.deepEqual(invitePage("", s, NAMES, later), { name: "wick", remember: false }, "back from GitHub: shown, never re-kept");
+  assert.deepEqual(invitePage("", s, NAMES, later), { name: "wick", remember: false, shown: true }, "back from GitHub: shown, never re-kept");
   assert.equal(invitePage("", s, NAMES, t0 + INVITE_TTL_MS + 1), null, "30 days from the LINK, however often they came back");
-  assert.deepEqual(invitePage("?invite=quill", s, NAMES, later), { name: "quill", remember: true }, "a new link is a new keep");
-  const spam = memoryStore();
-  assert.equal(invitePage("?invite=free-stamps-dm-me", spam, NAMES, t0), null, "not in the roll: nothing at all");
-  assert.equal(spam.m.size, 0);
-  rememberInvite(spam, "free-stamps-dm-me", t0);
-  assert.equal(invitePage("", spam, NAMES, t0 + 1), null, "nor a kept name the roll does not know");
+  assert.deepEqual(invitePage("?invite=quill", s, NAMES, later), { name: "quill", remember: true, shown: true }, "a new link is a new keep");
+  // A HOUSE NEWER THAN THE BUILD'S ROLL (the second review: hh:the-ackermans was dropped): kept and carried, not promised
+  assert.deepEqual(invitePage("?invite=hh:the-ackermans", s, NAMES, t0), { name: "hh:the-ackermans", remember: true, shown: false });
+  assert.deepEqual(invitePage("?invite=free-stamps-dm-me", s, NAMES, t0), { name: "free-stamps-dm-me", remember: true, shown: false },
+    "well-formed: the office judges it; the page never says it");
+  assert.equal(invitePage("?invite=<script>", memoryStore(), NAMES, t0), null, "a malformed name is nothing");
   assert.equal(invitePage("", null, NAMES, t0), null);
+});
+
+test("the build's roll is the office's registry: fetch-town bakes households.json from GET /households, the read that bakes the renames", async () => {
+  const { fetchHouseholdsRead, fetchRenames, DATA_FILES, HOUSEHOLDS_GAP } = await import("../tools/lib/fetch-town-data.mjs");
+  const answering = (status, body = {}) => async () => ({ ok: status >= 200 && status < 300, status, statusText: String(status),
+    headers: { get: () => null }, json: async () => JSON.parse(JSON.stringify(body)) });
+  const registry = { schema_version: 1, note: "n", households: { "the-ackermans": { residents: ["levi"] }, "lantern-row": { residents: ["wick"] } } };
+  const read = (impl) => fetchHouseholdsRead({ apiBase: "https://office.test", fetchImpl: impl, retries: 1 });
+  assert.deepEqual(await read(answering(200, { read: "households", registry, pins: { a: { renamed_to: "b" } } })),
+    { missing: false, renames: { a: "b" }, registry });
+  assert.equal((await read(answering(200, { read: "households", registry: { households: [] }, pins: {} }))).registry, null, "not the registry's shape: keep the snapshot");
+  assert.deepEqual(await read(answering(404)), { missing: true, renames: null });
+  assert.deepEqual(await fetchRenames({ apiBase: "https://office.test", fetchImpl: answering(200, { read: "households", registry, pins: {} }), retries: 1 }),
+    { missing: false, renames: {} }, "the renames' own answer is unchanged");
+  assert.ok(DATA_FILES.includes("households.json"));
+  assert.match(HOUSEHOLDS_GAP, /households\.json preserved/);
+  const lib = read_("../tools/lib/fetch-town-data.mjs");
+  assert.match(lib, /"households\.json": households,/, "buildOfficeData writes it beside renames.json");
+  assert.match(read_("../tools/fetch-town.mjs"), /"households\.json": "the declared household registry/);
+  const names = inviteNames({ households: registry, residents: [] });
+  assert.ok(names.has("hh:the-ackermans") && names.has("levi"), "a refreshed roll shows the house");
 });
 
 test("the one message carries the invite: agent.md's link names it, and one sentence names the field", () => {
@@ -95,6 +130,7 @@ test("the pages are wired: /join/ carries the roll and keeps only the link's nam
   assert.match(join, /data-invite-line data-one-liner=\{ONE_LINER\} data-invite-names=\{INVITE_NAMES\} hidden><\/p>/);
   assert.match(join, /const invite = invitePage\(location\.search, store, names\);/);
   assert.match(join, /if \(store && invite\.remember\) rememberInvite\(store, name\);/, "S1: a recalled name is never re-kept");
+  assert.match(join, /if \(invite\.shown\) \{\s*line\.textContent = inviteLine\(name\);/, "the line, only for a name the roll shows");
   assert.match(join, /if \(pre\.textContent === one\) pre\.textContent = oneLinerWith\(one, name\);/,
     "only the one message is rewritten, never the chat letter");
   const movein = read("../town/pages/join/move-in.astro");

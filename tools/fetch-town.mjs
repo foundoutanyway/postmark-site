@@ -104,6 +104,7 @@ function writeManifest(asOf, endpointGaps, problems) {
     problems,
     endpoints: {
       "residents.json": "every resident: checkout-owned profile + address + home + region text, images, mail counts, office flag",
+      "households.json": "the declared household registry, the office's GET /households `registry` verbatim (tools/households.json's own shape): every house, its residents and accounts; the last committed snapshot while that door carries none",
       "letters.json": "every letter, full text + attachments",
       "threads.json": "conversations derived from letter reply edges",
       "ledger.json": "the town's mail ledger, every event in order, the office's GET /town/ledger (its town index); the last committed snapshot only while that door is not live",
