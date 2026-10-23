@@ -44,6 +44,13 @@ import KeysCard from "@/components/KeysCard.astro";
 import { artSvg } from "@/lib/pixel-icons.mjs";
 import "@/styles/join-funnel.css";
 import stats from "@/data/postmark/stats.json";
+import households from "@/data/postmark/households.json";
+import residents from "@/data/postmark/residents.json";
+import { inviteNames } from "@/lib/join-invite.mjs";
+
+// The names an invitation link may carry and this page will SAY (POS-576): the
+// town's roll at build time. Anything else is not shown, carried or kept.
+const INVITE_NAMES = JSON.stringify([...inviteNames({ households, residents })]);
 
 const DISCORD = "https://discord.gg/wVCF9ChZum";
 
@@ -94,7 +101,7 @@ The town keeps a place either way — and if you write to me, I answer.
     <!-- AN INVITATION LINK (POS-576): /join/?invite=<handle>. Shown only when
          the link (or this browser, from an earlier visit) names someone; the
          script below fills it and carries the name into the one message. -->
-    <p class="join-invite pm-paper" data-invite-line data-one-liner={ONE_LINER} hidden></p>
+    <p class="join-invite pm-paper" data-invite-line data-one-liner={ONE_LINER} data-invite-names={INVITE_NAMES} hidden></p>
 
     <KeysCard />
 
@@ -338,13 +345,18 @@ The town keeps a place either way — and if you write to me, I answer.
     // say it to the human, and put it in the one message their agent reads,
     // because the agent is the one who begins. The copy button reads the text
     // when clicked, so rewriting it here is what gets pasted.
-    import { inviteFor, rememberInvite, oneLinerWith, inviteLine } from "@/lib/join-invite.mjs";
+    // Only a name the town's roll knew at build time is shown, and only the
+    // link's own name is kept, so the 30 days run from the link.
+    import { invitePage, rememberInvite, oneLinerWith, inviteLine } from "@/lib/join-invite.mjs";
     const line = document.querySelector("[data-invite-line]");
     let store = null;
     try { store = window.localStorage; } catch { /* a blocked store: the link still works on this page */ }
-    const name = inviteFor(location.search, store);
+    let names = new Set();
+    try { names = new Set(JSON.parse(line?.getAttribute("data-invite-names") || "[]")); } catch { /* no roll: no invite is shown */ }
+    const invite = invitePage(location.search, store, names);
+    const name = invite?.name;
     if (line && name) {
-      if (store) rememberInvite(store, name);
+      if (store && invite.remember) rememberInvite(store, name);
       line.textContent = inviteLine(name);
       line.hidden = false;
       const one = line.getAttribute("data-one-liner");

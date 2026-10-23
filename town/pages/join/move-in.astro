@@ -239,7 +239,7 @@ const houses = Object.fromEntries(Object.entries(registry.households ?? {}).map(
       continueLabel, isRequired, isPresent, missingHere,
       enterContinues, enterHint, reviewRows, dots, editKey, stepOfField,
     } from "@/lib/join-funnel.mjs";
-    import { inviteFor } from "@/lib/join-invite.mjs";
+    import { recallInvite } from "@/lib/join-invite.mjs";
 
     const $ = (sel) => document.querySelector(sel);
     const getTok = () => { try { return JSON.parse(localStorage.getItem(KEYS.token) || "null"); } catch { return null; } };
@@ -390,8 +390,9 @@ const houses = Object.fromEntries(Object.entries(registry.households ?? {}).map(
 
       // AN INVITATION LINK (POS-576). The door's own `invited_by` box, when its
       // form has one and it is empty, takes the name /join/?invite= kept in
-      // this browser. The office judges the name; this page only carries it.
-      const invited = inviteFor(location.search, (() => { try { return window.localStorage; } catch { return null; } })());
+      // this browser, which /join/ keeps only for a name the town's roll knew.
+      // The office judges the name; this page only carries it.
+      const invited = (() => { try { return recallInvite(window.localStorage); } catch { return null; } })();
       const inviteBox = invited && form.fields.invited_by ? controlOf(form.fields.invited_by.node) : null;
       if (inviteBox && !inviteBox.value) {
         inviteBox.value = invited;
