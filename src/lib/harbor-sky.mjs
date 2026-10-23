@@ -127,15 +127,19 @@ export function shipPath(frame, placed) {
   return `M${frame.dock.x} ${frame.dock.y} ` + placed.map((t) => t.segs).join(" ");
 }
 
-// A tower's colours, by town. The city and the forum keep the mock's; a town
-// chartered later takes the next pair in turn rather than a borrowed one.
+// A tower's colours, by town: CSS values, mixed from the site's own tokens
+// (src/styles/postmark.css, the default palette), never a hex of their own, so
+// the towers follow the site. The city wears the site's gold band under its
+// copper accent and the forum its sealing wax; a town chartered later takes the
+// next pair in turn rather than a borrowed one.
+const mixOf = (a, p, b) => `color-mix(in srgb, ${a} ${p}%, ${b})`;
 const TOWER_INKS = {
-  "1f3d9": { band: "#3c5aa6", roof: "#2c2a63", flag: "#f39a3d" },
-  "1f916": { band: "#7a4a9a", roof: "#4b3a8f", flag: "#f2bc82" },
+  "1f3d9": { band: "var(--pm-gold)", roof: "var(--pm-accent)", flag: "var(--pm-gold-bright)" },
+  "1f916": { band: "var(--pm-wax)", roof: mixOf("var(--pm-wax)", 60, "var(--pm-night)"), flag: "var(--pm-gold-bright)" },
 };
 const SPARE_INKS = [
-  { band: "#4f8a7a", roof: "#2c4a52", flag: "#f2bc82" },
-  { band: "#9a5a3a", roof: "#5a2c2a", flag: "#f39a3d" },
+  { band: mixOf("var(--pm-harbor-2)", 55, "var(--pm-paper)"), roof: "var(--pm-harbor-2)", flag: "var(--pm-gold)" },
+  { band: "var(--pm-accent)", roof: mixOf("var(--pm-accent)", 55, "var(--pm-night)"), flag: "var(--pm-gold-bright)" },
 ];
 export function towerInks(slug, i = 0) {
   return TOWER_INKS[slug] ?? SPARE_INKS[i % SPARE_INKS.length];

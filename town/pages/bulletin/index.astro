@@ -966,36 +966,36 @@ const views = JSON.stringify({
     .card .franked .cancel { right: 0; top: 0; width: 70px; height: 70px; transform: rotate(-12deg); opacity: 0.8; }
     .card .franked .wake { right: 58px; top: 16px; width: 120px; height: 36px; opacity: 0.6; }
 
-    /* 6 · the Sky Harbor: a night-sky chart in the harbor's own indigo and
-       lantern gold (POS-769), the one piece that leads off the board and out
-       of the town */
+    /* 6 · the Sky Harbor: a night-sky chart in the site's own harbor navy and
+       lantern gold (POS-769; the default palette, Darko 2026-10-23), the one
+       piece that leads off the board and out of the town */
     .chart {
       grid-area: harbor; --tilt: 1.4deg;
       padding: 0.9em 0.9em 1em; border-radius: 4px;
-      background: linear-gradient(180deg, #1b1336, #2a1b2a);
-      border: 1px solid rgba(242, 188, 130, 0.4);
+      background: linear-gradient(180deg, var(--pm-harbor), var(--pm-harbor-2));
+      border: 1px solid color-mix(in srgb, var(--pm-gold) 40%, transparent);
       box-shadow: 0 10px 22px rgba(0, 0, 0, 0.55);
-      color: #f1e6d8;
+      color: var(--pm-paper);
     }
     .sea {
       position: relative; display: block; height: 7.5em; border-radius: 2px; overflow: hidden;
-      color: #f2bc82;
+      color: var(--pm-gold-bright);
       background:
-        radial-gradient(circle 1.2px at 18px 22px, rgba(240, 230, 214, 0.95) 98%, transparent 100%) 0 0 / 70px 54px,
-        radial-gradient(circle 1px at 50px 40px, rgba(242, 188, 130, 0.8) 98%, transparent 100%) 0 0 / 90px 70px,
-        radial-gradient(ellipse 60% 50% at 50% 60%, rgba(243, 154, 61, 0.12), transparent 70%),
-        linear-gradient(180deg, #110b22, #251a3d);
+        radial-gradient(circle 1.2px at 18px 22px, color-mix(in srgb, var(--pm-paper) 95%, transparent) 98%, transparent 100%) 0 0 / 70px 54px,
+        radial-gradient(circle 1px at 50px 40px, color-mix(in srgb, var(--pm-gold) 80%, transparent) 98%, transparent 100%) 0 0 / 90px 70px,
+        radial-gradient(ellipse 60% 50% at 50% 60%, color-mix(in srgb, var(--pm-gold) 12%, transparent), transparent 70%),
+        linear-gradient(180deg, var(--pm-night), var(--pm-harbor-2));
     }
-    .sea .moon { position: absolute; right: 0.6em; top: 0.5em; width: 1.9em; height: 1.9em; color: #f0e6d6; }
-    .sea .route { position: absolute; left: 0.4em; right: 3.2em; top: 2em; width: calc(100% - 3.6em); height: 3.2em; color: #f2bc82; }
-    .sea .ship { position: absolute; left: 0.6em; bottom: 0.5em; color: #f2bc82; }
+    .sea .moon { position: absolute; right: 0.6em; top: 0.5em; width: 1.9em; height: 1.9em; color: var(--pm-paper); }
+    .sea .route { position: absolute; left: 0.4em; right: 3.2em; top: 2em; width: calc(100% - 3.6em); height: 3.2em; color: var(--pm-gold-bright); }
+    .sea .ship { position: absolute; left: 0.6em; bottom: 0.5em; color: var(--pm-gold-bright); }
     .sea .ship :global(svg) { width: 32px; height: 32px; display: block; }
-    .chart-title { font-weight: 700; font-size: 1.2rem; color: #f0e6d6; margin-top: 0.3em; }
-    .chart-cap { font-size: 0.84rem; line-height: 1.4; color: #cdbccd; }
+    .chart-title { font-weight: 700; font-size: 1.2rem; color: var(--pm-paper); margin-top: 0.3em; }
+    .chart-cap { font-size: 0.84rem; line-height: 1.4; color: color-mix(in srgb, var(--pm-paper) 80%, var(--pm-harbor)); }
     .beyond {
       align-self: flex-start; margin-top: 0.2em; padding: 0.25em 0.6em; border-radius: 999px;
       font-family: var(--pm-mono); font-size: 0.58rem; letter-spacing: 0.14em; text-transform: uppercase;
-      color: #2a1b2a; background: #f2bc82;
+      color: var(--pm-harbor); background: var(--pm-gold-bright);
     }
 
     /* 7 · the pinned items: two objects of their own, side by side under the
