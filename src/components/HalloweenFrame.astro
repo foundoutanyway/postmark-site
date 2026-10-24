@@ -1,0 +1,12 @@
+---
+// HalloweenFrame — the front page's Halloween frame (Darko 2026-10-24): lanterns, webs,
+// a witch hat and broom, bats, a moon and candles in the side gutters (narrow screens:
+// a web-and-bat band at the top, a lantern-and-hat row at the foot, so nothing lies
+// over text). Calendar-gated from halloween-frame.mjs § HALLOWEEN_FRAME; outside the
+// window it renders nothing. Decorative only: aria-hidden, no pointer events.
+// part="top" goes first in the page, part="foot" after it.
+import { frameHTML } from "@/lib/halloween-frame.mjs";
+const { part = "top" } = Astro.props;
+const HTML = frameHTML(part);
+---
+{HTML && <Fragment set:html={HTML} />}
