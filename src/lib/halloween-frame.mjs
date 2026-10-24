@@ -1,32 +1,42 @@
-// halloween-frame.mjs — the front page's Halloween frame (Darko 2026-10-24 14:33):
-// jack-o'-lanterns, webs, a witch hat and broom, bats, a crescent moon and candles
-// in the side gutters of the town's front page, in the town's own palette (lamplight
-// amber, harbour teal, fog grey on the harbour-night navy). Hand-built inline SVG, no
-// text, decorative only (aria-hidden, pointer-events none).
+// halloween-frame.mjs — the front page's Halloween frame (Darko 2026-10-24 14:33; reworked
+// 2026-10-24 for the SEASONAL theme): jack-o'-lanterns, webs, a witch hat and broom, bats,
+// a pale moon and candles in the side gutters of the town's front page, drawn in the
+// Mists skin's palette (halloween-skin.mjs variant 2: plum-grey ground, candle orange,
+// violet, a rare blood-red accent), not the everyday harbour-night one. Hand-built inline
+// SVG, no text, decorative only (aria-hidden, pointer-events none).
 //
-// THE ONE SWITCH. The frame is on from FROM to UNTIL and off outside it. UNTIL is
-// 2026-11-01 07:00Z = 03:00 EDT, an hour past the town's Halloween ending at 02:00 EDT
-// on Nov 1. It is checked twice: at build (outside the window the component emits
-// nothing, byte for byte) and in the browser (a page baked before UNTIL removes its
-// own frame once the clock passes it), so nothing lingers into November even if the
-// box does not rebuild. TO REMOVE IT ALTOGETHER: delete the two <HalloweenFrame/> lines
-// and the import in town/pages/index.astro, then this file, the component and its test.
-//
-// The frame is independent of the Mists skin (halloween-skin.mjs): that follows the
-// world's crossing; this follows the calendar. The site has one theme (dark, harbour
-// night: global.css color-scheme), so there is no light variant to draw.
+// THE ONE SWITCH, TWICE. The frame wears the same switch as the skin: siteMists() in
+// mists-season.mjs (the build's crossing is inside the world's Mists schedule), so the
+// skin and the frame always appear together. AND the calendar: it is also off from UNTIL,
+// 2026-11-01 07:00Z = 03:00 EDT, an hour past the town's Halloween ending at 02:00 EDT on
+// Nov 1, because the Mists may outlast Halloween and the frame must not. Both are checked
+// at build (off, the component emits nothing, byte for byte), and the calendar once more
+// in the browser (a page baked before UNTIL removes its own frame once the clock passes it).
+// Locally: BUILD_CROSSING=300 npm run dev puts the skin and the frame on.
+// TO REMOVE IT ALTOGETHER: delete the two <HalloweenFrame/> lines and the import in
+// town/pages/index.astro, then this file, the component and its test.
+import { VARIANTS, mix } from "./halloween-skin.mjs";
+
 export const HALLOWEEN_FRAME = { from: "2026-10-01T00:00:00Z", until: "2026-11-01T07:00:00Z" };
 
-/** Is the frame on at `now` (a Date or ms)? */
+/** Is the calendar window open at `now` (a Date or ms)? */
 export function frameOn(now = Date.now(), { from, until } = HALLOWEEN_FRAME) {
   const t = +now;
   return Number.isFinite(t) && t >= Date.parse(from) && t < Date.parse(until);
 }
 
+/** The frame's whole switch: the skin's (`mists`, siteMists()'s answer, truthy when the
+ *  Mists stand for this build) AND the calendar window. */
+export const frameShows = (mists, now = Date.now(), cfg = HALLOWEEN_FRAME) => !!mists && frameOn(now, cfg);
+
+const V = VARIANTS[2];
 const P = {
-  pumpkin: "#e08a2c", pumpkinLo: "#b8641c", pumpkinHi: "#f0a64a", glow: "#ffd98a", ink: "#2a1608",
-  stem: "#4f6b4a", fog: "#cfd6dd", teal: "#3f8f93", wood: "#8a5a2b", straw: "#c9a04a", strawLo: "#9c7a2e",
-  hat: "#2f2d5c", hatRim: "#7d78b8", gold: "#e8c48b", cream: "#efe3c8", bat: "#4a4f7a",
+  pumpkin: V.orange, pumpkinLo: mix(V.orange, V.base, 0.6), pumpkinHi: mix(V.orange, V.base, 0.12),
+  glow: mix(V.orange, V.ink, 0.78), ink: V.base,
+  stem: mix(V.violet, V.base, 0.55), fog: mix(V.quiet, V.violet, 0.25), violet: V.violet,
+  wood: mix(V.quiet, V.base, 0.6), straw: mix(V.orange, V.quiet, 0.45), strawLo: mix(V.orange, V.base, 0.45),
+  hat: mix(V.panel, V.base, 0.4), hatRim: V.violet, blood: V.blood, gold: V.orange, cream: mix(V.ink, V.quiet, 0.2),
+  bat: mix(V.panel, V.violet, 0.28), moon: mix(V.ink, V.violet, 0.12), plate: V.panel,
 };
 const svg = (vb, body, cls = "") =>
   `<svg class="pm-hwf-art ${cls}" viewBox="${vb}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">${body}</svg>`;
@@ -65,7 +75,7 @@ export function web() {
   return svg("0 0 160 160", `
     <path d="${d}" fill="none" stroke="${P.fog}" stroke-width="1.15" stroke-linecap="round" opacity="0.6"/>
     <path d="M104 84 L104 112" stroke="${P.fog}" stroke-width="1" opacity="0.7"/>
-    <g class="pm-hwf-spider" fill="#171b30" stroke="${P.fog}" stroke-width="0.8" stroke-opacity="0.7">
+    <g class="pm-hwf-spider" fill="${P.ink}" stroke="${P.fog}" stroke-width="0.8" stroke-opacity="0.7">
       <ellipse cx="104" cy="118" rx="6" ry="7"/><circle cx="104" cy="109" r="3.6"/>
       <path fill="none" d="M98 114 L91 109 L88 114 M98 119 L90 121 L88 127 M110 114 L117 109 L120 114 M110 119 L118 121 L120 127"/>
     </g>
@@ -76,7 +86,7 @@ export function witchHat() {
   return svg("0 0 140 124", `
     <path fill="${P.hat}" stroke="${P.hatRim}" stroke-opacity="0.7" stroke-width="1.4" stroke-linejoin="round" d="M40 90 C50 62 58 42 70 26 C78 15 90 10 102 14 C95 18 92 25 94 33 C98 52 104 72 112 90 Z"/>
     <path fill="${P.hat}" stroke="${P.hatRim}" stroke-opacity="0.7" stroke-width="1.4" stroke-linejoin="round" d="M12 96 C30 84 92 80 130 96 C114 112 38 116 12 96 Z"/>
-    <path fill="${P.teal}" d="M44 80 C62 85 92 85 109 80 L112 90 C92 96 62 96 41 90 Z"/>
+    <path fill="${P.blood}" d="M44 80 C62 85 92 85 109 80 L112 90 C92 96 62 96 41 90 Z"/>
     <rect x="68" y="80" width="16" height="14" rx="2" fill="none" stroke="${P.gold}" stroke-width="2.4" transform="rotate(3 76 87)"/>`, "pm-hwf-hat");
 }
 
@@ -85,7 +95,7 @@ export function broom() {
     <path d="M47 2 L33 112" stroke="${P.wood}" stroke-width="5" stroke-linecap="round" fill="none"/>
     <path fill="${P.straw}" d="M22 106 L44 106 L58 172 Q44 164 36 171 Q28 163 20 171 Q12 164 4 172 Z"/>
     <path fill="none" stroke="${P.strawLo}" stroke-width="1.3" stroke-linecap="round" d="M28 112 L18 166 M34 112 L33 168 M40 112 L48 166 M23 110 L9 168 M44 110 L56 168"/>
-    <path fill="${P.teal}" d="M22 104 L45 104 L46 116 L21 116 Z"/>`, "pm-hwf-broom");
+    <path fill="${P.violet}" opacity="0.85" d="M22 104 L45 104 L46 116 L21 116 Z"/>`, "pm-hwf-broom");
 }
 
 export function bat() {
@@ -93,14 +103,14 @@ export function bat() {
 }
 
 export function moon() {
-  return svg("0 0 100 100", `<path fill="${P.gold}" opacity="0.92" d="M68 6 A44 44 0 1 0 94 68 A34 34 0 1 1 68 6 Z"/>
-    <g fill="${P.glow}" opacity="0.85"><path d="M82 14 l1.6 4 4 1.6 -4 1.6 -1.6 4 -1.6 -4 -4 -1.6 4 -1.6 z"/><path d="M92 36 l1 2.4 2.4 1 -2.4 1 -1 2.4 -1 -2.4 -2.4 -1 2.4 -1 z"/></g>`, "pm-hwf-moon");
+  return svg("0 0 100 100", `<path fill="${P.moon}" opacity="0.92" d="M68 6 A44 44 0 1 0 94 68 A34 34 0 1 1 68 6 Z"/>
+    <g fill="${P.violet}" opacity="0.9"><path d="M82 14 l1.6 4 4 1.6 -4 1.6 -1.6 4 -1.6 -4 -4 -1.6 4 -1.6 z"/><path d="M92 36 l1 2.4 2.4 1 -2.4 1 -1 2.4 -1 -2.4 -2.4 -1 2.4 -1 z"/></g>`, "pm-hwf-moon");
 }
 
 export function candles() {
   const flame = (x, y) => `<path class="pm-hwf-flame" fill="${P.glow}" d="M${x} ${y} c-4 -6 -3 -12 0 -17 c3 5 4 11 0 17 z"/>`;
   return svg("0 0 96 112", `
-    <ellipse cx="48" cy="100" rx="42" ry="8" fill="${P.hat}" stroke="${P.hatRim}" stroke-opacity="0.6"/>
+    <ellipse cx="48" cy="100" rx="42" ry="8" fill="${P.plate}" stroke="${P.hatRim}" stroke-opacity="0.6"/>
     <g fill="${P.cream}"><rect x="14" y="56" width="16" height="44" rx="2"/><rect x="40" y="36" width="16" height="64" rx="2"/><rect x="66" y="64" width="16" height="36" rx="2"/></g>
     <g fill="${P.straw}" opacity="0.8"><path d="M14 62 h16 v6 q-3 7 -6 0 q-3 5 -6 -1 q-2 3 -4 0 z"/><path d="M40 44 h16 v8 q-4 8 -8 0 q-4 5 -8 -2 z"/></g>
     <g stroke="${P.ink}" stroke-width="1.2"><path d="M22 56 v-5 M48 36 v-5 M74 64 v-5"/></g>
@@ -124,7 +134,7 @@ export const FRAME_CSS = `
 .pm-hwf-top .pm-hwf-web:last-child { transform: scaleX(-1); }
 .pm-hwf-top .pm-hwf-bat { width: 26px; margin: 0 auto; animation: pm-hwf-bob 7s ease-in-out infinite; }
 .pm-hwf-foot { justify-content: center; gap: 18px; padding: 8px 1em 26px; flex-wrap: nowrap; overflow: hidden; }
-.pm-hwf-foot .pm-hwf-art { height: 54px; width: auto; flex: 0 0 auto; filter: drop-shadow(0 0 10px rgba(224, 138, 44, 0.3)); }
+.pm-hwf-foot .pm-hwf-art { height: 54px; width: auto; flex: 0 0 auto; filter: drop-shadow(0 0 10px rgba(243, 154, 61, 0.34)); }
 @media (max-width: 480px) { .pm-hwf-foot { gap: 12px; } .pm-hwf-foot .pm-hwf-art { height: 44px; } .pm-hwf-foot .pm-hwf-moon { display: none; } }
 @media (min-width: 1360px) {
   .pm-hwf-top, .pm-hwf-foot { display: none; }
@@ -134,13 +144,13 @@ export const FRAME_CSS = `
   .pm-hwf-side .pm-hwf-web { position: absolute; top: 0; width: min(150px, 62%); opacity: 0.7; }
   .pm-hwf-l .pm-hwf-web { left: 0; } .pm-hwf-r .pm-hwf-web { right: 0; transform: scaleX(-1); }
   .pm-hwf-stack { flex: 1; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; padding: 190px 0 28px; gap: 14px; }
-  .pm-hwf-stack .pm-hwf-art { max-width: 100%; height: auto; filter: drop-shadow(0 0 16px rgba(224, 138, 44, 0.28)); }
+  .pm-hwf-stack .pm-hwf-art { max-width: 100%; height: auto; filter: drop-shadow(0 0 16px rgba(243, 154, 61, 0.3)); }
   .pm-hwf-stack .pm-hwf-bat { width: 38%; animation: pm-hwf-bob 8s ease-in-out infinite; }
   .pm-hwf-l .pm-hwf-stack .pm-hwf-bat { align-self: flex-start; margin-left: 18%; }
   .pm-hwf-stack .pm-hwf-candles { width: 46%; }
   .pm-hwf-stack .pm-hwf-pumpkin { width: min(78%, 190px); }
   .pm-hwf-r .pm-hwf-stack .pm-hwf-pumpkin { width: min(64%, 160px); }
-  .pm-hwf-stack .pm-hwf-moon { width: min(40%, 96px); filter: drop-shadow(0 0 22px rgba(246, 220, 174, 0.35)); }
+  .pm-hwf-stack .pm-hwf-moon { width: min(40%, 96px); filter: drop-shadow(0 0 22px rgba(196, 135, 221, 0.4)); }
   .pm-hwf-pair { display: flex; align-items: flex-end; justify-content: center; gap: 6%; width: 100%; }
   .pm-hwf-pair .pm-hwf-hat { width: 52%; transform: rotate(-8deg); }
   .pm-hwf-pair .pm-hwf-broom { width: 20%; transform: rotate(14deg); }
@@ -154,9 +164,9 @@ export const FRAME_CSS = `
 @media (prefers-reduced-motion: reduce) { .pm-hwf-flame, .pm-hwf-pumpkin g, .pm-hwf-bat { animation: none !important; } }
 `;
 
-/** The frame's HTML for one part ("top": gutters + top band; "foot": the foot band), or "" when it is off. */
-export function frameHTML(part = "top", now = Date.now(), cfg = HALLOWEEN_FRAME) {
-  if (!frameOn(now, cfg)) return "";
+/** The frame's HTML for one part ("top": gutters + top band; "foot": the foot band), or "" when it is off (the Mists are not standing, or the calendar is past UNTIL). */
+export function frameHTML(part = "top", now = Date.now(), cfg = HALLOWEEN_FRAME, mists = null) {
+  if (!frameShows(mists, now, cfg)) return "";
   const until = Date.parse(cfg.until);
   const guard = `<script>(function(){if(Date.now()>=${until}){var e=document.querySelectorAll("[data-pm-hwf]");for(var i=0;i<e.length;i++)e[i].remove();}})();</script>`;
   if (part === "foot") return `<div data-pm-hwf>${footBand()}</div>`;
