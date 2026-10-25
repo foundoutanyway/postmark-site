@@ -41,6 +41,11 @@ import { artSvg } from "@/lib/pixel-icons.mjs";
 // house is theirs is /me's answer at run time; this only spells it.
 import registry from "@/data/postmark/households.json";
 import { plateName } from "@/lib/houses.mjs";
+// THE INVITATION ROLL (POS-576): the box takes a kept name only when it is in it.
+import residents from "@/data/postmark/residents.json";
+import householdsRead from "@/data/postmark/households-read.json";
+import { inviteRoll } from "@/lib/join-invite.mjs";
+const INVITE_ROLL = JSON.stringify([...inviteRoll({ households: registry, residents, live: householdsRead?.live === true })]);
 import ConnectAgent from "@/components/ConnectAgent.astro";
 const houses = Object.fromEntries(Object.entries(registry.households ?? {}).map(([slug, row]: [string, any]) =>
   [slug, { name: plateName(row?.name, slug), provisional: row?.provisional === true }]));
@@ -92,7 +97,7 @@ const houses = Object.fromEntries(Object.entries(registry.households ?? {}).map(
          a time (the order is the form's, the label is the node's). This page
          still names no field. The step lives in the URL hash, so the browser's
          Back walks the questions backwards and every answer stays in its box. -->
-    <section class="act jf-act" data-gate-act data-houses={JSON.stringify(houses)} tabindex="-1" hidden>
+    <section class="act jf-act" data-gate-act data-houses={JSON.stringify(houses)} data-invite-roll={INVITE_ROLL} tabindex="-1" hidden>
       <button type="button" class="jf-back" data-jf-back hidden>← Back</button>
       <div class="jf-dots" data-jf-dots aria-hidden="true"></div>
       <!-- the step's little picture: a pencil for the questions, a glass for
@@ -239,6 +244,7 @@ const houses = Object.fromEntries(Object.entries(registry.households ?? {}).map(
       continueLabel, isRequired, isPresent, missingHere,
       enterContinues, enterHint, reviewRows, dots, editKey, stepOfField,
     } from "@/lib/join-funnel.mjs";
+    import { recallInvite } from "@/lib/join-invite.mjs";
 
     const $ = (sel) => document.querySelector(sel);
     const getTok = () => { try { return JSON.parse(localStorage.getItem(KEYS.token) || "null"); } catch { return null; } };
@@ -386,6 +392,19 @@ const houses = Object.fromEntries(Object.entries(registry.households ?? {}).map(
       // The generator is untouched — these go on the nodes it built.
       declared = asked;
       markRequired(form, requiredNames(declared));
+
+      // AN INVITATION LINK (POS-576). The door's own `invited_by` box, when its
+      // form has one and it is empty, takes the name /join/?invite= kept in
+      // this browser, and only when the town's roll (this build's) holds it.
+      // The office judges the name; this page only carries it.
+      const roll = (() => { try { return new Set(JSON.parse(gateAct.dataset.inviteRoll || "[]")); } catch { return new Set(); } })();
+      const kept = (() => { try { return recallInvite(window.localStorage); } catch { return null; } })();
+      const invited = kept && roll.has(kept) ? kept : null;
+      const inviteBox = invited && form.fields.invited_by ? controlOf(form.fields.invited_by.node) : null;
+      if (inviteBox && !inviteBox.value) {
+        inviteBox.value = invited;
+        inviteBox.dispatchEvent(new Event("input", { bubbles: true }));
+      }
 
       const next = doorNext(bare);
       if (next.length) {
