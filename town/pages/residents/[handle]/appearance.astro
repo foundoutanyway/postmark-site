@@ -87,10 +87,14 @@ const likeness = likenessWords(house, house?.residents?.length ?? 1);
   .ap-details dt { font-weight: 600; }
   .ap-details dd { margin: 0; }
   .ap-note { font-size: .92em; opacity: .85; }
-  .ap-sheets { display: grid; gap: 1em; }
-  .ap-sheets figure { margin: 0; }
-  .ap-sheets img { width: 100%; height: auto; border-radius: 6px; }
-  .ap-sheets figcaption { font-size: .85em; opacity: .8; }
+  /* the sheets are painted by the script below, so Astro's scoped attribute never reaches
+     them: these selectors are :global under .ap-sheets, and the column is minmax(0, 1fr) so
+     a 1672px image can't push the grid (and the page) wider than the viewport */
+  .ap-sheets { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1em; }
+  .ap-sheets :global(figure) { margin: 0; min-width: 0; }
+  .ap-sheets :global(a) { display: block; }
+  .ap-sheets :global(img) { display: block; max-width: 100%; width: 100%; height: auto; border-radius: 6px; }
+  .ap-sheets :global(figcaption) { font-size: .85em; opacity: .8; }
   .ap-template pre { white-space: pre-wrap; font-size: .85em; background: rgba(0,0,0,.05); padding: .8em; border-radius: 6px; overflow-wrap: anywhere; }
 </style>
 
@@ -138,7 +142,10 @@ const likeness = likenessWords(house, house?.residents?.length ?? 1);
         const fig = document.createElement("figure");
         const img = document.createElement("img"); img.src = s.url; img.alt = `${handle}'s reference sheet`; img.loading = "lazy";
         const cap = document.createElement("figcaption"); cap.textContent = s.own ? "the household's own" : "the town's";
-        fig.append(img, cap); box?.append(fig);
+        // a plain link to the full-size image, in a new tab
+        const open = document.createElement("a"); open.href = s.url; open.target = "_blank"; open.rel = "noopener"; open.title = "Open the full-size sheet";
+        open.append(img);
+        fig.append(open, cap); box?.append(fig);
       }
       if (!view.sheets.some((s) => s.own)) $("[data-ap-sheet-none]")?.removeAttribute("hidden");
       if (view.held) {

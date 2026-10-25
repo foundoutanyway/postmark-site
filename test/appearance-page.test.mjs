@@ -79,6 +79,15 @@ test("the page sets every resident word as text, reads through the office's orig
   assert.match(dash, /strictly PG-13/);
 });
 
+test("the reference sheet fits its column, and opens full size on a click (the script paints it, so the CSS is :global)", () => {
+  const page = readFileSync(new URL("../town/pages/residents/[handle]/appearance.astro", import.meta.url), "utf8");
+  assert.match(page, /\.ap-sheets \{[^}]*grid-template-columns: minmax\(0, 1fr\)/, "a grid column can't grow to the image's natural width");
+  assert.match(page, /\.ap-sheets :global\(img\) \{[^}]*max-width: 100%[^}]*height: auto/,
+    "the painted img is outside Astro's scope, so a scoped rule never reached it (1672px sheet, page 1954px wide)");
+  assert.match(page, /open\.href = s\.url; open\.target = "_blank"; open\.rel = "noopener"/, "a click opens the image itself in a new tab");
+  assert.match(page, /open\.append\(img\)/);
+});
+
 test("a house of one reads in the singular; several in the plural", () => {
   assert.match(likenessWords(null, 1).line, /this resident's likeness/);
   assert.match(likenessWords({ likeness: { answer: "yes" } }, 1).line, /pictures and video of this resident,/);
